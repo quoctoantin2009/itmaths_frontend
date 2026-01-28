@@ -14,19 +14,59 @@ const getFullImageUrl = (imagePath) => {
     return `${API_BASE_URL}/${cleanPath}`;
 };
 
-// --- HÀM XỬ LÝ NỘI DUNG (ĐÃ SỬA) ---
-const processContent = (content) => {
+// --- [MỚI] HÀM KIỂM TRA ĐÁP ÁN NGẮN THÔNG MINH ---
+// Chấp nhận cả dấu chấm và phẩy, so sánh giá trị số
+const checkShortAnswer = (userAns, correctAns) => {
+    if (!userAns || correctAns === null || correctAns === undefined) return false;
+    try {
+        // Đổi dấu phẩy thành dấu chấm để chuẩn hóa số
+        const u = parseFloat(userAns.toString().replace(',', '.'));
+        const c = parseFloat(correctAns.toString().replace(',', '.'));
+        
+        // Nếu không phải số thì sai
+        if (isNaN(u) || isNaN(c)) return false;
+
+        // So sánh với độ lệch nhỏ (epsilon) để tránh lỗi số học
+        return Math.abs(u - c) < 0.001; 
+    } catch (e) {
+        return false;
+    }
+};
+
+// --- HÀM XỬ LÝ NỘI DUNG ---
+const processContent = (content, imageUrl) => {
     if (!content) return "";
     
+    // [FIX LỖI HIỂN THỊ] Thay thế môi trường eqnarray cũ thành aligned
+    let cleanContent = content
+        .replaceAll('begin{eqnarray*}', 'begin{aligned}')
+        .replaceAll('end{eqnarray*}', 'end{aligned}')
+        .replaceAll('begin{eqnarray}', 'begin{aligned}')
+        .replaceAll('end{eqnarray}', 'end{aligned}');
+
     // Tách nội dung dựa trên marker ảnh
-    const parts = content.split(/___IMG:(.*?)___/g);
+    const parts = cleanContent.split(/___IMG:(.*?)___/g);
     
     return parts.map((part, index) => {
-        // [QUAN TRỌNG - SỬA ĐỔI]
-        // Nếu là phần ảnh (index lẻ) -> Ta BỎ QUA không hiển thị ở đây
-        // Lý do: Ảnh đã được hiển thị đẹp đẽ ở phần {question.image} đầu card rồi.
-        // Nếu cố hiển thị ở đây sẽ bị lỗi link (do không có link Cloudinary) và bị lặp lại ảnh.
+        // Nếu là phần marker ảnh (index lẻ)
         if (index % 2 === 1) {
+            if (imageUrl) {
+                 return (
+                    <div key={index} style={{ textAlign: 'center', margin: '15px 0' }}>
+                        <img 
+                            src={getFullImageUrl(imageUrl)} 
+                            alt="Minh họa bài toán" 
+                            style={{ 
+                                maxWidth: '100%', 
+                                maxHeight: '350px',
+                                objectFit: 'contain',
+                                display: 'inline-block',
+                                borderRadius: '4px'
+                            }} 
+                        />
+                    </div>
+                );
+            }
             return null; 
         }
         
@@ -45,20 +85,14 @@ const processContent = (content) => {
                         return <Latex key={subIdx}>{subPart}</Latex>;
                     } else {
                         const textLines = subPart.split('\n');
-                        
                         return textLines.map((line, lineIdx) => {
-                            // Xử lý in đậm \textbf{}
                             const boldParts = line.split(/\\textbf\{(.*?)\}/g);
-
                             return (
                                 <React.Fragment key={`${subIdx}-${lineIdx}`}>
                                     {boldParts.map((bPart, bIdx) => {
-                                        if (bIdx % 2 === 1) {
-                                            return <strong key={bIdx}>{bPart}</strong>;
-                                        }
+                                        if (bIdx % 2 === 1) return <strong key={bIdx}>{bPart}</strong>;
                                         return <Latex key={bIdx}>{bPart}</Latex>;
                                     })}
-                                    
                                     {lineIdx < textLines.length - 1 && <br />}
                                 </React.Fragment>
                             );
@@ -72,6 +106,10 @@ const processContent = (content) => {
 
 function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted }) {
   const normalStyle = { fontWeight: '400 !important', color: '#333', fontSize: '1rem', fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif' };
+
+  const renderChoiceContent = (content) => {
+      return processContent(content, null); 
+  };
 
   // MCQ Render
   const renderMCQ = () => (
@@ -98,7 +136,7 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
                     />
                     <div style={{flex: 1}}>
                         <strong style={{marginRight:5, fontWeight:'bold'}}>{choice.label}.</strong> 
-                        {processContent(choice.content)}
+                        {renderChoiceContent(choice.content)}
                     </div>
                 </label>
             );
@@ -130,7 +168,7 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
 
             return (
                 <div key={idx} style={{display: 'grid', gridTemplateColumns: '6fr 1fr 1fr', alignItems: 'center', ...rowStyle}}>
-                    <div><strong style={{fontWeight:'bold'}}>{choice.label})</strong> {processContent(choice.content)}</div>
+                    <div><strong style={{fontWeight:'bold'}}>{choice.label})</strong> {renderChoiceContent(choice.content)}</div>
                     <div style={{textAlign:'center'}}>
                         <Radio checked={userChoice === "true"} onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, "true", 'TF')} disabled={isSubmitted} color="success"/>
                     </div>
@@ -143,14 +181,49 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
     </div>
   );
 
-  // SHORT Render
-  const renderShort = () => (
-    <div style={{marginTop: '15px'}}>
-        <label style={{display:'block', marginBottom:'5px', fontWeight:'bold'}}>Nhập đáp án:</label>
-        <input type="number" step="0.0001" value={userAnswer || ''} onChange={(e) => onAnswerChange(question.id, null, e.target.value, 'SHORT')} disabled={isSubmitted} style={{padding: '10px', width: '200px', fontSize: '16px', border:'1px solid #ccc', borderRadius:'4px'}} />
-        {isSubmitted && <div style={{marginTop:'5px', color:'green', fontWeight:'bold'}}>Đáp án đúng: {question.short_answer_correct}</div>}
-    </div>
-  );
+  // [CẬP NHẬT] SHORT Render - Hỗ trợ nhập dấu phẩy và hiển thị đúng/sai
+  const renderShort = () => {
+    let borderColor = '#ccc';
+    let bgColor = 'white';
+    let message = null;
+
+    if (isSubmitted) {
+        // Dùng hàm kiểm tra thông minh
+        const isCorrect = checkShortAnswer(userAnswer, question.short_answer_correct);
+        
+        if (isCorrect) {
+            borderColor = '#28a745';
+            bgColor = '#d4edda';
+            message = <div style={{marginTop:'5px', color:'green', fontWeight:'bold'}}>✅ Chính xác!</div>;
+        } else {
+            borderColor = '#dc3545';
+            bgColor = '#f8d7da';
+            message = <div style={{marginTop:'5px', color:'#d32f2f', fontWeight:'bold'}}>❌ Sai rồi. Đáp án đúng: {question.short_answer_correct}</div>;
+        }
+    }
+
+    return (
+        <div style={{marginTop: '15px'}}>
+            <label style={{display:'block', marginBottom:'5px', fontWeight:'bold'}}>Nhập đáp án:</label>
+            <input 
+                type="text" // [QUAN TRỌNG] Đổi thành text để nhập được dấu phẩy
+                inputMode="decimal" // Gợi ý bàn phím số trên điện thoại
+                value={userAnswer || ''} 
+                onChange={(e) => onAnswerChange(question.id, null, e.target.value, 'SHORT')} 
+                disabled={isSubmitted} 
+                style={{
+                    padding: '10px', 
+                    width: '200px', 
+                    fontSize: '16px', 
+                    border: `2px solid ${borderColor}`, 
+                    backgroundColor: bgColor,
+                    borderRadius:'4px'
+                }} 
+            />
+            {message}
+        </div>
+    );
+  };
 
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
@@ -159,24 +232,8 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
             Câu {index + 1}
         </span>
         
-        {/* [QUAN TRỌNG] HIỂN THỊ ẢNH TỪ CLOUDINARY TẠI ĐÂY */}
-        {/* React Native sẽ lấy URL trực tiếp từ question.image (do Serializer trả về) */}
-        {question.image && (
-            <div style={{ textAlign: 'center', marginBottom: '15px', marginTop: '10px' }}>
-                <img 
-                    src={getFullImageUrl(question.image)} 
-                    alt="Question visual" 
-                    style={{ maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', borderRadius: '4px', border: '1px solid #eee' }} 
-                    onError={(e) => {
-                        console.log("Error loading image:", question.image);
-                        e.target.style.display = 'none'; 
-                    }}
-                />
-            </div>
-        )}
-
-        {/* Nội dung text (đã loại bỏ marker ảnh thừa) */}
-        {processContent(question.content)}
+        {/* Nội dung câu hỏi + Ảnh chèn đúng vị trí marker */}
+        {processContent(question.content, question.image)}
       </div>
 
       {question.question_type === 'MCQ' && renderMCQ()}
@@ -186,7 +243,7 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
       {isSubmitted && question.solution && (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 2, borderLeft: '4px solid #ff9800' }}>
               <div style={{color: '#d32f2f', fontWeight: 'bold', marginBottom: '5px'}}>Lời giải:</div>
-              <div style={normalStyle}>{processContent(question.solution)}</div>
+              <div style={normalStyle}>{processContent(question.solution, question.image)}</div>
           </Box>
       )}
     </Paper>
