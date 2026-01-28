@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ItMaths</string>
+    <string name="title_activity_main">ItMaths</string>
+    <string name="package_name">com.itmaths.app</string>
+    <string name="custom_url_scheme">com.itmaths.app</string>
+</resources>

@@ -1,0 +1,15 @@
+{
+  "appId": "com.itmaths.app",
+  "appName": "ItMaths",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

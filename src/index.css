@@ -1,0 +1,47 @@
+/* src/index.css */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  
+  /* Màu sắc chuẩn */
+  --primary-color: #4a148c;
+  --bg-color: #f0f2f5;
+  --text-color: #213547;
+}
+
+/* Cấu hình cho mọi phần tử */
+*, *::before, *::after {
+  box-sizing: border-box; /* Quan trọng: Giúp tính toán kích thước chính xác */
+}
+
+body {
+  /* [QUAN TRỌNG] Reset margin/padding về 0 để xóa vệt trắng thừa của trình duyệt */
+  margin: 0;
+  padding: 0;
+  
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+
+  /* Chặn trượt ngang toàn trang */
+  overflow-x: hidden; 
+  width: 100vw;
+  
+  /* Chặn hiệu ứng "nảy" khi cuộn hết trang trên Mobile */
+  overscroll-behavior-y: none;
+}
+
+button {
+  cursor: pointer;
+  /* Chặn chọn văn bản trên nút bấm (trải nghiệm giống App Native) */
+  user-select: none; 
+  -webkit-tap-highlight-color: transparent; /* Bỏ màu highlight xanh khi bấm trên Android */
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
