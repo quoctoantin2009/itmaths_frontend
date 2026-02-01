@@ -27,7 +27,9 @@ import Draggable from 'react-draggable';
 
 import { useLocation } from 'react-router-dom';
 
-import aiAvatarImg from '../assets/ai_avatar.png'; 
+//import aiAvatarImg from '../assets/ai_avatar.png'; 
+// ✅ THAY BẰNG DÒNG NÀY
+const aiAvatarImg = "/ai_avatar.png";
 
 // CẤU HÌNH SERVER
 const API_BASE_URL = "https://itmaths-backend.onrender.com";

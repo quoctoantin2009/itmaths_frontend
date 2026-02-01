@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom"; 
 import "../App.css"; 
@@ -17,7 +17,7 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 
 // [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://itmaths-backend.onrender.com"; 
+const API_BASE_URL = "https://api.itmaths.vn"; 
 
 // --- STYLE & ANIMATION ---
 const pulse = keyframes`
@@ -85,11 +85,8 @@ const styles = {
     },
 };
 
-// --- [SỬA LỖI] HÀM TRỘN MẢNG AN TOÀN ---
 const shuffleArray = (array) => {
-    // Nếu mảng không tồn tại hoặc rỗng, trả về mảng rỗng để tránh lỗi Crash
     if (!array || !Array.isArray(array) || array.length === 0) return [];
-    
     const newArr = [...array];
     for (let i = newArr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -99,7 +96,7 @@ const shuffleArray = (array) => {
 };
 
 const formatTime = (seconds) => {
-    if (seconds === null) return "00:00";
+    if (seconds === null || seconds < 0) return "00:00";
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
@@ -122,6 +119,9 @@ function ExamPage() {
   const [loading, setLoading] = useState(false); 
   const [openConfirm, setOpenConfirm] = useState(false); 
 
+  // useRef để giữ giá trị interval giúp clear chính xác
+  const timerRef = useRef(null);
+
   useEffect(() => {
     if (!id) { 
         axios.get(`${API_BASE_URL}/api/exams/`)
@@ -137,23 +137,46 @@ function ExamPage() {
     // eslint-disable-next-line
   }, [id]);
 
+  // [LOGIC MỚI] Đồng hồ đếm ngược dựa trên thời gian thực
   useEffect(() => {
-    if (!selectedExamId || submitted || loading || timeLeft === null) return;
+    if (!selectedExamId || submitted || loading || !currentExamInfo) return;
 
-    if (timeLeft <= 0) {
-        setOpenConfirm(false); 
-        submitExam(); 
-        alert("⏰ Hết giờ làm bài! Hệ thống đã tự động thu bài.");
-        return;
-    }
-    const timerId = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timerId);
-  }, [timeLeft, selectedExamId, submitted, loading]);
+    const updateTimer = () => {
+        // Lấy thời gian bắt đầu từ bộ nhớ
+        const storageKey = `exam_start_${selectedExamId}`;
+        const storedStart = localStorage.getItem(storageKey);
+
+        if (storedStart) {
+            const startTime = parseInt(storedStart);
+            const durationMinutes = currentExamInfo.duration || 45;
+            const endTime = startTime + (durationMinutes * 60 * 1000);
+            const now = Date.now();
+            
+            // Tính số giây còn lại thực tế
+            const secondsLeft = Math.floor((endTime - now) / 1000);
+
+            if (secondsLeft <= 0) {
+                setTimeLeft(0);
+                clearInterval(timerRef.current);
+                setOpenConfirm(false); 
+                submitExam(); // Nộp bài ngay lập tức
+                alert("⏰ Đã hết thời gian làm bài (kể cả thời gian bạn rời đi)!");
+            } else {
+                setTimeLeft(secondsLeft);
+            }
+        }
+    };
+
+    // Chạy ngay lần đầu
+    updateTimer();
+
+    // Cập nhật mỗi giây
+    timerRef.current = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(timerRef.current);
+  }, [selectedExamId, submitted, loading, currentExamInfo]);
 
 
-  // --- [SỬA LỖI] HÀM CHỌN ĐỀ AN TOÀN ---
   const handleSelectExam = async (examId) => {
     setLoading(true); 
     setSelectedExamId(examId);
@@ -174,10 +197,8 @@ function ExamPage() {
         const part3 = rawQuestions.filter(q => q.question_type === 'SHORT');
 
         const shuffledPart1 = shuffleArray(part1).map(q => {
-            // [SỬA LỖI] Kiểm tra q.choices có tồn tại không trước khi shuffle
             const choicesSafe = q.choices || [];
             const shuffledChoices = shuffleArray(choicesSafe);
-            
             const labels = ['A', 'B', 'C', 'D'];
             const relabeledChoices = shuffledChoices.map((c, idx) => ({
                 ...c,
@@ -193,13 +214,21 @@ function ExamPage() {
 
         const resInfo = await axios.get(`${API_BASE_URL}/api/exams/${examId}/`);
         setCurrentExamInfo(resInfo.data);
-        const duration = resInfo.data.duration || 45;
-        setTimeLeft(duration * 60);
+
+        // [LOGIC MỚI] Xử lý lưu mốc thời gian bắt đầu
+        const storageKey = `exam_start_${examId}`;
+        const storedStart = localStorage.getItem(storageKey);
         
+        // Nếu chưa có mốc thời gian (lần đầu làm) -> Lưu thời gian hiện tại
+        // Nếu đã có -> Giữ nguyên để tính tiếp (chống reset khi F5)
+        if (!storedStart) {
+            localStorage.setItem(storageKey, Date.now().toString());
+        }
+
     } catch (err) {
         console.error("Lỗi tải đề thi:", err);
         alert("Có lỗi khi tải đề thi. Vui lòng thử lại sau.");
-        setSelectedExamId(null); // Quay lại danh sách nếu lỗi
+        setSelectedExamId(null); 
     } finally {
         setLoading(false); 
     }
@@ -216,6 +245,11 @@ function ExamPage() {
   };
 
   const submitExam = async () => {
+    // [QUAN TRỌNG] Xóa mốc thời gian khi nộp bài để lần sau làm lại từ đầu
+    if (selectedExamId) {
+        localStorage.removeItem(`exam_start_${selectedExamId}`);
+    }
+
     setOpenConfirm(false);
     setSubmitted(true);
     
@@ -228,8 +262,6 @@ function ExamPage() {
 
     questions.forEach(q => {
         const userAns = userAnswers[q.id];
-
-        // [SỬA LỖI] Thêm kiểm tra null cho q.choices
         const choicesSafe = q.choices || [];
 
         if (q.question_type === 'MCQ') {
@@ -286,6 +318,12 @@ function ExamPage() {
   };
 
   const handleExit = () => {
+      // Nếu thoát mà chưa nộp, xóa timer để lần sau vào lại tính lại (hoặc giữ nguyên tùy bạn)
+      // Ở đây tôi giữ nguyên logic: thoát ra là coi như hủy bài làm hiện tại?
+      // Nếu muốn giữ thời gian trôi: Không làm gì cả.
+      // Nếu muốn reset thời gian khi thoát: localStorage.removeItem(...)
+      
+      // Mặc định: Giữ thời gian trôi, chỉ khi Nộp bài mới reset
       if (id) navigate(-1); 
       else {
           setSelectedExamId(null);
