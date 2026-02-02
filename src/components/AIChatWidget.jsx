@@ -63,8 +63,8 @@ function AIChatWidget() {
   // Ref cho Draggable Bong Bóng (Nút tròn)
   const buttonRef = useRef(null); 
   
-  // 🟢 [QUAN TRỌNG] Biến này để phân biệt giữa KÉO và CLICK trên điện thoại
-  const isDraggingRef = useRef(false);
+  // 🟢 [QUAN TRỌNG] Lưu vị trí bắt đầu để tính toán khoảng cách
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
   const isMounted = useRef(true);
 
@@ -309,14 +309,26 @@ function AIChatWidget() {
 
   return (
     <>
-      {/* 🟢 [CẬP NHẬT: XỬ LÝ CLICK TRÊN MOBILE] */}
+      {/* 🟢 [CẬP NHẬT LOGIC CẢM ỨNG THÔNG MINH] */}
       {!isOpen && (
         <Draggable 
             nodeRef={buttonRef}
-            // 1. Khi bắt đầu chạm -> Reset cờ
-            onStart={() => { isDraggingRef.current = false; }}
-            // 2. Nếu có di chuyển -> Đánh dấu là đang kéo
-            onDrag={() => { isDraggingRef.current = true; }}
+            // 1. Lưu vị trí lúc bắt đầu chạm
+            onStart={(e, data) => {
+                dragStartPos.current = { x: data.x, y: data.y };
+            }}
+            // 2. Khi thả tay ra, tính toán khoảng cách
+            onStop={(e, data) => {
+                const diffX = Math.abs(data.x - dragStartPos.current.x);
+                const diffY = Math.abs(data.y - dragStartPos.current.y);
+                const distance = Math.sqrt(diffX*diffX + diffY*diffY);
+
+                // Nếu di chuyển ít hơn 10px (rung tay) -> Coi là CLICK -> Mở Chat
+                // Nếu di chuyển nhiều hơn 10px -> Coi là KÉO -> Không làm gì cả
+                if (distance < 10) {
+                    setIsOpen(true);
+                }
+            }}
         >
             <Box 
                 ref={buttonRef}
@@ -325,21 +337,12 @@ function AIChatWidget() {
                     zIndex: 1000, 
                     cursor: 'grab'
                 }}
-                // 3. Dùng onClickCapture để kiểm tra cờ
-                onClickCapture={(e) => {
-                    // Nếu vừa mới kéo xong (cờ là true) -> Dừng lại, không mở chat
-                    if (isDraggingRef.current) {
-                        e.stopPropagation();
-                        return;
-                    }
-                    // Nếu không kéo (cờ là false) -> Mở chat
-                    setIsOpen(true);
-                }}
+                // BỎ HẾT onClick ở đây để tránh xung đột
             >
                 <Tooltip title="Hỏi AI (Chat/Ảnh/Voice)" placement="left">
                     <Fab 
                         color="primary" 
-                        // Bỏ onClick ở đây đi, để Box ở ngoài xử lý cho chuẩn
+                        // Bỏ onClick ở đây luôn, dùng onStop ở trên để xử lý
                         sx={{
                             width: 65, height: 65,
                             bgcolor: '#4a148c', 
@@ -353,7 +356,7 @@ function AIChatWidget() {
         </Draggable>
       )}
 
-      {/* 🟢 KHUNG CHAT */}
+      {/* 🟢 KHUNG CHAT (Giữ nguyên) */}
       {isOpen && (
         <Draggable nodeRef={nodeRef} handle="#draggable-header" cancel=".no-drag">
             <Paper 
