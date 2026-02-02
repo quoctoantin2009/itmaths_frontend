@@ -27,8 +27,7 @@ import Draggable from 'react-draggable';
 
 import { useLocation } from 'react-router-dom';
 
-//import aiAvatarImg from '../assets/ai_avatar.png'; 
-// ✅ THAY BẰNG DÒNG NÀY
+// ✅ Avatar AI
 const aiAvatarImg = "/ai_avatar.png";
 
 // CẤU HÌNH SERVER
@@ -58,26 +57,25 @@ function AIChatWidget() {
   
   const synthRef = useRef(window.speechSynthesis || null);
 
-  // Ref cho Draggable (Bắt buộc để tránh lỗi StrictMode)
+  // Ref cho Draggable Khung Chat
   const nodeRef = useRef(null);
+  
+  // 🟢 [MỚI] Ref cho Draggable Bong Bóng (Nút tròn)
+  const buttonRef = useRef(null); 
 
-  // Biến kiểm tra xem Widget còn mở hay không
   const isMounted = useRef(true);
 
-  // --- LOGIC VÒNG ĐỜI COMPONENT ---
+  // --- LOGIC VÒNG ĐỜI ---
   useEffect(() => {
-      isMounted.current = true; // Khi mở lên -> Đánh dấu là đang sống
-      
+      isMounted.current = true;
       return () => {
-          isMounted.current = false; // Khi tắt đi -> Đánh dấu là đã hủy
-          
+          isMounted.current = false;
           if (synthRef.current) {
-              synthRef.current.cancel(); // Tắt giọng đọc nếu đang nói dở
+              synthRef.current.cancel();
           }
       };
   }, []);
 
-  // --- LOGIC HIỂN THỊ THÔNG MINH ---
   useEffect(() => {
       setIsSubmitted(false);
   }, [location.pathname]);
@@ -90,7 +88,6 @@ function AIChatWidget() {
       };
   }, []);
 
-  // --- HÀM LẤY TOKEN ---
   const getAuthHeader = () => {
     const token = localStorage.getItem('accessToken') || 
                   localStorage.getItem('access_token') || 
@@ -151,7 +148,6 @@ function AIChatWidget() {
   // --- LOGIC GIỌNG NÓI ---
   useEffect(() => {
     if (!window.speechSynthesis) return;
-
     const loadVoices = () => {
         try {
             const voices = window.speechSynthesis.getVoices();
@@ -160,7 +156,6 @@ function AIChatWidget() {
             console.error("Lỗi tải giọng nói:", e);
         }
     };
-
     loadVoices();
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
         window.speechSynthesis.onvoiceschanged = loadVoices;
@@ -183,40 +178,26 @@ function AIChatWidget() {
         alert("Thiết bị của bạn không hỗ trợ tính năng đọc văn bản.");
         return;
     }
-
     if (speakingMsgIndex === index) {
         synthRef.current.cancel();
         setSpeakingMsgIndex(null);
         return;
     }
-
     synthRef.current.cancel();
-
     const cleanText = text.replace(/[*#_`]/g, '').replace(/(\$\$|\$)/g, ' công thức ').trim();
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    
     const vnVoice = availableVoices.find(v => v.lang.includes('vi') || v.name.includes('Vietnamese'));
-
-    if (vnVoice) {
-        utterance.voice = vnVoice;
-        utterance.lang = 'vi-VN';
-    } else {
-        utterance.lang = 'vi-VN';
-    }
-
+    if (vnVoice) { utterance.voice = vnVoice; utterance.lang = 'vi-VN'; } else { utterance.lang = 'vi-VN'; }
     utterance.rate = 1.0; 
     utterance.onend = () => { if(isMounted.current) setSpeakingMsgIndex(null); };
     utterance.onerror = () => { if(isMounted.current) setSpeakingMsgIndex(null); };
-
     setSpeakingMsgIndex(index); 
     synthRef.current.speak(utterance);
   };
 
   useEffect(() => {
     if (!isOpen) {
-        if (synthRef.current) {
-            synthRef.current.cancel();
-        }
+        if (synthRef.current) synthRef.current.cancel();
         setSpeakingMsgIndex(null);
     }
   }, [isOpen]);
@@ -235,7 +216,6 @@ function AIChatWidget() {
     const recognition = new SpeechRecognition();
     recognition.lang = 'vi-VN'; 
     recognition.continuous = false;
-    
     recognition.onstart = () => { if(isMounted.current) setIsListening(true); };
     recognition.onend = () => { if(isMounted.current) setIsListening(false); };
     recognition.onresult = (event) => {
@@ -276,21 +256,12 @@ function AIChatWidget() {
       if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
-  // --- HÀM GỬI TIN NHẮN AN TOÀN ---
   const handleSend = async () => {
     if (!input.trim() && !selectedImage) return;
-
-    if (synthRef.current) {
-        synthRef.current.cancel();
-    }
+    if (synthRef.current) synthRef.current.cancel();
     setSpeakingMsgIndex(null);
 
-    const newMsg = { 
-        sender: 'user', 
-        text: input, 
-        image: previewUrl 
-    };
-    
+    const newMsg = { sender: 'user', text: input, image: previewUrl };
     setMessages(prev => [...prev, newMsg]);
     
     const userQuestion = input;
@@ -304,43 +275,25 @@ function AIChatWidget() {
     try {
         const formData = new FormData();
         formData.append('question', userQuestion);
-        if (imageToSend) {
-            formData.append('image', imageToSend);
-        }
+        if (imageToSend) formData.append('image', imageToSend);
 
         const res = await axios.post(`${API_BASE_URL}/api/chat-ai/`, formData, {
-            headers: { 
-                'Content-Type': 'multipart/form-data',
-                ...getAuthHeader() 
-            }
+            headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeader() }
         });
-
         if (isMounted.current) {
-            setMessages(prev => [...prev, { 
-                sender: 'bot', 
-                text: res.data.answer 
-            }]);
+            setMessages(prev => [...prev, { sender: 'bot', text: res.data.answer }]);
         }
-
     } catch (error) {
         console.error(error);
         if (isMounted.current) {
             if (error.response && error.response.status === 401) {
-                setMessages(prev => [...prev, { 
-                    sender: 'bot', 
-                    text: '⚠️ Lỗi: Bạn chưa đăng nhập hoặc phiên đã hết hạn.' 
-                }]);
+                setMessages(prev => [...prev, { sender: 'bot', text: '⚠️ Lỗi: Bạn chưa đăng nhập hoặc phiên đã hết hạn.' }]);
             } else {
-                setMessages(prev => [...prev, { 
-                    sender: 'bot', 
-                    text: 'Lỗi kết nối. Bạn thử lại nhé!' 
-                }]);
+                setMessages(prev => [...prev, { sender: 'bot', text: 'Lỗi kết nối. Bạn thử lại nhé!' }]);
             }
         }
     } finally {
-        if (isMounted.current) {
-            setIsLoading(false);
-        }
+        if (isMounted.current) setIsLoading(false);
     }
   };
 
@@ -349,32 +302,42 @@ function AIChatWidget() {
   };
 
   const isTakingExam = /^\/exams\/\d+/.test(location.pathname);
-
-  if (isTakingExam && !isSubmitted) {
-      return null;
-  }
+  if (isTakingExam && !isSubmitted) return null;
 
   return (
     <>
+      {/* 🟢 [CẬP NHẬT 1] BONG BÓNG CHAT ĐÃ CÓ THỂ KÉO THẢ */}
       {!isOpen && (
-        <Tooltip title="Hỏi AI (Chat/Ảnh/Voice)" placement="left">
-            <Fab 
-                color="primary" 
-                onClick={() => setIsOpen(true)}
+        <Draggable nodeRef={buttonRef}>
+            <Box 
+                ref={buttonRef}
                 sx={{
-                    position: 'fixed', bottom: 30, right: 30,
-                    bgcolor: '#4a148c', '&:hover': { bgcolor: '#7b1fa2' },
-                    zIndex: 1000, width: 65, height: 65,
-                    animation: 'bounce 2s infinite'
+                    position: 'fixed', bottom: 30, right: 30, 
+                    zIndex: 1000, 
+                    cursor: 'grab',
+                    // Loại bỏ hiệu ứng bounce để tránh xung đột khi kéo
+                    // animation: 'bounce 2s infinite' 
                 }}
             >
-                <Avatar src={aiAvatarImg} sx={{ width: '100%', height: '100%' }} />
-            </Fab>
-        </Tooltip>
+                <Tooltip title="Hỏi AI (Chat/Ảnh/Voice)" placement="left">
+                    <Fab 
+                        color="primary" 
+                        onClick={() => setIsOpen(true)}
+                        sx={{
+                            width: 65, height: 65,
+                            bgcolor: '#4a148c', 
+                            '&:hover': { bgcolor: '#7b1fa2' },
+                        }}
+                    >
+                        <Avatar src={aiAvatarImg} sx={{ width: '100%', height: '100%' }} />
+                    </Fab>
+                </Tooltip>
+            </Box>
+        </Draggable>
       )}
 
+      {/* 🟢 KHUNG CHAT (Giữ nguyên tính năng kéo thả như cũ) */}
       {isOpen && (
-        // 🟢 [FIX 1] ĐÃ XÓA bounds="body" ĐỂ DI CHUYỂN TỰ DO
         <Draggable nodeRef={nodeRef} handle="#draggable-header" cancel=".no-drag">
             <Paper 
                 ref={nodeRef}
@@ -388,7 +351,7 @@ function AIChatWidget() {
                     bgcolor: '#f3e5f5'
                 }}
             >
-                {/* --- HEADER --- */}
+                {/* HEADER (Khu vực cầm để kéo) */}
                 <Box 
                     id="draggable-header" 
                     sx={{ 
@@ -403,7 +366,6 @@ function AIChatWidget() {
                         <Typography variant="subtitle1" fontWeight="bold">Trợ giảng AI</Typography>
                     </Box>
                     
-                    {/* 🟢 [FIX QUAN TRỌNG] THÊM className="no-drag" ĐỂ NÚT BẤM HOẠT ĐỘNG */}
                     <Box className="no-drag">
                         <Tooltip title="Xóa toàn bộ lịch sử">
                             <IconButton onClick={handleOpenConfirm} size="small" sx={{ color: 'white', mr: 1 }}>
@@ -417,17 +379,10 @@ function AIChatWidget() {
                     </Box>
                 </Box>
 
-                {/* --- NỘI DUNG CHAT --- */}
-                <Box sx={{ 
-                    flex: 1,           
-                    overflowY: 'auto', 
-                    p: 2, 
-                    bgcolor: '#f3e5f5',
-                    display: 'flex', flexDirection: 'column'
-                }}>
+                {/* NỘI DUNG CHAT */}
+                <Box sx={{ flex: 1, overflowY: 'auto', p: 2, bgcolor: '#f3e5f5', display: 'flex', flexDirection: 'column' }}>
                     {messages.map((msg, index) => (
                         <Box key={index} display="flex" flexDirection="column" alignItems={msg.sender === 'user' ? 'flex-end' : 'flex-start'} mb={2}>
-                            
                             <Box display="flex" flexDirection={msg.sender === 'user' ? 'row-reverse' : 'row'} alignItems="flex-start" maxWidth="85%">
                                 <Avatar 
                                     src={msg.sender === 'bot' ? aiAvatarImg : undefined} 
@@ -447,24 +402,17 @@ function AIChatWidget() {
                                         bgcolor: msg.sender === 'user' ? '#7b1fa2' : 'white',
                                         color: msg.sender === 'user' ? 'white' : '#333',
                                         overflowX: 'auto', boxShadow: 1,
-                                        width: 'fit-content',
-                                        position: 'relative' 
+                                        width: 'fit-content', position: 'relative' 
                                     }}>
                                         {msg.image && (
                                             <Box mb={1}>
                                                 <img 
-                                                    src={msg.image} 
-                                                    alt="uploaded" 
-                                                    style={{
-                                                        maxWidth: '100%', maxHeight: '200px',
-                                                        borderRadius: '8px', border: '1px solid white',
-                                                        display: 'block'
-                                                    }}
+                                                    src={msg.image} alt="uploaded" 
+                                                    style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '1px solid white', display: 'block' }}
                                                     onLoad={scrollToBottom} 
                                                 />
                                             </Box>
                                         )}
-
                                         {msg.sender === 'user' ? (
                                             <Typography variant="body2" sx={{whiteSpace: 'pre-wrap'}}>{msg.text}</Typography>
                                         ) : (
@@ -478,21 +426,20 @@ function AIChatWidget() {
 
                                     {msg.sender === 'bot' && (
                                         <Box mt={0.5} ml={1}>
-                                                <Tooltip title={speakingMsgIndex === index ? "Dừng đọc" : "Đọc to"}>
-                                                    <IconButton 
-                                                        size="small" 
-                                                        onClick={() => handleSpeak(msg.text, index)}
-                                                        sx={{ 
-                                                            color: speakingMsgIndex === index ? '#d32f2f' : '#757575',
-                                                            bgcolor: speakingMsgIndex === index ? '#ffebee' : 'transparent',
-                                                            '&:hover': { bgcolor: '#eee' },
-                                                            p: 0.5
-                                                        }}
-                                                    >
-                                                        {speakingMsgIndex === index ? <StopCircleIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </Box>
+                                            <Tooltip title={speakingMsgIndex === index ? "Dừng đọc" : "Đọc to"}>
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => handleSpeak(msg.text, index)}
+                                                    sx={{ 
+                                                        color: speakingMsgIndex === index ? '#d32f2f' : '#757575',
+                                                        bgcolor: speakingMsgIndex === index ? '#ffebee' : 'transparent',
+                                                        '&:hover': { bgcolor: '#eee' }, p: 0.5
+                                                    }}
+                                                >
+                                                    {speakingMsgIndex === index ? <StopCircleIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     )}
                                 </Box>
                             </Box>
@@ -509,10 +456,7 @@ function AIChatWidget() {
                 </Box>
 
                 {previewUrl && (
-                    <Box sx={{ 
-                        p: 1, bgcolor: '#eee', display: 'flex', alignItems: 'center', 
-                        borderTop: '1px solid #ddd', flex: 'none'
-                    }}>
+                    <Box sx={{ p: 1, bgcolor: '#eee', display: 'flex', alignItems: 'center', borderTop: '1px solid #ddd', flex: 'none' }}>
                         <Typography variant="caption" sx={{mr: 1}}>Đính kèm:</Typography>
                         <img src={previewUrl} alt="preview" style={{height: 40, borderRadius: 4, border: '1px solid #ccc'}} />
                         <IconButton size="small" onClick={handleRemoveImage} sx={{ml: 'auto', color: 'red'}}>
@@ -521,19 +465,14 @@ function AIChatWidget() {
                     </Box>
                 )}
 
-                <Box sx={{ 
-                    p: 1.5, bgcolor: 'white', borderTop: '1px solid #eee', 
-                    display: 'flex', alignItems: 'center', flex: 'none'
-                }}>
+                <Box sx={{ p: 1.5, bgcolor: 'white', borderTop: '1px solid #eee', display: 'flex', alignItems: 'center', flex: 'none' }}>
                     <input type="file" accept="image/*" style={{display: 'none'}} ref={fileInputRef} onChange={handleImageSelect}/>
                     <input type="file" accept="image/*" capture="environment" style={{display: 'none'}} ref={cameraInputRef} onChange={handleImageSelect}/>
                     
                     <Box display="flex" mr={1}>
                         <Tooltip title={isListening ? "Dừng nói" : "Nói để nhập"}>
                             <IconButton 
-                                size="medium" 
-                                onClick={handleVoiceInput} 
-                                disabled={isLoading}
+                                size="medium" onClick={handleVoiceInput} disabled={isLoading}
                                 sx={{ 
                                     color: isListening ? 'white' : '#e65100',
                                     bgcolor: isListening ? '#d32f2f' : 'transparent',
@@ -552,8 +491,7 @@ function AIChatWidget() {
                     <TextField 
                         fullWidth size="small" 
                         placeholder={isListening ? "Đang nghe bạn nói..." : "Hỏi bài..."}
-                        variant="outlined" 
-                        value={input}
+                        variant="outlined" value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyPress={handleKeyPress}
                         onPaste={handlePaste}
@@ -569,15 +507,13 @@ function AIChatWidget() {
         </Draggable>
       )}
 
-      {/* --- HỘP THOẠI XÁC NHẬN XÓA --- */}
+      {/* 🟢 [CẬP NHẬT 2] TĂNG Z-INDEX LÊN MỨC CAO NHẤT (99999) ĐỂ KHẮC PHỤC LỖI TRÊN MOBILE */}
       <Dialog
         open={openConfirmDialog}
         onClose={() => setOpenConfirmDialog(false)}
-        // 🟢 [FIX 2] Z-INDEX CAO ĐỂ NỔI LÊN TRÊN
-        sx={{ zIndex: 10000 }}
-        PaperProps={{
-            style: { borderRadius: 15, padding: '10px' }
-        }}
+        sx={{ zIndex: 99999 }} // Nổi lên trên cùng
+        style={{ zIndex: 99999 }} // Double check
+        PaperProps={{ style: { borderRadius: 15, padding: '10px' } }}
       >
         <DialogTitle sx={{ color: '#d32f2f', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
             <WarningAmberIcon fontSize="large" />
@@ -600,7 +536,6 @@ function AIChatWidget() {
       </Dialog>
 
       <style>{`
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); } }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #bdbdbd; border-radius: 3px; }
