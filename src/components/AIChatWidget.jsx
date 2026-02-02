@@ -60,8 +60,11 @@ function AIChatWidget() {
   // Ref cho Draggable Khung Chat
   const nodeRef = useRef(null);
   
-  // 🟢 [MỚI] Ref cho Draggable Bong Bóng (Nút tròn)
+  // Ref cho Draggable Bong Bóng (Nút tròn)
   const buttonRef = useRef(null); 
+  
+  // 🟢 [QUAN TRỌNG] Biến này để phân biệt giữa KÉO và CLICK trên điện thoại
+  const isDraggingRef = useRef(false);
 
   const isMounted = useRef(true);
 
@@ -306,23 +309,37 @@ function AIChatWidget() {
 
   return (
     <>
-      {/* 🟢 [CẬP NHẬT 1] BONG BÓNG CHAT ĐÃ CÓ THỂ KÉO THẢ */}
+      {/* 🟢 [CẬP NHẬT: XỬ LÝ CLICK TRÊN MOBILE] */}
       {!isOpen && (
-        <Draggable nodeRef={buttonRef}>
+        <Draggable 
+            nodeRef={buttonRef}
+            // 1. Khi bắt đầu chạm -> Reset cờ
+            onStart={() => { isDraggingRef.current = false; }}
+            // 2. Nếu có di chuyển -> Đánh dấu là đang kéo
+            onDrag={() => { isDraggingRef.current = true; }}
+        >
             <Box 
                 ref={buttonRef}
                 sx={{
                     position: 'fixed', bottom: 30, right: 30, 
                     zIndex: 1000, 
-                    cursor: 'grab',
-                    // Loại bỏ hiệu ứng bounce để tránh xung đột khi kéo
-                    // animation: 'bounce 2s infinite' 
+                    cursor: 'grab'
+                }}
+                // 3. Dùng onClickCapture để kiểm tra cờ
+                onClickCapture={(e) => {
+                    // Nếu vừa mới kéo xong (cờ là true) -> Dừng lại, không mở chat
+                    if (isDraggingRef.current) {
+                        e.stopPropagation();
+                        return;
+                    }
+                    // Nếu không kéo (cờ là false) -> Mở chat
+                    setIsOpen(true);
                 }}
             >
                 <Tooltip title="Hỏi AI (Chat/Ảnh/Voice)" placement="left">
                     <Fab 
                         color="primary" 
-                        onClick={() => setIsOpen(true)}
+                        // Bỏ onClick ở đây đi, để Box ở ngoài xử lý cho chuẩn
                         sx={{
                             width: 65, height: 65,
                             bgcolor: '#4a148c', 
@@ -336,7 +353,7 @@ function AIChatWidget() {
         </Draggable>
       )}
 
-      {/* 🟢 KHUNG CHAT (Giữ nguyên tính năng kéo thả như cũ) */}
+      {/* 🟢 KHUNG CHAT */}
       {isOpen && (
         <Draggable nodeRef={nodeRef} handle="#draggable-header" cancel=".no-drag">
             <Paper 
@@ -351,7 +368,7 @@ function AIChatWidget() {
                     bgcolor: '#f3e5f5'
                 }}
             >
-                {/* HEADER (Khu vực cầm để kéo) */}
+                {/* HEADER */}
                 <Box 
                     id="draggable-header" 
                     sx={{ 
@@ -507,12 +524,12 @@ function AIChatWidget() {
         </Draggable>
       )}
 
-      {/* 🟢 [CẬP NHẬT 2] TĂNG Z-INDEX LÊN MỨC CAO NHẤT (99999) ĐỂ KHẮC PHỤC LỖI TRÊN MOBILE */}
+      {/* 🟢 Z-INDEX CAO NHẤT */}
       <Dialog
         open={openConfirmDialog}
         onClose={() => setOpenConfirmDialog(false)}
-        sx={{ zIndex: 99999 }} // Nổi lên trên cùng
-        style={{ zIndex: 99999 }} // Double check
+        sx={{ zIndex: 99999 }} 
+        style={{ zIndex: 99999 }} 
         PaperProps={{ style: { borderRadius: 15, padding: '10px' } }}
       >
         <DialogTitle sx={{ color: '#d32f2f', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
