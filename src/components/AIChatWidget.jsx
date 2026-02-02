@@ -374,8 +374,8 @@ function AIChatWidget() {
       )}
 
       {isOpen && (
-        // 🟢 [FIX QUAN TRỌNG] THÊM cancel=".no-drag" ĐỂ NÚT BẤM KHÔNG BỊ COI LÀ KÉO
-        <Draggable nodeRef={nodeRef} bounds="body" handle="#draggable-header" cancel=".no-drag">
+        // 🟢 [FIX 1] ĐÃ XÓA bounds="body" ĐỂ DI CHUYỂN TỰ DO
+        <Draggable nodeRef={nodeRef} handle="#draggable-header" cancel=".no-drag">
             <Paper 
                 ref={nodeRef}
                 elevation={10}
@@ -492,7 +492,7 @@ function AIChatWidget() {
                                                         {speakingMsgIndex === index ? <StopCircleIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
                                                     </IconButton>
                                                 </Tooltip>
-                                        </Box>
+                                            </Box>
                                     )}
                                 </Box>
                             </Box>
@@ -573,6 +573,7 @@ function AIChatWidget() {
       <Dialog
         open={openConfirmDialog}
         onClose={() => setOpenConfirmDialog(false)}
+        // 🟢 [FIX 2] Z-INDEX CAO ĐỂ NỔI LÊN TRÊN
         sx={{ zIndex: 10000 }}
         PaperProps={{
             style: { borderRadius: 15, padding: '10px' }
