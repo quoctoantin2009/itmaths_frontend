@@ -573,6 +573,7 @@ function AIChatWidget() {
       <Dialog
         open={openConfirmDialog}
         onClose={() => setOpenConfirmDialog(false)}
+        sx={{ zIndex: 10000 }}
         PaperProps={{
             style: { borderRadius: 15, padding: '10px' }
         }}
