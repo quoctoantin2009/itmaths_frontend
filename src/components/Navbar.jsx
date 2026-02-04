@@ -16,8 +16,6 @@ function Navbar() {
   const navigate = useNavigate();
   const [username, setUsername] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null); 
-  
-  // State để điều khiển mở Hồ sơ
   const [openProfile, setOpenProfile] = useState(false);
 
   useEffect(() => {
@@ -45,7 +43,6 @@ function Navbar() {
     setAnchorEl(null);
   };
 
-  // Hàm mở lịch sử từ trong Hồ sơ
   const handleOpenHistoryFromProfile = () => {
       const historyBtn = document.getElementById('btn-exam-history-trigger');
       if (historyBtn) historyBtn.click();
@@ -53,15 +50,20 @@ function Navbar() {
 
   return (
     <>
+    {/* 🟢 [QUAN TRỌNG] THÊM PADDING-TOP ĐỂ TRÁNH TAI THỎ */}
     <AppBar position="sticky" sx={{ 
         background: 'linear-gradient(to right, #4a148c, #7b1fa2)', 
         color: 'white', 
-        boxShadow: 3 
+        boxShadow: 3,
+        // Sử dụng biến môi trường safe-area-inset-top
+        // Nếu điện thoại có tai thỏ, nó sẽ tự đẩy xuống. Nếu không, nó sẽ lấy 0px.
+        paddingTop: 'env(safe-area-inset-top)', 
+        zIndex: 1100
     }}>
       <Container maxWidth="xl">
-        <Toolbar disableGutters>
+        <Toolbar disableGutters sx={{ minHeight: '64px' }}> {/* Đảm bảo chiều cao tối thiểu */}
           
-          {/* [CẬP NHẬT] GỘP LOGO VÀ TÊN THÀNH 1 KHỐI LIỀN MẠCH */}
+          {/* LOGO VÀ TÊN */}
           <Box 
             component={Link} 
             to="/"
@@ -70,27 +72,25 @@ function Navbar() {
                 alignItems: 'center', 
                 textDecoration: 'none', 
                 color: 'inherit',
-                flexGrow: 1, // Đẩy các nút bên phải ra xa
+                flexGrow: 1, 
                 cursor: 'pointer'
             }}
           >
-              {/* 1. ẢNH LOGO */}
               <Box 
                 component="img" 
                 src={logoImg} 
                 alt="ITMaths Logo"
                 sx={{ 
-                    height: 45,       // Chiều cao logo
+                    height: 45,       
                     width: 'auto', 
-                    borderRadius: '50%', // Bo tròn logo (nếu muốn vuông thì bỏ dòng này)
+                    borderRadius: '50%', 
                     border: '2px solid rgba(255,255,255,0.3)',
-                    mr: 1.5,          // Khoảng cách với chữ bên phải
+                    mr: 1.5,          
                     transition: '0.3s', 
                     '&:hover': { transform: 'scale(1.1)' }
                 }} 
               />
 
-              {/* 2. TÊN WEBSITE */}
               <Typography
                 variant="h6"
                 noWrap
@@ -99,14 +99,14 @@ function Navbar() {
                   fontWeight: 800, 
                   letterSpacing: '.1rem',
                   color: '#fff',
-                  display: { xs: 'flex', md: 'flex' } // Luôn hiện tên
+                  display: { xs: 'flex', md: 'flex' } 
                 }}
               >
                 ITMATHS
               </Typography>
           </Box>
 
-          {/* CÁC MENU BÊN PHẢI (GIỮ NGUYÊN) */}
+          {/* MENU BÊN PHẢI */}
           <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
             
             {username ? (
@@ -158,7 +158,6 @@ function Navbar() {
       </Container>
     </AppBar>
 
-    {/* Component Dialogs */}
     <UserProfileDialog 
         open={openProfile} 
         onClose={() => setOpenProfile(false)}

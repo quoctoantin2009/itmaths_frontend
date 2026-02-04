@@ -5,6 +5,9 @@ import SchoolIcon from '@mui/icons-material/School';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import StarIcon from '@mui/icons-material/Star'; 
 
+// 🟢 [MỚI] Import Component Quảng cáo Web
+import AdSenseBanner from '../components/AdSenseBanner';
+
 function HomePage() {
   const navigate = useNavigate();
 
@@ -35,15 +38,14 @@ function HomePage() {
     <Box sx={{ 
         display: 'flex', 
         flexWrap: 'wrap', 
-        justifyContent: 'center', // [QUAN TRỌNG] Căn giữa các thẻ
-        gap: 2, // Khoảng cách giữa các thẻ
+        justifyContent: 'center', 
+        gap: 2, 
         mb: 6 
     }}>
         {list.map((win) => (
             <Card 
                 key={win.title}
                 sx={{ 
-                    // Responsive width: Mobile 2 thẻ/hàng, Tablet 3 thẻ, PC 7 thẻ
                     width: { xs: '45%', sm: '30%', md: '13%' }, 
                     height: 140, 
                     display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
@@ -64,7 +66,11 @@ function HomePage() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 3, mb: 10 }}>
+    <Container maxWidth="xl" sx={{ 
+        mb: 10,
+        // 🟢 Padding an toàn cho thanh trạng thái
+        paddingTop: 'max(env(safe-area-inset-top), 50px)' 
+    }}>
       
       {/* HEADER */}
       <Box display="flex" justifyContent="center" alignItems="center" mb={5}>
@@ -77,7 +83,7 @@ function HomePage() {
       <Box display="flex" justifyContent="center" mb={6}>
          <Card 
             sx={{ 
-              width: { xs: '90%', sm: 400 }, // Mobile full width, PC rộng hơn chút
+              width: { xs: '90%', sm: 400 }, 
               height: 120, bgcolor: '#d50000', color: 'white', cursor: 'pointer', borderRadius: 4,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 20px rgba(213, 0, 0, 0.4)',
@@ -93,11 +99,17 @@ function HomePage() {
          </Card>
       </Box>
 
+      {/* 🟢 QUẢNG CÁO WEB 1: Chèn giữa khối Ôn thi và SGK */}
+      <AdSenseBanner dataAdSlot="3191068568" style={{marginBottom: '30px'}} />
+
       {/* 2. CHƯƠNG TRÌNH CHUẨN */}
       <Typography variant="h5" fontWeight="bold" color="#1565c0" sx={{ mb: 3, borderLeft: '5px solid #1565c0', pl: 2 }}>
         CHƯƠNG TRÌNH SGK
       </Typography>
       {renderCards(standardWindows, false)}
+
+      {/* 🟢 QUẢNG CÁO WEB 2: Chèn giữa khối SGK và HSG */}
+      <AdSenseBanner dataAdSlot="0987654321" style={{marginBottom: '30px'}} />
 
       {/* 3. BỒI DƯỠNG HSG */}
       <Typography variant="h5" fontWeight="bold" color="#e65100" sx={{ mb: 3, borderLeft: '5px solid #e65100', pl: 2 }}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, AppBar, Toolbar, IconButton, Typography, CircularProgress } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -6,10 +6,13 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 // Import thư viện PDF
 import { Document, Page, pdfjs } from 'react-pdf';
 
-// [MỚI] Import thư viện Phóng to / Thu nhỏ
+// Import thư viện Zoom
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
-// Cấu hình Worker (Giữ nguyên)
+// Import Quảng cáo Banner
+import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
+
+// Cấu hình Worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 function PDFViewerPage() {
@@ -19,6 +22,37 @@ function PDFViewerPage() {
 
     const [numPages, setNumPages] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [pageWidth, setPageWidth] = useState(window.innerWidth);
+    
+    // 🟢 State để kiểm soát việc cuộn
+    const [scale, setScale] = useState(1);
+
+    // 1. HIỆN BANNER QUẢNG CÁO KHI VÀO TRANG
+    useEffect(() => {
+        const showBanner = async () => {
+            try {
+                await AdMob.showBanner({
+                    adId: 'ca-app-pub-3940256099942544/6300978111', 
+                    adSize: BannerAdSize.ADAPTIVE_BANNER,
+                    position: BannerAdPosition.BOTTOM_CENTER, 
+                    margin: 0,
+                    isTesting: true 
+                });
+            } catch (e) { console.error("Lỗi Banner PDF:", e); }
+        };
+        showBanner();
+
+        return () => {
+            AdMob.hideBanner().catch(() => {});
+            AdMob.removeBanner().catch(() => {});
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => setPageWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     function onDocumentLoadSuccess({ numPages }) {
         setNumPages(numPages);
@@ -28,75 +62,94 @@ function PDFViewerPage() {
     if (!pdfUrl) return <Typography sx={{ p: 3 }}>Không tìm thấy tài liệu.</Typography>;
 
     return (
-        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#e0e0e0' }}>
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#2b2b2b' }}>
             
-            {/* Thanh Tiêu đề */}
-            <AppBar position="static" sx={{ bgcolor: '#4a148c', zIndex: 10 }}>
-                <Toolbar>
-                    <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} sx={{ mr: 2 }}>
+            {/* 🟢 [SỬA LỖI] AppBar tránh vùng Status Bar (Tai thỏ) */}
+            <AppBar position="fixed" sx={{ 
+                bgcolor: '#4a148c', 
+                zIndex: 1200, 
+                top: 0, left: 0, right: 0,
+                // Sử dụng biến môi trường để tránh tai thỏ, nếu không hỗ trợ thì dùng 35px
+                paddingTop: 'max(env(safe-area-inset-top), 35px)', 
+                height: 'auto',
+                boxShadow: 3
+            }}>
+                <Toolbar variant="dense" sx={{ pb: 1 }}>
+                    <IconButton edge="start" color="inherit" onClick={() => navigate(-1)} sx={{ mr: 1 }}>
                         <ArrowBackIcon />
                     </IconButton>
-                    <Typography variant="subtitle1" noWrap sx={{ flex: 1 }}>
-                        {title || "Tài liệu học tập"}
-                    </Typography>
-                    {/* Hiển thị tổng số trang nếu đã tải xong */}
-                    {!loading && numPages && (
-                        <Typography variant="caption" sx={{ border: '1px solid white', px: 1, borderRadius: 1 }}>
-                            {numPages} trang
+                    <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                            {title || "Tài liệu học tập"}
                         </Typography>
-                    )}
+                        {!loading && numPages && (
+                            <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                                {numPages} trang {scale > 1 ? `(Zoom: ${scale.toFixed(1)}x)` : ''}
+                            </Typography>
+                        )}
+                    </Box>
                 </Toolbar>
             </AppBar>
+
+            {/* Khoảng trống bù lại chiều cao của AppBar (ước lượng khoảng 80-90px tùy máy) */}
+            <Box sx={{ height: '90px', flexShrink: 0 }} /> 
 
             {/* KHUNG HIỂN THỊ PDF */}
             <Box sx={{ 
                 flex: 1, 
-                overflow: 'hidden', // Ẩn thanh cuộn mặc định để Zoom xử lý
-                display: 'flex', 
-                flexDirection: 'column',
-                bgcolor: '#525659' // Màu nền xám đậm giống trình đọc PDF chuyên nghiệp
+                overflowY: scale === 1 ? 'auto' : 'hidden', // 🟢 QUAN TRỌNG: Nếu scale=1 thì cho cuộn tự nhiên (nhanh), nếu scale>1 thì chặn lại để Zoom xử lý
+                position: 'relative',
+                paddingBottom: '60px', // Chừa chỗ cho Banner
+                bgcolor: '#525659'
             }}>
                 <Document
                     file={pdfUrl}
                     onLoadSuccess={onDocumentLoadSuccess}
                     loading={
-                        <Box display="flex" flexDirection="column" alignItems="center" mt={5} color="white">
+                        <Box display="flex" flexDirection="column" alignItems="center" mt={10} color="white">
                             <CircularProgress color="inherit" />
                             <Typography mt={2}>Đang tải tài liệu...</Typography>
                         </Box>
                     }
                     error={
-                        <Box mt={5} textAlign="center" color="white">
-                            <Typography color="error">Không thể tải file PDF.</Typography>
+                        <Box mt={10} textAlign="center" color="white">
+                            <Typography color="error">Lỗi tải file. Vui lòng kiểm tra kết nối.</Typography>
                         </Box>
                     }
                 >
-                    {/* [QUAN TRỌNG] Bọc trong TransformWrapper để Zoom */}
                     {!loading && numPages && (
                         <TransformWrapper
                             initialScale={1}
                             minScale={1}
-                            maxScale={4} // Cho phép phóng to gấp 4 lần
+                            maxScale={5} 
                             centerOnInit={true}
+                            // 🟢 CẤU HÌNH QUAN TRỌNG ĐỂ CUỘN NHANH
+                            onTransformed={(e) => setScale(e.state.scale)} // Theo dõi mức độ zoom
+                            panning={{ disabled: scale === 1 }} // Nếu chưa phóng to -> Tắt tính năng cầm kéo của thư viện -> Trả về cuộn tự nhiên của trình duyệt
+                            wheel={{ disabled: true }} 
                         >
-                            <TransformComponent wrapperStyle={{ width: "100%", height: "calc(100vh - 64px)" }}>
+                            <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
                                 <Box sx={{ 
                                     display: 'flex', 
                                     flexDirection: 'column', 
                                     alignItems: 'center',
-                                    gap: 2, // Khoảng cách giữa các trang
-                                    py: 2
+                                    gap: 2, 
+                                    py: 2,
+                                    width: '100vw',
+                                    // Đảm bảo vùng chạm đủ lớn
+                                    minHeight: '80vh' 
                                 }}>
-                                    {/* VÒNG LẶP: Render tất cả các trang ra màn hình */}
+                                    {/* Render toàn bộ trang */}
                                     {Array.from(new Array(numPages), (el, index) => (
-                                        <Box key={`page_${index + 1}`} sx={{ boxShadow: 3 }}>
+                                        <Box key={`page_${index + 1}`} sx={{ boxShadow: 5 }}>
                                             <Page 
                                                 pageNumber={index + 1} 
                                                 renderTextLayer={false} 
                                                 renderAnnotationLayer={false}
-                                                // Tính toán chiều rộng để vừa khít màn hình điện thoại
-                                                width={window.innerWidth > 600 ? 600 : window.innerWidth} 
-                                                canvasBackground="white"
+                                                // Tăng độ nét
+                                                scale={window.devicePixelRatio > 1 ? 1.5 : 1.2} 
+                                                width={pageWidth} 
+                                                loading=""
                                             />
                                         </Box>
                                     ))}

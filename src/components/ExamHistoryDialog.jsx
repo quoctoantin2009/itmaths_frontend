@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-    Dialog, DialogTitle, DialogContent, DialogActions, 
-    Button, Typography, Box, Table, TableBody, TableCell, 
+    Dialog, DialogContent, Button, Typography, Box, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, Paper, IconButton, 
-    Chip, CircularProgress, AppBar, Toolbar, Slide
+    Chip, CircularProgress, AppBar, Toolbar, Slide, Backdrop
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
@@ -13,8 +12,11 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import axios from 'axios';
 import QuestionCard from './QuestionCard'; 
 
-// [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://itmaths-backend.onrender.com";
+// 🟢 [IMPORT] THƯ VIỆN QUẢNG CÁO
+import { AdMob } from '@capacitor-community/admob';
+
+// [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP (Đã cập nhật về link chính thức)
+const API_BASE_URL = "https://api.itmaths.vn";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -25,11 +27,15 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('vi-VN', options);
 };
 
-// [SỬA LỖI] Thêm prop customId để Navbar có thể kích hoạt nút này từ xa
 export default function ExamHistoryDialog({ customId }) {
     const [open, setOpen] = useState(false);
     const [history, setHistory] = useState([]);
+    
+    // Loading thông thường
     const [loading, setLoading] = useState(false);
+    
+    // 🟢 Loading khi tải quảng cáo
+    const [isLoadingAd, setIsLoadingAd] = useState(false);
 
     // State cho phần chi tiết
     const [viewMode, setViewMode] = useState('list'); 
@@ -42,7 +48,17 @@ export default function ExamHistoryDialog({ customId }) {
         return token ? { Authorization: `Bearer ${token}` } : {};
     };
 
-    // 1. Tải danh sách lịch sử
+    // 🟢 1. KHỞI TẠO ADMOB
+    useEffect(() => {
+        const initAdMob = async () => {
+            try {
+                await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true });
+            } catch (e) { console.error("Lỗi Init AdMob History:", e); }
+        };
+        initAdMob();
+    }, []);
+
+    // Tải danh sách lịch sử
     const fetchHistory = async () => {
         try {
             const res = await axios.get(`${API_BASE_URL}/api/history/`, {
@@ -54,17 +70,50 @@ export default function ExamHistoryDialog({ customId }) {
         }
     };
 
+    // Lắng nghe sự kiện nộp bài để tự cập nhật
+    useEffect(() => {
+        const handleExamSubmitted = () => {
+            console.log("♻️ Dialog phát hiện bài mới -> Đang tải lại lịch sử...");
+            setTimeout(() => {
+                fetchHistory(); 
+            }, 1500); 
+        };
+
+        window.addEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted);
+        return () => {
+            window.removeEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted);
+        };
+    }, []);
+
     const handleOpen = () => {
         setOpen(true);
         setViewMode('list'); 
-        fetchHistory();
+        fetchHistory(); 
     };
 
-    // 2. Xử lý khi bấm vào 1 dòng để xem chi tiết
+    // 🟢 2. XỬ LÝ XEM CHI TIẾT (CÓ QUẢNG CÁO)
     const handleViewDetail = async (resultId, examId, examTitle) => {
-        setLoading(true);
+        // Bật màn hình chờ loading quảng cáo
+        setIsLoadingAd(true);
+
         try {
-            // Bước A: Lấy chi tiết bài làm
+            // A. Tải & Hiện Quảng Cáo
+            await AdMob.prepareInterstitial({
+                adId: 'ca-app-pub-3940256099942544/1033173712', // ID Test
+                isTesting: true
+            });
+            await AdMob.showInterstitial();
+        } catch (e) {
+            console.error("Lỗi QC History:", e);
+            // Lỗi quảng cáo vẫn cho đi tiếp
+        }
+
+        // B. Sau khi tắt quảng cáo (hoặc lỗi) -> Mới tải dữ liệu
+        setLoading(true); // Loading nội bộ của box chi tiết
+        setIsLoadingAd(false); // Tắt màn hình chờ toàn cục
+
+        try {
+            // Lấy chi tiết bài làm
             const resResult = await axios.get(`${API_BASE_URL}/api/history/${resultId}/`, {
                 headers: getAuthHeader()
             });
@@ -75,7 +124,7 @@ export default function ExamHistoryDialog({ customId }) {
             }
             setDetailUserAnswers(userAns || {});
 
-            // Bước B: Lấy nội dung câu hỏi
+            // Lấy nội dung câu hỏi
             const resQuestions = await axios.get(`${API_BASE_URL}/api/exams/${examId}/questions/`);
             
             setDetailQuestions(resQuestions.data);
@@ -106,7 +155,6 @@ export default function ExamHistoryDialog({ customId }) {
 
     return (
         <>
-            {/* [SỬA LỖI] Gắn ID vào nút để Javascript bên ngoài tìm thấy */}
             <Button 
                 id={customId}
                 variant="outlined" 
@@ -123,7 +171,14 @@ export default function ExamHistoryDialog({ customId }) {
                 fullScreen 
                 TransitionComponent={Transition}
             >
-                {/* --- THANH TIÊU ĐỀ TRÁNH TAI THỎ --- */}
+                {/* 🟢 Màn hình đen xoay vòng khi tải Quảng Cáo */}
+                <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
+                    <Box textAlign="center">
+                        <CircularProgress color="inherit" />
+                        <Typography sx={{mt: 2, fontWeight: 'bold'}}>Đang tải dữ liệu bài làm...</Typography>
+                    </Box>
+                </Backdrop>
+
                 <AppBar 
                     sx={{ 
                         position: 'relative', 
@@ -156,7 +211,6 @@ export default function ExamHistoryDialog({ customId }) {
                 </AppBar>
 
                 <DialogContent sx={{ bgcolor: '#f5f5f5', p: viewMode === 'detail' ? 0 : 2, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                    {/* --- CHẾ ĐỘ 1: DANH SÁCH --- */}
                     {viewMode === 'list' && (
                         <>
                             {history.length === 0 ? (
@@ -179,6 +233,7 @@ export default function ExamHistoryDialog({ customId }) {
                                                 <TableRow 
                                                     key={item.id} 
                                                     hover 
+                                                    // 🟢 Bấm vào dòng cũng hiện quảng cáo
                                                     onClick={() => handleViewDetail(item.id, item.exam, item.exam_title)}
                                                     sx={{ cursor: 'pointer' }}
                                                 >
@@ -213,7 +268,6 @@ export default function ExamHistoryDialog({ customId }) {
                         </>
                     )}
 
-                    {/* --- CHẾ ĐỘ 2: CHI TIẾT BÀI GIẢI --- */}
                     {viewMode === 'detail' && (
                         <Box sx={{ maxWidth: '100%', margin: '0 auto', py: 2, px: 1 }}>
                             {loading ? (

@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 // [QUAN TRỌNG] Thêm useLocation để kiểm tra đường dẫn hiện tại
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+
+// 🟢 [MỚI] IMPORT CAPACITOR APP ĐỂ XỬ LÝ NÚT BACK
+import { App as CapacitorApp } from '@capacitor/app';
 
 import Navbar from './components/Navbar'; 
 import AIChatWidget from './components/AIChatWidget';
@@ -13,6 +16,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import HistoryPage from './pages/HistoryPage';
+import ExamHistoryDetail from './components/ExamHistoryDialog'; 
 
 // [MỚI] Import trang xem Video và PDF
 import VideoPlayerPage from './pages/VideoPlayerPage';
@@ -32,6 +37,33 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate(); // Dùng để điều hướng khi bấm Back
+
+  // 🟢 [MỚI] XỬ LÝ NÚT BACK VẬT LÝ TRÊN ANDROID
+  useEffect(() => {
+    const setupBackButton = async () => {
+        try {
+            await CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+                // Nếu đang ở trang chủ hoặc trang đăng nhập -> Thoát App
+                if (location.pathname === '/' || location.pathname === '/login') {
+                    CapacitorApp.exitApp();
+                } 
+                // Nếu có thể quay lại -> Quay lại trang trước
+                else {
+                    window.history.back();
+                }
+            });
+        } catch (e) {
+            console.log("Không phải môi trường Mobile App:", e);
+        }
+    };
+    setupBackButton();
+
+    // Dọn dẹp listener khi unmount (Dù App component ít khi unmount)
+    return () => {
+        CapacitorApp.removeAllListeners();
+    };
+  }, [location.pathname, navigate]);
 
   const hideComponentsPaths = [
     '/login', 
@@ -61,6 +93,14 @@ function App() {
                   <HomePage />
               </PrivateRoute>
           } />
+          
+          {/* Thêm Route cho HistoryPage nếu chưa có */}
+          <Route path="/history" element={
+              <PrivateRoute>
+                  <HistoryPage />
+              </PrivateRoute>
+          } />
+
           <Route path="/grade/:gradeId" element={
               <PrivateRoute>
                   <GradePage />
