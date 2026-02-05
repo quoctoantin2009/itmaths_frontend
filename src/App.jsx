@@ -2,13 +2,13 @@ import React, { useEffect } from 'react';
 // [QUAN TRỌNG] Thêm useLocation để kiểm tra đường dẫn hiện tại
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-// 🟢 [MỚI] IMPORT CAPACITOR APP ĐỂ XỬ LÝ NÚT BACK
+// 🟢 IMPORT CAPACITOR APP ĐỂ XỬ LÝ NÚT BACK
 import { App as CapacitorApp } from '@capacitor/app';
 
 import Navbar from './components/Navbar'; 
 import AIChatWidget from './components/AIChatWidget';
 
-// Import các trang
+// Import các trang cũ
 import HomePage from './pages/HomePage';
 import GradePage from './pages/GradePage';
 import ExamPage from './pages/ExamPage';
@@ -18,10 +18,13 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import HistoryPage from './pages/HistoryPage';
 import ExamHistoryDetail from './components/ExamHistoryDialog'; 
-
-// [MỚI] Import trang xem Video và PDF
 import VideoPlayerPage from './pages/VideoPlayerPage';
 import PDFViewerPage from './pages/PDFViewerPage';
+
+// 🟢 [MỚI] IMPORT CÁC TRANG QUẢN LÝ LỚP HỌC
+import ProfilePage from './pages/ProfilePage';
+import ClassroomPage from './pages/ClassroomPage';
+import ClassDetailPage from './pages/ClassDetailPage'; // <--- Thêm dòng này
 
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
 const PrivateRoute = ({ children }) => {
@@ -39,7 +42,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate(); // Dùng để điều hướng khi bấm Back
 
-  // 🟢 [MỚI] XỬ LÝ NÚT BACK VẬT LÝ TRÊN ANDROID
+  // 🟢 XỬ LÝ NÚT BACK VẬT LÝ TRÊN ANDROID
   useEffect(() => {
     const setupBackButton = async () => {
         try {
@@ -59,7 +62,6 @@ function App() {
     };
     setupBackButton();
 
-    // Dọn dẹp listener khi unmount (Dù App component ít khi unmount)
     return () => {
         CapacitorApp.removeAllListeners();
     };
@@ -94,10 +96,30 @@ function App() {
               </PrivateRoute>
           } />
           
-          {/* Thêm Route cho HistoryPage nếu chưa có */}
           <Route path="/history" element={
               <PrivateRoute>
                   <HistoryPage />
+              </PrivateRoute>
+          } />
+
+          {/* 🟢 [MỚI] ROUTE HỒ SƠ CÁ NHÂN */}
+          <Route path="/profile" element={
+              <PrivateRoute>
+                  <ProfilePage />
+              </PrivateRoute>
+          } />
+
+          {/* 🟢 [MỚI] ROUTE DANH SÁCH LỚP HỌC */}
+          <Route path="/classrooms" element={
+              <PrivateRoute>
+                  <ClassroomPage />
+              </PrivateRoute>
+          } />
+
+          {/* 🟢 [MỚI] ROUTE CHI TIẾT LỚP HỌC (QUAN TRỌNG) */}
+          <Route path="/classrooms/:id" element={
+              <PrivateRoute>
+                  <ClassDetailPage />
               </PrivateRoute>
           } />
 
@@ -117,7 +139,7 @@ function App() {
               </PrivateRoute>
           } />
 
-          {/* [MỚI] ROUTE XEM VIDEO VÀ PDF */}
+          {/* ROUTE XEM VIDEO VÀ PDF */}
           <Route path="/video-player" element={
               <PrivateRoute>
                   <VideoPlayerPage />

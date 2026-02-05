@@ -31,7 +31,7 @@ import { useLocation } from 'react-router-dom';
 const aiAvatarImg = "/ai_avatar.png";
 
 // CẤU HÌNH SERVER
-const API_BASE_URL = "https://itmaths-backend.onrender.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 function AIChatWidget() {
   const location = useLocation();

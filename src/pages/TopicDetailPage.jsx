@@ -12,7 +12,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import HomeIcon from '@mui/icons-material/Home';
 
 // [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://itmaths-backend.onrender.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 function TopicDetailPage() {
   const { topicId } = useParams(); // Lấy ID từ URL

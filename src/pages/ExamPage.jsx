@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
-import { useParams, useNavigate } from "react-router-dom";
+// [QUAN TRỌNG] Thay axios thường bằng axiosClient để tự động xử lý Token & URL
+import axiosClient from "../services/axiosClient";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import QuestionCard from "../components/QuestionCard";
 import ExamHistoryDialog from "../components/ExamHistoryDialog";
 import {
   Button, Box, CircularProgress, Paper, Backdrop,
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
+  Chip
 } from '@mui/material';
 import { styled, keyframes } from '@mui/material/styles';
 import AccessTimeFilledIcon from '@mui/icons-material/AccessTimeFilled';
@@ -19,11 +21,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 // IMPORT BANNER MOBILE APP
 import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
 
-// 🟢 [MỚI] IMPORT BANNER WEB
+// IMPORT BANNER WEB
 import AdSenseBanner from '../components/AdSenseBanner';
-
-// [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://api.itmaths.vn";
 
 // --- STYLE & ANIMATION ---
 const pulse = keyframes`
@@ -72,23 +71,20 @@ const styles = {
     boxShadow: 'none',
     minHeight: '80vh',
     position: 'relative',
-    
-    // 🟢 [CẬP NHẬT] Padding Top để tránh Navbar che khuất
     paddingTop: 'max(env(safe-area-inset-top), 20px)',
-    
-    // 🟢 [CẬP NHẬT] Padding Bottom để tránh Banner App che khuất nút nộp bài
     paddingBottom: '60px' 
   },
   examButton: {
-    display: 'block',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     width: '100%',
     padding: '15px',
     margin: '10px 0',
-    border: 'none',
-    borderRadius: '8px',
+    border: '1px solid #eee',
+    borderRadius: '12px',
     backgroundColor: '#ffffff',
     cursor: 'pointer',
-    textAlign: 'left',
     fontSize: '16px',
     fontWeight: '500',
     transition: 'all 0.2s',
@@ -117,6 +113,7 @@ const formatTime = (seconds) => {
 function ExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // [MỚI] Để lấy tham số ?topic=...
 
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(id ? parseInt(id) : null);
@@ -129,47 +126,52 @@ function ExamPage() {
   const [loading, setLoading] = useState(false);
   const [openConfirm, setOpenConfirm] = useState(false);
 
-  // State quản lý màn hình chờ khi tải quảng cáo
   const [isProcessingResult, setIsProcessingResult] = useState(false);
-
-  // useRef để giữ giá trị interval giúp clear chính xác
   const timerRef = useRef(null);
 
-  // 🟢 1. KHỞI TẠO ADMOB VÀ HIỆN BANNER APP
+  // Lấy topicId từ URL (nếu có)
+  const searchParams = new URLSearchParams(location.search);
+  const topicId = searchParams.get('topic');
+
+  // 1. KHỞI TẠO ADMOB
   useEffect(() => {
     const initAdMobAndBanner = async () => {
       try {
         await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true });
-        
-        // Hiện Banner ngay khi vào trang
         await AdMob.showBanner({
-            adId: 'ca-app-pub-3940256099942544/6300978111', // ID Test Banner Google
+            adId: 'ca-app-pub-3940256099942544/6300978111', 
             adSize: BannerAdSize.ADAPTIVE_BANNER,
-            position: BannerAdPosition.BOTTOM_CENTER, // Treo ở đáy màn hình
+            position: BannerAdPosition.BOTTOM_CENTER, 
             margin: 0,
-            isTesting: true // Đổi thành false khi release
+            isTesting: true 
         });
-
       } catch (e) { console.error("Lỗi Init AdMob/Banner:", e); }
     };
-    
     initAdMobAndBanner();
-
-    // 🟢 DỌN DẸP: Tắt Banner khi thoát trang
     return () => {
         AdMob.hideBanner().catch(e => {});
         AdMob.removeBanner().catch(e => {});
     };
   }, []);
 
+  // 2. TẢI DANH SÁCH ĐỀ THI (CÓ LỌC THEO TOPIC)
   useEffect(() => {
     if (!id) {
-      axios.get(`${API_BASE_URL}/api/exams/`)
-        .then((res) => setExams(res.data))
-        .catch((err) => console.error(err));
-    }
-  }, [id]);
+      setLoading(true);
+      let url = '/exams/';
+      // [MỚI] Nếu có topicId thì thêm vào API
+      if (topicId) {
+          url += `?topic=${topicId}`;
+      }
 
+      axiosClient.get(url)
+        .then((res) => setExams(res.data))
+        .catch((err) => console.error("Lỗi tải danh sách đề:", err))
+        .finally(() => setLoading(false));
+    }
+  }, [id, topicId]);
+
+  // 3. XỬ LÝ KHI CÓ ID (VÀO LÀM BÀI)
   useEffect(() => {
     if (id) {
       handleSelectExam(parseInt(id));
@@ -177,7 +179,7 @@ function ExamPage() {
     // eslint-disable-next-line
   }, [id]);
 
-  // Đồng hồ đếm ngược
+  // 4. ĐỒNG HỒ ĐẾM NGƯỢC
   useEffect(() => {
     if (!selectedExamId || submitted || loading || !currentExamInfo) return;
 
@@ -196,7 +198,7 @@ function ExamPage() {
           setTimeLeft(0);
           clearInterval(timerRef.current);
           setOpenConfirm(false);
-          submitExam(); // Nộp bài ngay lập tức
+          submitExam(); // Tự nộp bài
           alert("⏰ Đã hết thời gian làm bài!");
         } else {
           setTimeLeft(secondsLeft);
@@ -217,7 +219,8 @@ function ExamPage() {
     setUserAnswers({});
 
     try {
-      const resQuestions = await axios.get(`${API_BASE_URL}/api/exams/${examId}/questions/`);
+      // Dùng axiosClient để gọi API
+      const resQuestions = await axiosClient.get(`/exams/${examId}/questions/`);
       const rawQuestions = resQuestions.data;
 
       if (!rawQuestions || !Array.isArray(rawQuestions)) {
@@ -241,7 +244,7 @@ function ExamPage() {
 
       setQuestions([...shuffledPart1, ...shuffleArray(part2), ...shuffleArray(part3)]);
 
-      const resInfo = await axios.get(`${API_BASE_URL}/api/exams/${examId}/`);
+      const resInfo = await axiosClient.get(`/exams/${examId}/`);
       setCurrentExamInfo(resInfo.data);
 
       const storageKey = `exam_start_${examId}`;
@@ -252,7 +255,8 @@ function ExamPage() {
 
     } catch (err) {
       console.error("Lỗi tải đề thi:", err);
-      alert("Có lỗi khi tải đề thi.");
+      alert("Không thể tải đề thi. Vui lòng kiểm tra lại kết nối!");
+      if(id) navigate('/exams'); // Nếu vào thẳng link lỗi thì back về danh sách
       setSelectedExamId(null);
     } finally {
       setLoading(false);
@@ -269,18 +273,15 @@ function ExamPage() {
     }
   };
 
-  // 🟢 2. HÀM NỘP BÀI: Ẩn Banner -> Hiện Interstitial -> Hiện Kết quả
   const submitExam = async () => {
     if (selectedExamId) {
       localStorage.removeItem(`exam_start_${selectedExamId}`);
     }
 
     setOpenConfirm(false);
-    
-    // Bắn sự kiện để History tự cập nhật
     window.dispatchEvent(new Event('ITMATHS_EXAM_SUBMITTED'));
 
-    // --- TÍNH ĐIỂM ---
+    // --- TÍNH ĐIỂM TẠI CLIENT ---
     let scoreP1 = 0, scoreP2 = 0, scoreP3 = 0, correctCountTotal = 0;
 
     questions.forEach(q => {
@@ -317,40 +318,30 @@ function ExamPage() {
     const totalScore = scoreP1 + scoreP2 + scoreP3;
     setScoreData({ p1: scoreP1, p2: scoreP2, p3: scoreP3, total: totalScore });
 
-    // Lưu điểm lên server (Chạy ngầm)
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      axios.post(`${API_BASE_URL}/api/submit-result/`, {
+    // --- LƯU ĐIỂM LÊN SERVER (Dùng axiosClient) ---
+    axiosClient.post(`/submit-result/`, {
         exam: selectedExamId,
         score: totalScore,
         total_questions: questions.length,
         correct_answers: correctCountTotal,
         detail_answers: userAnswers
-      }, { headers: { 'Authorization': `Bearer ${token}` } }).catch(error => console.error("Lỗi lưu điểm:", error));
-    }
+    }).catch(error => console.error("Lỗi lưu điểm:", error));
 
-    // 🟢 3. HIỆN MÀN HÌNH CHỜ & TẢI QUẢNG CÁO FULL
+    // --- XỬ LÝ QUẢNG CÁO ---
     setIsProcessingResult(true);
 
     try {
-        // [QUAN TRỌNG] Ẩn Banner App trước khi hiện quảng cáo Full màn hình
         await AdMob.hideBanner();
-
-        // Tải quảng cáo Interstitial
         await AdMob.prepareInterstitial({
-            adId: 'ca-app-pub-3940256099942544/1033173712', // ID Test Interstitial
+            adId: 'ca-app-pub-3940256099942544/1033173712', 
             isTesting: true
         });
-        
-        // Hiện quảng cáo
         await AdMob.showInterstitial();
-        
     } catch (e) {
         console.error("Lỗi QC khi nộp bài:", e);
     } finally {
-        // 🟢 4. KẾT THÚC QUY TRÌNH
-        setIsProcessingResult(false); // Tắt màn hình chờ
-        setSubmitted(true); // Hiện bảng điểm
+        setIsProcessingResult(false);
+        setSubmitted(true);
         setTimeout(() => {
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }, 100);
@@ -363,7 +354,7 @@ function ExamPage() {
   };
 
   const handleExit = () => {
-    if (id) navigate(-1);
+    if (id) navigate('/exams'); // Nếu đang trong mode thi -> Về danh sách
     else {
       setSelectedExamId(null);
       setCurrentExamInfo(null);
@@ -376,7 +367,6 @@ function ExamPage() {
     <div style={styles.pageWrapper}>
       <div style={styles.container}>
 
-        {/* Màn hình đen xoay vòng tròn khi đang nộp bài & xem QC */}
         <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isProcessingResult}>
             <Box textAlign="center">
                 <CircularProgress color="inherit" />
@@ -386,6 +376,7 @@ function ExamPage() {
             </Box>
         </Backdrop>
 
+        {/* --- VIEW DANH SÁCH ĐỀ THI --- */}
         {!selectedExamId ? (
           <div>
             <Box mb={2}>
@@ -399,18 +390,43 @@ function ExamPage() {
             </Box>
 
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} borderBottom="2px solid #d1c4e9" pb={1}>
-              <Typography variant="h5" color="primary" fontWeight="bold">CHỌN ĐỀ THI</Typography>
+              <Typography variant="h5" color="primary" fontWeight="bold">
+                 {topicId ? 'ĐỀ THI THEO CHUYÊN ĐỀ' : 'KHO ĐỀ THI TỔNG HỢP'}
+              </Typography>
               <Box><ExamHistoryDialog /></Box>
             </Box>
 
-            {exams.map((exam) => (
-              <button key={exam.id} onClick={() => handleSelectExam(exam.id)} style={styles.examButton} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                📄 <span style={{ color: '#512da8', fontWeight: 'bold' }}>{exam.title}</span>
-                <span style={{ float: 'right', color: '#666', fontSize: '14px', background: '#f3e5f5', padding: '2px 8px', borderRadius: '10px' }}>⏱ {exam.duration || 90} p</span>
-              </button>
-            ))}
+            {exams.length > 0 ? (
+                exams.map((exam) => (
+                <div 
+                    key={exam.id} 
+                    onClick={() => navigate(`/exams/${exam.id}`)} // Chuyển trang thay vì set state
+                    style={styles.examButton} 
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} 
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <span style={{fontSize: '20px'}}>📄</span>
+                        <div>
+                             <div style={{ color: '#512da8', fontWeight: 'bold' }}>{exam.title}</div>
+                             <div style={{ fontSize: '12px', color: '#888' }}>{exam.topic_title || 'Đề tổng hợp'}</div>
+                        </div>
+                    </div>
+                    <Chip 
+                        label={`⏱ ${exam.duration || 45} phút`} 
+                        size="small" 
+                        sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' }} 
+                    />
+                </div>
+                ))
+            ) : (
+                <Box textAlign="center" py={5} bgcolor="#fff" borderRadius={2}>
+                    <Typography color="textSecondary">Chưa có đề thi nào trong danh sách này.</Typography>
+                </Box>
+            )}
           </div>
         ) : (
+          /* --- VIEW LÀM BÀI THI --- */
           <div>
             {!submitted && (
               <FloatingTimer isWarning={timeLeft < 300}>
@@ -477,7 +493,6 @@ function ExamPage() {
                   </Table>
                 </TableContainer>
 
-                {/* 🟢 QUẢNG CÁO WEB: Hiện ngay dưới bảng điểm */}
                 <Box sx={{ my: 2 }}>
                     <AdSenseBanner dataAdSlot="9564905223" format="rectangle" />
                 </Box>

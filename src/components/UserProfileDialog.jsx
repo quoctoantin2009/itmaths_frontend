@@ -10,7 +10,7 @@ import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'; // Icon cảnh báo đẹp
 import axios from 'axios';
 
-const API_BASE_URL = "https://itmaths-backend.onrender.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 // Hiệu ứng trượt lên cho Dialog đẹp hơn
 const Transition = React.forwardRef(function Transition(props, ref) {

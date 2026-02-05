@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 
 // [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://itmaths-backend.onrender.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 function ResetPasswordPage() {
     const { uid, token } = useParams(); // Lấy mã bí mật từ link email

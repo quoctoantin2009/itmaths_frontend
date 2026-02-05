@@ -9,7 +9,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import logoImage from '../assets/logo.jpg';
 // [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://itmaths-backend.onrender.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 function LoginPage() {
     const navigate = useNavigate();

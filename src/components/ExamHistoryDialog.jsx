@@ -16,7 +16,7 @@ import QuestionCard from './QuestionCard';
 import { AdMob } from '@capacitor-community/admob';
 
 // [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP (Đã cập nhật về link chính thức)
-const API_BASE_URL = "https://api.itmaths.vn";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
