@@ -9,7 +9,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
-// ✅ [MỚI] Import components thông báo đẹp & Tooltip
+// Import components thông báo đẹp
 import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
 import './ClassDetail.css';
@@ -24,23 +24,56 @@ const ClassDetail = () => {
   const navigate = useNavigate();
   
   const [classroom, setClassroom] = useState(null);
-  const [topics, setTopics] = useState([]); 
+  const [topics, setTopics] = useState([]); // Chứa toàn bộ chuyên đề tải từ API
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
-  // ✅ [MỚI] State chứa danh sách học sinh
-  const [members, setMembers] = useState([]);
+  // --- STATE CHO BỘ LỌC 3 CẤP ---
+  const [selectedGrade, setSelectedGrade] = useState('12'); // Mặc định chọn khối 12
+  const [filteredTopics, setFilteredTopics] = useState([]); // Danh sách chuyên đề sau khi lọc theo Khối
+  const [selectedTopicId, setSelectedTopicId] = useState(''); // ID chuyên đề đang chọn
+  
+  const [filteredExams, setFilteredExams] = useState([]);   // Danh sách Đề thi có trong chuyên đề đó
+  const [selectedExamId, setSelectedExamId] = useState(''); // ID đề thi cuối cùng để giao
 
-  // State giao bài
-  const [selectedTopic, setSelectedTopic] = useState('');
-
-  // State quản lý thông báo đẹp
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  // 1. Khi danh sách Topics tải về hoặc người dùng đổi Khối -> Lọc lại Chuyên đề
+  useEffect(() => {
+    if (topics.length > 0) {
+        const gradeNum = parseInt(selectedGrade);
+        const newFilteredTopics = topics.filter(t => t.grade === gradeNum);
+        setFilteredTopics(newFilteredTopics);
+        
+        // Reset lựa chọn con
+        setSelectedTopicId('');
+        setFilteredExams([]);
+        setSelectedExamId('');
+    }
+  }, [selectedGrade, topics]);
+
+  // 2. Khi người dùng chọn Chuyên đề -> Lọc ra các Đề thi trong đó
+  useEffect(() => {
+    if (selectedTopicId) {
+        const topic = topics.find(t => t.id === parseInt(selectedTopicId));
+        // Lấy danh sách 'exercises' từ API trả về (đã cấu hình trong serializer)
+        if (topic && topic.exercises) {
+            setFilteredExams(topic.exercises);
+        } else {
+            setFilteredExams([]);
+        }
+    } else {
+        setFilteredExams([]);
+    }
+    // Reset đề thi
+    setSelectedExamId('');
+  }, [selectedTopicId, topics]);
 
   const fetchData = async () => {
     try {
@@ -51,7 +84,6 @@ const ClassDetail = () => {
       const classRes = await axiosClient.get(`/classrooms/${id}/`);
       setClassroom(classRes.data);
 
-      // ✅ [MỚI] Gọi API lấy danh sách thành viên thực tế
       const membersRes = await axiosClient.get(`/classrooms/${id}/members/`);
       setMembers(membersRes.data);
 
@@ -75,18 +107,20 @@ const ClassDetail = () => {
     setOpenSnackbar(false);
   };
 
-  const handleAssignTopic = async () => {
-    if (!selectedTopic) return alert("Vui lòng chọn chuyên đề!");
+  // Hàm Giao Bài (Sử dụng exam_id)
+  const handleAssignExam = async () => {
+    if (!selectedExamId) return alert("Vui lòng chọn một đề thi cụ thể!");
     try {
       await axiosClient.post('/class_assignments/', {
         classroom: id,
-        topic: selectedTopic
+        exam: selectedExamId // 🔥 Gửi ID đề thi lên Server
       });
       alert("✅ Giao bài thành công!");
       fetchData(); 
-      setSelectedTopic('');
+      setSelectedExamId(''); // Reset sau khi giao
     } catch (error) {
-      alert("Lỗi khi giao bài (Có thể bài này đã giao rồi)");
+        const msg = error.response?.data?.message || "Lỗi khi giao bài";
+        alert("❌ " + msg);
     }
   };
 
@@ -98,17 +132,16 @@ const ClassDetail = () => {
   return (
     <div className="class-detail-container">
       
-      {/* 1. BANNER LỚP HỌC */}
+      {/* BANNER */}
       <div className="class-banner">
         <div className="banner-content">
           <h1 className="banner-title">{classroom.name}</h1>
           <p className="banner-subtitle">
             Khối {classroom.grade} • {classroom.program_type === 'gifted' ? 'Bồi dưỡng' : 'Cơ bản'}
           </p>
-          <p className="teacher-name">Giáo viên chủ nhiệm: <strong>{classroom.teacher_name}</strong></p>
+          <p className="teacher-name">GVCN: <strong>{classroom.teacher_name}</strong></p>
         </div>
         
-        {/* Box Mã Lớp nổi bật */}
         <div className="class-code-box" onClick={handleCopyCode} title="Bấm để sao chép">
             <span className="code-label">Mã lớp</span>
             <div className="code-value">
@@ -118,7 +151,7 @@ const ClassDetail = () => {
         </div>
       </div>
 
-      {/* 2. THANH TAB ĐIỀU HƯỚNG */}
+      {/* NAV TAB */}
       <div className="class-nav">
         <button 
             className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`}
@@ -134,7 +167,7 @@ const ClassDetail = () => {
         </button>
       </div>
 
-      {/* 3. NỘI DUNG CHÍNH */}
+      {/* BODY */}
       <div className="class-body">
         
         {/* === TAB BẢNG TIN === */}
@@ -149,32 +182,86 @@ const ClassDetail = () => {
                 </div>
 
                 <div className="stream-center">
+                    
+                    {/* 🔥 GIAO DIỆN GIAO BÀI MỚI (3 CẤP) 🔥 */}
                     {isTeacher && (
                         <div className="assign-box">
                             <div className="assign-header">
                                 <AddCircleIcon color="primary"/>
                                 <h3>Giao bài tập mới</h3>
                             </div>
-                            <div className="assign-body">
-                                <select 
-                                    className="topic-select"
-                                    value={selectedTopic}
-                                    onChange={(e) => setSelectedTopic(e.target.value)}
-                                >
-                                    <option value="">-- Chọn chuyên đề từ Kho --</option>
-                                    {topics.map(t => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.title} (Lớp {t.grade})
-                                        </option>
-                                    ))}
-                                </select>
-                                <button className="btn-assign" onClick={handleAssignTopic}>
-                                    GIAO NGAY
-                                </button>
+                            
+                            <div className="assign-filter-container">
+                                {/* 1. Chọn Khối */}
+                                <div className="filter-item">
+                                    <label>1. Chọn Khối:</label>
+                                    <select 
+                                        className="topic-select"
+                                        value={selectedGrade}
+                                        onChange={(e) => setSelectedGrade(e.target.value)}
+                                    >
+                                        <option value="12">Toán 12 & Ôn thi TN</option>
+                                        <option value="11">Toán 11</option>
+                                        <option value="10">Toán 10</option>
+                                        <option value="9">Toán 9</option>
+                                        <option value="8">Toán 8</option>
+                                        <option value="7">Toán 7</option>
+                                        <option value="6">Toán 6</option>
+                                    </select>
+                                </div>
+
+                                {/* 2. Chọn Chuyên đề */}
+                                <div className="filter-item">
+                                    <label>2. Chọn Chuyên đề:</label>
+                                    <select 
+                                        className="topic-select"
+                                        value={selectedTopicId}
+                                        onChange={(e) => setSelectedTopicId(e.target.value)}
+                                        disabled={filteredTopics.length === 0}
+                                    >
+                                        <option value="">-- Chọn chuyên đề --</option>
+                                        {filteredTopics.map(t => (
+                                            <option key={t.id} value={t.id}>{t.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* 3. Chọn Đề thi cụ thể */}
+                                <div className="filter-item full-width">
+                                    <label>3. Chọn Đề thi / Bài tập:</label>
+                                    <div className="action-row">
+                                        <select 
+                                            className="topic-select"
+                                            value={selectedExamId}
+                                            onChange={(e) => setSelectedExamId(e.target.value)}
+                                            disabled={!selectedTopicId}
+                                        >
+                                            <option value="">-- Chọn bài tập --</option>
+                                            {filteredExams.length > 0 ? (
+                                                filteredExams.map(ex => (
+                                                    <option key={ex.id} value={ex.id}>
+                                                        📄 {ex.title} ({ex.duration} phút)
+                                                    </option>
+                                                ))
+                                            ) : (
+                                                <option disabled>Không có bài tập nào trong chuyên đề này</option>
+                                            )}
+                                        </select>
+                                        
+                                        <button 
+                                            className="btn-assign" 
+                                            onClick={handleAssignExam}
+                                            disabled={!selectedExamId}
+                                        >
+                                            GIAO BÀI
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
 
+                    {/* DANH SÁCH BÀI ĐÃ GIAO */}
                     <div className="assignment-list">
                         {classroom.assignments && classroom.assignments.length > 0 ? (
                             classroom.assignments.map((assign, index) => (
@@ -184,9 +271,10 @@ const ClassDetail = () => {
                                     </div>
                                     <div className="card-content">
                                         <h4 className="card-title">
-                                            Giáo viên đã đăng một bài tập mới: 
-                                            <span className="topic-highlight"> {assign.topic_title}</span>
+                                            Giáo viên đã đăng bài tập: 
+                                            <span className="topic-highlight"> {assign.exam_title}</span>
                                         </h4>
+                                        <p className="sub-info">Chuyên đề: {assign.topic_title} ({assign.exam_duration} phút)</p>
                                         <p className="card-date">{new Date(assign.created_at).toLocaleDateString('vi-VN')}</p>
                                     </div>
                                 </div>
@@ -222,7 +310,6 @@ const ClassDetail = () => {
                     <div className="divider"></div>
                 </div>
                 
-                {/* ✅ [MỚI] Vòng lặp hiển thị danh sách học sinh thật */}
                 {members.length > 0 ? (
                     <div className="student-list">
                          {members.map(mem => (
@@ -251,7 +338,6 @@ const ClassDetail = () => {
                     <div className="empty-members">
                         <GroupIcon sx={{ fontSize: 60, color: '#ddd' }}/>
                         <p>Chưa có học sinh nào tham gia lớp học.</p>
-                        <p className="invite-hint">Hãy gửi mã <strong>{classroom.invite_code}</strong> để mời học sinh.</p>
                     </div>
                 )}
             </div>
