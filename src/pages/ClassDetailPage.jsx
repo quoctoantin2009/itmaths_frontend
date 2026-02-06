@@ -7,9 +7,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
-// ✅ [MỚI] Import components thông báo đẹp
-import { Snackbar, Alert, Slide } from '@mui/material';
+// ✅ [MỚI] Import components thông báo đẹp & Tooltip
+import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
 import './ClassDetail.css';
 
@@ -28,10 +29,13 @@ const ClassDetail = () => {
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
+  // ✅ [MỚI] State chứa danh sách học sinh
+  const [members, setMembers] = useState([]);
+
   // State giao bài
   const [selectedTopic, setSelectedTopic] = useState('');
 
-  // ✅ [MỚI] State quản lý thông báo đẹp
+  // State quản lý thông báo đẹp
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
   useEffect(() => {
@@ -47,6 +51,10 @@ const ClassDetail = () => {
       const classRes = await axiosClient.get(`/classrooms/${id}/`);
       setClassroom(classRes.data);
 
+      // ✅ [MỚI] Gọi API lấy danh sách thành viên thực tế
+      const membersRes = await axiosClient.get(`/classrooms/${id}/members/`);
+      setMembers(membersRes.data);
+
       const topicRes = await axiosClient.get('/topics/');
       setTopics(topicRes.data);
 
@@ -57,10 +65,9 @@ const ClassDetail = () => {
     }
   };
 
-  // ✅ [CẬP NHẬT] Hàm copy mã lớp xịn sò hơn
   const handleCopyCode = () => {
     navigator.clipboard.writeText(classroom.invite_code);
-    setOpenSnackbar(true); // Mở thông báo đẹp thay vì alert xấu xí
+    setOpenSnackbar(true); 
   };
 
   const handleCloseSnackbar = (event, reason) => {
@@ -123,7 +130,7 @@ const ClassDetail = () => {
             className={`nav-item ${activeTab === 'members' ? 'active' : ''}`}
             onClick={() => setActiveTab('members')}
         >
-            Thành viên ({classroom.member_count})
+            Thành viên ({members.length})
         </button>
       </div>
 
@@ -210,14 +217,35 @@ const ClassDetail = () => {
                 <div className="section-header" style={{marginTop: '40px'}}>
                     <div className="title-row">
                         <h2 className="section-title">Học sinh</h2>
-                        <span className="student-count">{classroom.member_count} sinh viên</span>
+                        <span className="student-count">{members.length} sinh viên</span>
                     </div>
                     <div className="divider"></div>
                 </div>
                 
-                {classroom.member_count > 0 ? (
-                    <div className="student-list-placeholder">
-                        <p>Danh sách học sinh sẽ hiển thị tại đây.</p>
+                {/* ✅ [MỚI] Vòng lặp hiển thị danh sách học sinh thật */}
+                {members.length > 0 ? (
+                    <div className="student-list">
+                         {members.map(mem => (
+                            <div key={mem.id} className="member-row">
+                                <div className="member-left" style={{display: 'flex', alignItems: 'center'}}>
+                                    <div className="member-avatar" style={{marginRight: '15px'}}>
+                                        {mem.student_avatar}
+                                    </div>
+                                    <div>
+                                        <div className="member-name">{mem.student_name}</div>
+                                        <div style={{fontSize: '0.8rem', color: '#888'}}>{mem.student_email}</div>
+                                    </div>
+                                </div>
+                                
+                                {isTeacher && (
+                                    <Tooltip title="Xóa khỏi lớp">
+                                        <IconButton size="small">
+                                            <PersonRemoveIcon fontSize="small" color="disabled"/>
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <div className="empty-members">
@@ -231,7 +259,6 @@ const ClassDetail = () => {
 
       </div>
 
-      {/* ✅ [MỚI] THÔNG BÁO COPY THÀNH CÔNG ĐẸP MẮT */}
       <Snackbar 
         open={openSnackbar} 
         autoHideDuration={3000} 
