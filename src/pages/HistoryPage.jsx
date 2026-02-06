@@ -11,7 +11,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 // IMPORT ADMOB
 import { AdMob } from '@capacitor-community/admob';
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://api.itmaths.vn/api";
 
 function HistoryPage() {
   const navigate = useNavigate();

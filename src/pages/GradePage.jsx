@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+
+// 🟢 [QUAN TRỌNG] Dùng axiosClient thay vì axios thường
+// Để nó tự động nhận link https://api.itmaths.vn khi lên mạng
+import axiosClient from "../services/axiosClient"; 
+
 import { 
     Container, Typography, Box, Accordion, AccordionSummary, AccordionDetails, 
     Button, Paper, Divider, CircularProgress, Backdrop, IconButton
@@ -13,10 +17,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import StarIcon from '@mui/icons-material/Star';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 
-// 🟢 [IMPORT] ADMOB
+// IMPORT ADMOB
 import { AdMob } from '@capacitor-community/admob';
-
-const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 function GradePage() {
   const { gradeId } = useParams();
@@ -45,7 +47,7 @@ function GradePage() {
       setIsLoadingAd(true); 
       try {
           await AdMob.prepareInterstitial({
-             adId: 'ca-app-pub-3940256099942544/1033173712', // ID Test
+             adId: 'ca-app-pub-3940256099942544/1033173712', 
              isTesting: true
           });
           await AdMob.showInterstitial();
@@ -57,14 +59,29 @@ function GradePage() {
       }
   };
 
-  const getFullUrl = (url) => { if (!url) return ""; if (url.startsWith("http")) return url; return `${API_BASE_URL}${url}`; };
+  // 🟢 [SỬA LẠI] Hàm lấy Full URL dựa trên axiosClient
+  // Nó sẽ tự động lấy link gốc (Local hoặc Online) + đường dẫn file
+  const getFullUrl = (url) => { 
+      if (!url) return ""; 
+      if (url.startsWith("http")) return url; 
+      
+      // Lấy baseURL từ axiosClient (đã được cấu hình thông minh)
+      // Loại bỏ chữ '/api' nếu cần thiết để nối với đường dẫn media
+      const baseUrl = axiosClient.defaults.baseURL.replace('/api', '');
+      return `${baseUrl}${url}`; 
+  };
 
   useEffect(() => {
+    // 🟢 [QUAN TRỌNG] Dùng axiosClient.get và thêm dấu / ở cuối
     if (isTN) {
-        axios.get(`${API_BASE_URL}/api/exams/?standalone=true`).then(res => setExams(res.data)).catch(err => console.error(err));
+        axiosClient.get('/exams/?standalone=true')
+            .then(res => setExams(res.data))
+            .catch(err => console.error("Lỗi tải đề thi:", err));
     } else {
         const category = isGifted ? 'gifted' : 'standard';
-        axios.get(`${API_BASE_URL}/api/topics/?grade=${gradeId}&category=${category}`).then(res => setTopics(res.data)).catch(err => console.error(err));
+        axiosClient.get(`/topics/?grade=${gradeId}&category=${category}`)
+            .then(res => setTopics(res.data))
+            .catch(err => console.error("Lỗi tải chuyên đề:", err));
     }
   }, [gradeId, isTN, isGifted]);
 
@@ -90,7 +107,6 @@ function GradePage() {
   return (
     <Container maxWidth={isTN ? "md" : "xl"} sx={{ 
         mb: 10,
-        // 🟢 [SỬA LỖI] Đẩy nội dung xuống 50px
         paddingTop: 'max(env(safe-area-inset-top), 50px)' 
     }}>
       
@@ -101,7 +117,7 @@ function GradePage() {
          </Box>
       </Backdrop>
 
-      {/* Nút Back đẹp */}
+      {/* Nút Back */}
       <Box mb={2}>
             <IconButton 
                 onClick={() => navigate('/')} 
@@ -122,6 +138,13 @@ function GradePage() {
                 <Typography variant="h4" fontWeight="bold" color="#d32f2f" textTransform="uppercase">LUYỆN ĐỀ TỐT NGHIỆP THPT</Typography>
                 <Typography variant="body1" color="textSecondary" mt={1}>Tổng hợp các đề thi thử và đề chính thức mới nhất</Typography>
             </Box>
+            
+            {exams.length === 0 && (
+                <Box textAlign="center" mt={5}>
+                    <Typography color="textSecondary">Chưa có đề thi nào.</Typography>
+                </Box>
+            )}
+
             <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
                 {exams.map((exam) => (
                     <Button key={exam.id} fullWidth 
@@ -157,10 +180,17 @@ function GradePage() {
                 </Typography>
             </Box>
 
-            {topics.length === 0 && <Typography align="center" mt={3}>Đang cập nhật dữ liệu...</Typography>}
+            {/* Thông báo nếu chưa có dữ liệu */}
+            {topics.length === 0 && (
+                <Box textAlign="center" mt={5}>
+                    <CircularProgress size={30} sx={{mb:2}} />
+                    <Typography color="textSecondary">Đang cập nhật dữ liệu...</Typography>
+                </Box>
+            )}
 
             {topics.map((topic) => (
-                <Accordion key={topic.id} defaultExpanded sx={{ mb: 3, boxShadow: 3, borderRadius: '12px !important', overflow: 'hidden' }}>
+                // 🟢 [ĐÃ SỬA] Đã xóa 'defaultExpanded' để mặc định đóng lại
+                <Accordion key={topic.id} sx={{ mb: 3, boxShadow: 3, borderRadius: '12px !important', overflow: 'hidden' }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{color:'white'}}/>} sx={{ bgcolor: isGifted ? '#ef6c00' : '#1976d2', color: 'white' }}>
                     <Typography variant="h6" fontWeight="bold">📚 {topic.title}</Typography>
                 </AccordionSummary>
@@ -168,6 +198,7 @@ function GradePage() {
                 <AccordionDetails sx={{ bgcolor: '#f5f7fa', p: 3 }}>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 3, width: '100%' }}>
                         
+                        {/* Cột 1: Tài liệu */}
                         <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 3, borderTop: '5px solid #f44336', display: 'flex', flexDirection: 'column' }}>
                             <Box display="flex" alignItems="center" mb={2}><PictureAsPdfIcon color="error" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="error">TÀI LIỆU LÝ THUYẾT</Typography></Box>
                             <Divider sx={{ mb: 2 }} />
@@ -181,6 +212,7 @@ function GradePage() {
                             </Box>
                         </Paper>
 
+                        {/* Cột 2: Video */}
                         <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 3, borderTop: '5px solid #ff9800', display: 'flex', flexDirection: 'column' }}>
                             <Box display="flex" alignItems="center" mb={2}><YouTubeIcon color="warning" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="warning">VIDEO BÀI GIẢNG</Typography></Box>
                             <Divider sx={{ mb: 2 }} />
@@ -191,6 +223,7 @@ function GradePage() {
                             </Box>
                         </Paper>
 
+                        {/* Cột 3: Đề thi */}
                         <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 3, borderTop: '5px solid #4caf50', display: 'flex', flexDirection: 'column' }}>
                             <Box display="flex" alignItems="center" mb={2}><AssignmentIcon color="success" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="success">{isGifted ? "ĐỀ THI (PDF)" : "LUYỆN TẬP ONLINE"}</Typography></Box>
                             <Divider sx={{ mb: 2 }} />

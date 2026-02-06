@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Container, TextField, Button, Typography, Paper, Box, Alert, CircularProgress, Avatar
+    Container, TextField, Button, Typography, Paper, Box, Alert, CircularProgress
 } from '@mui/material';
-// Import icon để làm Logo giả lập (Bạn có thể thay bằng file ảnh sau này)
-import FunctionsIcon from '@mui/icons-material/Functions';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import axios from 'axios';
+import axiosClient from '../services/axiosClient'; // 🟢 DÙNG CÁI NÀY THAY CHO AXIOS THƯỜNG
 import { Link, useNavigate } from 'react-router-dom';
 import logoImage from '../assets/logo.jpg';
-// [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "http://127.0.0.1:8000";
 
 function LoginPage() {
     const navigate = useNavigate();
@@ -32,23 +27,31 @@ function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await axios.post(`${API_BASE_URL}/api/login/`, {
+            // 🟢 [SỬA LẠI] Dùng axiosClient
+            // Link gốc đã là .../api rồi, nên chỉ cần gọi /login/ (hoặc /token/)
+            // ĐỪNG QUÊN DẤU / Ở CUỐI
+            const res = await axiosClient.post('/login/', {
                 username,
                 password
             });
             
+            // Lưu Token
             localStorage.setItem('accessToken', res.data.access);
             localStorage.setItem('refreshToken', res.data.refresh);
             localStorage.setItem('username', username); 
 
+            // Chuyển hướng
             navigate('/'); 
             
         } catch (err) {
-            console.error(err);
+            console.error("Lỗi đăng nhập:", err);
+            
             if (err.response && err.response.status === 401) {
                 setError('Sai tên đăng nhập hoặc mật khẩu!');
+            } else if (err.code === "ERR_NETWORK") {
+                setError('Không thể kết nối Server! Vui lòng kiểm tra Wifi/4G.');
             } else {
-                setError('Không thể kết nối đến Server. Vui lòng kiểm tra mạng.');
+                setError('Có lỗi xảy ra. Vui lòng thử lại sau.');
             }
         } finally {
             setLoading(false);
@@ -56,13 +59,12 @@ function LoginPage() {
     };
 
     return (
-        // [THAY ĐỔI 1] Bao bọc ngoài cùng bằng Box có nền Gradient Tím Đậm
         <Box sx={{
             minHeight: '100vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #311b92 0%, #673ab7 100%)', // Màu tím đậm sang trọng
+            background: 'linear-gradient(135deg, #311b92 0%, #673ab7 100%)',
             padding: 2
         }}>
             <Container maxWidth="xs">
@@ -71,12 +73,11 @@ function LoginPage() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    borderRadius: 4, // Bo góc mềm mại hơn
-                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)', // Hiệu ứng bóng đổ sâu
-                    backgroundColor: '#ffffff', // Nền trắng làm nổi bật nội dung
+                    borderRadius: 4,
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+                    backgroundColor: '#ffffff',
                 }}>
                     
-                    {/* [THAY ĐỔI 2] Phần Logo và Tên Ứng Dụng */}
                     <Box mb={1}>
                         <img src={logoImage} alt="ItMaths Logo" style={{ width: 80, height: 80 }} />
                     </Box>
@@ -121,7 +122,7 @@ function LoginPage() {
                                 borderRadius: 3, 
                                 fontSize: '1rem', fontWeight: 'bold',
                                 textTransform: 'none',
-                                boxShadow: '0 4px 12px rgba(103, 58, 183, 0.5)', // Bóng đổ cho nút
+                                boxShadow: '0 4px 12px rgba(103, 58, 183, 0.5)',
                             }}
                             disabled={loading}
                         >

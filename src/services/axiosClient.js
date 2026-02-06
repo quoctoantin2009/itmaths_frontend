@@ -10,9 +10,10 @@ const isProduction = import.meta.env.PROD;
 
 // Tự động chọn đường dẫn phù hợp
 // [QUAN TRỌNG] Vẫn giữ đuôi /api như bạn yêu cầu
-const baseURL = isProduction 
-  ? 'https://api.itmaths.vn/api'   // ☁️ Khi lên mạng dùng link này
-  : 'http://127.0.0.1:8000/api';   // 💻 Khi ở nhà dùng link này
+const baseURL = 'https://api.itmaths.vn/api';
+//const baseURL = isProduction 
+//  ? 'https://api.itmaths.vn/api'   // ☁️ Khi lên mạng dùng link này
+//: 'https://api.itmaths.vn/api';   // 💻 Khi ở nhà dùng link này
 
 console.log("🌏 API đang kết nối tới:", baseURL); 
 // =================================================================
