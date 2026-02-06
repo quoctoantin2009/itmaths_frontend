@@ -1,22 +1,10 @@
 import axios from 'axios';
 
-// =================================================================
-// 💡 MẸO THÔNG MINH (Smart Auto-Switch)
-// =================================================================
-// Kiểm tra xem Web đang chạy ở chế độ nào:
-// - True: Nếu đang chạy trên mạng (Production/Build)
-// - False: Nếu đang chạy code dưới máy (Development)
-const isProduction = import.meta.env.PROD; 
-
-// Tự động chọn đường dẫn phù hợp
-// [QUAN TRỌNG] Vẫn giữ đuôi /api như bạn yêu cầu
+// [CẤU HÌNH CHUẨN] Luôn trỏ về Server Online
+// Đảm bảo không có dấu / ở cuối để dễ nối chuỗi
 const baseURL = 'https://api.itmaths.vn/api';
-//const baseURL = isProduction 
-//  ? 'https://api.itmaths.vn/api'   // ☁️ Khi lên mạng dùng link này
-//: 'https://api.itmaths.vn/api';   // 💻 Khi ở nhà dùng link này
 
 console.log("🌏 API đang kết nối tới:", baseURL); 
-// =================================================================
 
 const axiosClient = axios.create({
   baseURL: baseURL,
@@ -25,7 +13,7 @@ const axiosClient = axios.create({
   },
 });
 
-// Tự động gắn Token
+// Tự động gắn Token vào mỗi yêu cầu
 axiosClient.interceptors.request.use(async (config) => {
   const token = localStorage.getItem('accessToken');
   if (token) {
@@ -34,15 +22,12 @@ axiosClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Xử lý lỗi
+// Xử lý lỗi chung (để debug dễ hơn)
 axiosClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Log lỗi ra Console để kiểm tra
-    console.error("❌ Lỗi API:", error.config?.url, error.response?.status);
-    throw error;
+    console.error("❌ Lỗi API:", error.response?.status, error.config?.url);
+    return Promise.reject(error);
   }
 );
 

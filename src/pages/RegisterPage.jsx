@@ -1,20 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Container, TextField, Button, Typography, Paper, Box, Alert, CircularProgress, 
-    Dialog, DialogContent, Slide 
+    Container, TextField, Button, Typography, Paper, Box, Alert, CircularProgress, Avatar 
 } from '@mui/material';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // Icon tích xanh
+import FunctionsIcon from '@mui/icons-material/Functions'; // Logo
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import logoImage from '../assets/logo.jpg';
-
 // [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://api.itmaths.vn";
-
-// --- HIỆU ỨNG TRƯỢT LÊN CHO DIALOG ---
-const Transition = React.forwardRef(function Transition(props, ref) {
-    return <Slide direction="up" ref={ref} {...props} />;
-});
+const API_BASE_URL = "https://itmaths-backend.onrender.com";
 
 function RegisterPage() {
     const navigate = useNavigate();
@@ -26,10 +19,8 @@ function RegisterPage() {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    
-    // State điều khiển Dialog thành công
-    const [openSuccess, setOpenSuccess] = useState(false);
 
+    // Nếu đã đăng nhập rồi thì không cho vào trang đăng ký
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
         if (token) navigate('/');
@@ -56,14 +47,14 @@ function RegisterPage() {
                 password: formData.password
             });
             
-            // [THAY ĐỔI] Không dùng alert nữa, mở Dialog đẹp
-            setLoading(false); // Tắt loading trước
-            setOpenSuccess(true); // Mở bảng thông báo đẹp
+            // Đăng ký thành công -> Chuyển sang đăng nhập
+            alert('Đăng ký thành công! Vui lòng đăng nhập.');
+            navigate('/login');
 
         } catch (err) {
-            setLoading(false);
             console.error(err);
             if (err.response && err.response.data) {
+                // Hiển thị lỗi từ server (ví dụ: Tên đã tồn tại)
                 const serverErrors = err.response.data;
                 const errorMsg = Object.keys(serverErrors).map(key => 
                     `${serverErrors[key]}`
@@ -72,13 +63,9 @@ function RegisterPage() {
             } else {
                 setError('Lỗi kết nối Server.');
             }
+        } finally {
+            setLoading(false);
         }
-    };
-
-    // Hàm chuyển trang khi bấm nút trong Dialog
-    const handleCloseSuccess = () => {
-        setOpenSuccess(false);
-        navigate('/login');
     };
 
     return (
@@ -87,7 +74,7 @@ function RegisterPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(135deg, #311b92 0%, #673ab7 100%)',
+            background: 'linear-gradient(135deg, #311b92 0%, #673ab7 100%)', // Đồng bộ màu tím
             padding: 2
         }}>
             <Container maxWidth="xs">
@@ -100,8 +87,9 @@ function RegisterPage() {
                     backgroundColor: '#ffffff',
                 }}>
                     
+                    {/* Logo & Tên ứng dụng */}
                     <Box mb={1}>
-                        <img src={logoImage} alt="ItMaths Logo" style={{ width: 80, height: 80 }} />
+                    <img src={logoImage} alt="ItMaths Logo" style={{ width: 80, height: 80 }} />
                     </Box>
                     
                     <Typography component="h1" variant="h5" fontWeight="800" color="primary">
@@ -164,66 +152,6 @@ function RegisterPage() {
                     </Box>
                 </Paper>
             </Container>
-
-            {/* --- [MỚI] DIALOG THÔNG BÁO THÀNH CÔNG ĐẸP LUNG LINH --- */}
-            <Dialog
-                open={openSuccess}
-                TransitionComponent={Transition}
-                keepMounted
-                onClose={handleCloseSuccess}
-                PaperProps={{
-                    style: { 
-                        borderRadius: 20, 
-                        padding: '20px', 
-                        minWidth: '300px',
-                        textAlign: 'center' 
-                    }
-                }}
-            >
-                <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 0 }}>
-                    
-                    {/* ICON TÍCH XANH CÓ HIỆU ỨNG PULSE */}
-                    <Box sx={{
-                        width: 80, height: 80, borderRadius: '50%',
-                        bgcolor: '#e8f5e9', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        mb: 2,
-                        animation: 'pulse 1.5s infinite',
-                        '@keyframes pulse': {
-                            '0%': { boxShadow: '0 0 0 0 rgba(76, 175, 80, 0.4)' },
-                            '70%': { boxShadow: '0 0 0 20px rgba(76, 175, 80, 0)' },
-                            '100%': { boxShadow: '0 0 0 0 rgba(76, 175, 80, 0)' },
-                        }
-                    }}>
-                        <CheckCircleOutlineIcon sx={{ fontSize: 50, color: '#4caf50' }} />
-                    </Box>
-
-                    <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ color: '#2e7d32' }}>
-                        Thành công!
-                    </Typography>
-                    
-                    <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
-                        Chào mừng bạn gia nhập <b>ItMaths</b>.<br/>
-                        Tài khoản đã được tạo thành công.
-                    </Typography>
-
-                    <Button 
-                        variant="contained" 
-                        fullWidth 
-                        onClick={handleCloseSuccess}
-                        sx={{ 
-                            borderRadius: 10, py: 1.5, fontSize: '1rem',
-                            background: 'linear-gradient(45deg, #43a047 30%, #66bb6a 90%)',
-                            textTransform: 'none',
-                            fontWeight: 'bold',
-                            boxShadow: '0 4px 10px rgba(76, 175, 80, 0.4)'
-                        }}
-                    >
-                        Đăng nhập ngay
-                    </Button>
-
-                </DialogContent>
-            </Dialog>
-
         </Box>
     );
 }

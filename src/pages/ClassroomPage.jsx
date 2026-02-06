@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import classroomService from '../services/classroomService';
 import axiosClient from '../services/axiosClient';
 
-// 👉 [QUAN TRỌNG] Import file CSS vừa tạo
+// Import thêm các component đẹp của MUI
+import { 
+    Dialog, DialogContent, Button, Typography, Box, Slide 
+} from '@mui/material';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+
 import './ClassroomPage.css';
+
+// Hiệu ứng trượt lên khi hiện bảng thông báo
+const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+});
 
 const ClassroomPage = () => {
   const navigate = useNavigate();
@@ -16,6 +25,9 @@ const ClassroomPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [newClass, setNewClass] = useState({ name: '', grade: '12', description: '' });
 
+  // State cho bảng thông báo đẹp (Dialog)
+  const [openSuccess, setOpenSuccess] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -23,12 +35,10 @@ const ClassroomPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // 1. Lấy thông tin user
       const userRes = await axiosClient.get('/user/me/');
       setCurrentUser(userRes.data);
 
-      // 2. Lấy danh sách lớp
-      const classRes = await classroomService.getAll();
+      const classRes = await axiosClient.get('/classrooms/');
       setClasses(classRes.data);
       
       setLoading(false);
@@ -41,31 +51,61 @@ const ClassroomPage = () => {
   const handleCreateClass = async (e) => {
     e.preventDefault();
     try {
-      await classroomService.create(newClass);
-      alert("✅ Tạo lớp thành công!");
+      await axiosClient.post('/classrooms/', newClass);
+      
+      // ✅ THAY ĐỔI: Không dùng alert nữa, mở bảng đẹp lên
       setShowForm(false);
+      setOpenSuccess(true); 
+      
+      // Reset form
       setNewClass({ name: '', grade: '12', description: '' });
       fetchData(); 
     } catch (error) {
-      alert("Lỗi: " + (error.response?.data?.error || "Không thể tạo lớp"));
+      handleError(error);
     }
+  };
+
+  const handleCloseSuccess = () => {
+    setOpenSuccess(false);
+  };
+
+  // ✅ [MỚI] Hàm copy mã lớp nhanh
+  const handleCopyCode = (code, e) => {
+    e.stopPropagation(); // Ngăn không cho nó nhảy vào trang chi tiết lớp
+    navigator.clipboard.writeText(code);
+    // Bạn có thể thay alert bằng Snackbar nếu muốn đẹp hơn
+    alert(`✅ Đã sao chép mã lớp: ${code}`); 
   };
 
   const handleJoinClass = async () => {
     const code = prompt("Nhập mã lớp (Invite Code) do giáo viên cung cấp:");
     if (!code) return;
     try {
-      await classroomService.join(code);
-      alert("✅ Tham gia lớp thành công!");
+      await axiosClient.post('/classrooms/join/', { invite_code: code });
+      alert("✅ Tham gia lớp thành công!"); 
       fetchData();
     } catch (error) {
-      alert("Lỗi: " + (error.response?.data?.message || "Mã lớp không đúng"));
+      handleError(error);
     }
+  };
+
+  const handleError = (error) => {
+      console.error(error);
+      const serverData = error.response?.data;
+      if (typeof serverData === 'string' && serverData.trim().startsWith('<')) {
+          alert("⚠️ Lỗi Server. Vui lòng thử lại sau.");
+      } else if (serverData && serverData.message) {
+          alert("❌ " + serverData.message);
+      } else {
+          alert("❌ Có lỗi xảy ra.");
+      }
   };
 
   if (loading) return <div className="loading-text">Đang tải danh sách lớp...</div>;
 
-  const isTeacher = currentUser?.profile_occupation === 'teacher' || currentUser?.occupation === 'teacher';
+  const isTeacher = currentUser?.profile?.occupation === 'teacher' || 
+                    currentUser?.occupation === 'teacher' ||
+                    currentUser?.profile_occupation === 'teacher';
 
   return (
     <div className="classroom-container">
@@ -86,7 +126,7 @@ const ClassroomPage = () => {
         </div>
       </div>
 
-      {/* FORM TẠO LỚP (Hiện ra khi bấm nút) */}
+      {/* FORM TẠO LỚP */}
       {showForm && (
         <div className="create-form-container">
           <h3 style={{color: '#1a237e', marginBottom: '15px'}}>Thông tin lớp học mới</h3>
@@ -130,7 +170,7 @@ const ClassroomPage = () => {
         </div>
       )}
 
-      {/* DANH SÁCH LỚP HỌC (GRID) */}
+      {/* DANH SÁCH LỚP HỌC */}
       {classes.length > 0 ? (
         <div className="class-grid">
           {classes.map(cls => (
@@ -139,11 +179,21 @@ const ClassroomPage = () => {
               onClick={() => navigate(`/classrooms/${cls.id}`)}
               className="class-card"
             >
-              {/* Phần Banner Màu Sắc */}
+              {/* ✅ [CẬP NHẬT] Banner có Mã lớp */}
               <div className="card-banner">
-                <h2 className="class-name">{cls.name}</h2>
-                <p className="class-grade">Khối {cls.grade}</p>
-                <div className="teacher-badge">{cls.teacher_name}</div>
+                <div className="banner-top">
+                    <h2 className="class-name">{cls.name}</h2>
+                    {/* Hiển thị Mã lớp ngay góc trên */}
+                    <div className="code-badge" onClick={(e) => handleCopyCode(cls.invite_code, e)}>
+                        🔑 {cls.invite_code}
+                    </div>
+                </div>
+                
+                <p className="class-grade">
+                    Khối {cls.grade} • {cls.program_type === 'gifted' ? '🔥 Bồi dưỡng' : '📚 Cơ bản'}
+                </p>
+                
+                <div className="teacher-badge">GV: {cls.teacher_name}</div>
               </div>
 
               {/* Phần Nội Dung */}
@@ -153,8 +203,16 @@ const ClassroomPage = () => {
                 </p>
                 
                 <div className="card-footer">
-                  <span>👥 {cls.member_count || 0} thành viên</span>
-                  <span className="access-link">Truy cập &rarr;</span>
+                  <span>👥 {cls.member_count || 0} HS</span>
+                  
+                  {/* ✅ [MỚI] Nút Copy mã lớp tiện lợi */}
+                  <button 
+                    className="btn-copy-code"
+                    onClick={(e) => handleCopyCode(cls.invite_code, e)}
+                    title="Bấm để sao chép mã mời"
+                  >
+                    Copy Mã
+                  </button>
                 </div>
               </div>
             </div>
@@ -166,6 +224,53 @@ const ClassroomPage = () => {
           {isTeacher && <p>Hãy bấm nút "Tạo lớp mới" ở góc phải để bắt đầu nhé!</p>}
         </div>
       )}
+
+      {/* ✨ PHẦN DIALOG ĐẸP LUNG LINH ✨ */}
+      <Dialog 
+        open={openSuccess} 
+        TransitionComponent={Transition}
+        keepMounted
+        onClose={handleCloseSuccess}
+        PaperProps={{
+            style: { borderRadius: 20, padding: '10px', minWidth: '320px', textAlign: 'center' }
+        }}
+      >
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2 }}>
+            <Box sx={{
+                width: 80, height: 80, borderRadius: '50%', bgcolor: '#e8f5e9',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2,
+                animation: 'pulse 1.5s infinite',
+                '@keyframes pulse': {
+                    '0%': { boxShadow: '0 0 0 0 rgba(76, 175, 80, 0.4)' },
+                    '70%': { boxShadow: '0 0 0 20px rgba(76, 175, 80, 0)' },
+                    '100%': { boxShadow: '0 0 0 0 rgba(76, 175, 80, 0)' },
+                }
+            }}>
+                <CheckCircleOutlineIcon sx={{ fontSize: 50, color: '#4caf50' }} />
+            </Box>
+            
+            <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ color: '#2e7d32' }}>
+                Thành công!
+            </Typography>
+            <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+                Lớp học mới đã được tạo.<br/>Bạn có thể bắt đầu thêm bài tập ngay.
+            </Typography>
+            
+            <Button 
+                variant="contained" 
+                fullWidth 
+                onClick={handleCloseSuccess}
+                sx={{ 
+                    borderRadius: 10, py: 1.5, fontSize: '1rem',
+                    background: 'linear-gradient(45deg, #43a047 30%, #66bb6a 90%)',
+                    textTransform: 'none', fontWeight: 'bold',
+                    boxShadow: '0 4px 10px rgba(76, 175, 80, 0.4)'
+                }}
+            >
+                Tuyệt vời
+            </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -85,7 +85,7 @@
   border-radius: 8px;
   font-size: 16px;
   width: 100%;
-  box-sizing: border-box; /* Quan trọng để không bị vỡ khung */
+  box-sizing: border-box;
 }
 
 .input-full {
@@ -138,6 +138,30 @@
   position: relative;
 }
 
+/* ✅ [MỚI] Flexbox để căn chỉnh tên lớp và mã lớp */
+.banner-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* ✅ [MỚI] Badge mã lớp đẹp mắt */
+.code-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px dashed rgba(255, 255, 255, 0.6);
+  transition: all 0.2s;
+}
+
+.code-badge:hover {
+  background: #fff;
+  color: #1a237e;
+}
+
 .class-name {
   font-size: 22px;
   margin: 0;
@@ -145,6 +169,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 70%; /* Để chừa chỗ cho mã lớp */
 }
 
 .class-grade {
@@ -155,7 +180,7 @@
 
 .teacher-badge {
   position: absolute;
-  top: 15px;
+  top: 60px; /* Đẩy xuống một chút để tránh đè lên mã lớp */
   right: 15px;
   background: rgba(255,255,255,0.2);
   padding: 4px 8px;
@@ -191,6 +216,23 @@
 .access-link {
   color: #1a237e;
   font-weight: 600;
+}
+
+/* ✅ [MỚI] Nút copy nhỏ ở dưới */
+.btn-copy-code {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #555;
+  transition: 0.2s;
+}
+
+.btn-copy-code:hover {
+  background-color: #e0e0e0;
+  color: #000;
 }
 
 /* Trạng thái trống */
