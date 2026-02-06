@@ -8,7 +8,7 @@
     min-height: 100vh;
 }
 
-/* --- BANNER --- */
+/* --- BANNER LỚP HỌC --- */
 .class-banner {
     background: linear-gradient(135deg, #1976d2, #64b5f6); 
     height: 240px;
@@ -104,7 +104,7 @@
     border-bottom: 3px solid #1976d2;
 }
 
-/* --- STREAM LAYOUT --- */
+/* --- STREAM LAYOUT (BẢNG TIN) --- */
 .stream-layout {
     display: grid;
     grid-template-columns: 200px 1fr;
@@ -162,7 +162,7 @@
     font-size: 1rem;
 }
 
-/* --- CSS BỘ LỌC 3 CẤP --- */
+/* --- CSS BỘ LỌC GIAO BÀI 3 CẤP --- */
 .assign-filter-container {
     display: flex;
     flex-wrap: wrap;
@@ -225,7 +225,7 @@
     cursor: not-allowed;
 }
 
-/* Thẻ bài tập */
+/* Thẻ bài tập (Stream Card) */
 .stream-card {
     display: flex;
     align-items: center;
@@ -331,7 +331,12 @@
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid #eee;
-    justify-content: space-between; /* Để đẩy nút xóa sang phải */
+    justify-content: space-between;
+}
+
+.member-left {
+    display: flex;
+    align-items: center;
 }
 
 .member-avatar {
@@ -362,7 +367,7 @@
     margin-top: 10px;
 }
 
-/* --- CSS TAB BẢNG ĐIỂM (GRADES) --- */
+/* --- CSS CHO TAB BẢNG ĐIỂM (GRADES) --- */
 .grades-layout {
     max-width: 900px;
     margin: 0 auto;
@@ -456,4 +461,18 @@
     color: #999;
     font-style: italic;
     font-size: 0.9rem;
+}
+
+/* 🔥 [MỚI] Hiệu ứng cho dòng bảng điểm khi di chuột (Clickable) */
+.grade-row-clickable {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.grade-row-clickable:hover {
+    background-color: #f5f5f5; /* Màu nền xám nhẹ khi hover */
+}
+
+.grade-row-clickable td {
+    vertical-align: middle;
 }

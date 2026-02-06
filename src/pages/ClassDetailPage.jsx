@@ -7,7 +7,8 @@ import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
-import AssessmentIcon from '@mui/icons-material/Assessment'; // Icon Bảng điểm
+import AssessmentIcon from '@mui/icons-material/Assessment'; 
+import VisibilityIcon from '@mui/icons-material/Visibility'; // ✅ [MỚI] Icon con mắt
 
 import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
@@ -24,7 +25,7 @@ const ClassDetail = () => {
   const [classroom, setClassroom] = useState(null);
   const [topics, setTopics] = useState([]); 
   const [members, setMembers] = useState([]);
-  const [reportData, setReportData] = useState([]); // ✅ [MỚI] Dữ liệu bảng điểm
+  const [reportData, setReportData] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
@@ -44,14 +45,12 @@ const ClassDetail = () => {
     fetchData();
   }, [id]);
 
-  // ✅ [MỚI] Tải dữ liệu báo cáo khi vào tab Grades
   useEffect(() => {
     if (activeTab === 'grades' && currentUser?.id === classroom?.teacher) {
         fetchReport();
     }
   }, [activeTab]);
 
-  // Logic lọc Chuyên đề
   useEffect(() => {
     if (topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
@@ -63,7 +62,6 @@ const ClassDetail = () => {
     }
   }, [selectedGrade, topics]);
 
-  // Logic lọc Đề thi
   useEffect(() => {
     if (selectedTopicId) {
         const topic = topics.find(t => t.id === parseInt(selectedTopicId));
@@ -100,7 +98,6 @@ const ClassDetail = () => {
     }
   };
 
-  // ✅ [MỚI] Hàm lấy bảng điểm
   const fetchReport = async () => {
       try {
           const res = await axiosClient.get(`/classrooms/${id}/report/`);
@@ -167,6 +164,12 @@ const ClassDetail = () => {
       navigate(`/exams/${examId}`); 
   };
 
+  // ✅ [MỚI] Hàm xem chi tiết kết quả làm bài của học sinh
+  const handleViewResult = (resultId) => {
+      // Chuyển hướng đến trang chi tiết kết quả (Ví dụ: /results/123)
+      navigate(`/history/${resultId}`);
+  };
+
   if (loading) return <div className="loading-screen">Đang tải dữ liệu lớp học...</div>;
   if (!classroom) return <div className="error-screen">Không tìm thấy lớp học 😔</div>;
 
@@ -175,7 +178,6 @@ const ClassDetail = () => {
   return (
     <div className="class-detail-container">
       
-      {/* BANNER */}
       <div className="class-banner">
         <div className="banner-content">
           <h1 className="banner-title">{classroom.name}</h1>
@@ -194,7 +196,6 @@ const ClassDetail = () => {
         </div>
       </div>
 
-      {/* NAV TAB */}
       <div className="class-nav">
         <button 
             className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`}
@@ -208,7 +209,6 @@ const ClassDetail = () => {
         >
             Thành viên ({members.length})
         </button>
-        {/* ✅ [MỚI] Tab Bảng điểm chỉ hiện cho Giáo viên */}
         {isTeacher && (
             <button 
                 className={`nav-item ${activeTab === 'grades' ? 'active' : ''}`}
@@ -221,7 +221,6 @@ const ClassDetail = () => {
 
       <div className="class-body">
         
-        {/* TAB BẢNG TIN */}
         {activeTab === 'stream' && (
             <div className="stream-layout">
                 <div className="stream-left">
@@ -341,7 +340,6 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* TAB THÀNH VIÊN */}
         {activeTab === 'members' && (
             <div className="members-layout">
                 <div className="section-header">
@@ -393,7 +391,6 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* ✅ [MỚI] TAB BẢNG ĐIỂM (GRADES) */}
         {activeTab === 'grades' && isTeacher && (
             <div className="grades-layout">
                 <div className="section-header">
@@ -427,19 +424,22 @@ const ClassDetail = () => {
                                                 <th>Chuyên đề</th>
                                                 <th>Ngày làm</th>
                                                 <th>Điểm số</th>
+                                                <th>Chi tiết</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {student.results.map((res, idx) => (
-                                                <tr key={idx}>
+                                                // 🔥 [MỚI] Thêm onClick và class để bấm được
+                                                <tr key={idx} className="grade-row-clickable" onClick={() => handleViewResult(res.id)}>
                                                     <td>{res.exam_title}</td>
                                                     <td>{res.topic_title}</td>
-                                                    <td>{new Date(res.date).toLocaleDateString('vi-VN')} {new Date(res.date).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</td>
+                                                    <td>{new Date(res.date).toLocaleDateString('vi-VN')} {new Date(res.date).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</td>
                                                     <td>
                                                         <span className={`score-badge ${res.score >= 5 ? 'pass' : 'fail'}`}>
                                                             {res.score}
                                                         </span>
                                                     </td>
+                                                    <td><VisibilityIcon fontSize="small" color="action"/></td>
                                                 </tr>
                                             ))}
                                         </tbody>
