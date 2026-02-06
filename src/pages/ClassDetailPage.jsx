@@ -8,20 +8,31 @@ import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 
+// ✅ [MỚI] Import components thông báo đẹp
+import { Snackbar, Alert, Slide } from '@mui/material';
+
 import './ClassDetail.css';
+
+// Hiệu ứng trượt xuống cho thông báo
+function TransitionDown(props) {
+  return <Slide {...props} direction="down" />;
+}
 
 const ClassDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
   const [classroom, setClassroom] = useState(null);
-  const [topics, setTopics] = useState([]); // Danh sách chuyên đề để giao
+  const [topics, setTopics] = useState([]); 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('stream'); // 'stream' | 'members'
+  const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
   // State giao bài
   const [selectedTopic, setSelectedTopic] = useState('');
+
+  // ✅ [MỚI] State quản lý thông báo đẹp
+  const [openSnackbar, setOpenSnackbar] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -30,16 +41,12 @@ const ClassDetail = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // 1. Lấy thông tin User
       const userRes = await axiosClient.get('/user/me/');
       setCurrentUser(userRes.data);
 
-      // 2. Lấy chi tiết lớp học
       const classRes = await axiosClient.get(`/classrooms/${id}/`);
       setClassroom(classRes.data);
 
-      // 3. Lấy danh sách chuyên đề (nếu là GV)
       const topicRes = await axiosClient.get('/topics/');
       setTopics(topicRes.data);
 
@@ -50,9 +57,15 @@ const ClassDetail = () => {
     }
   };
 
+  // ✅ [CẬP NHẬT] Hàm copy mã lớp xịn sò hơn
   const handleCopyCode = () => {
     navigator.clipboard.writeText(classroom.invite_code);
-    alert(`Đã sao chép mã: ${classroom.invite_code}`);
+    setOpenSnackbar(true); // Mở thông báo đẹp thay vì alert xấu xí
+  };
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setOpenSnackbar(false);
   };
 
   const handleAssignTopic = async () => {
@@ -63,7 +76,7 @@ const ClassDetail = () => {
         topic: selectedTopic
       });
       alert("✅ Giao bài thành công!");
-      fetchData(); // Load lại để thấy bài mới
+      fetchData(); 
       setSelectedTopic('');
     } catch (error) {
       alert("Lỗi khi giao bài (Có thể bài này đã giao rồi)");
@@ -74,7 +87,6 @@ const ClassDetail = () => {
   if (!classroom) return <div className="error-screen">Không tìm thấy lớp học 😔</div>;
 
   const isTeacher = currentUser?.id === classroom.teacher; 
-  // (Logic check GV đơn giản: so sánh ID người dùng với ID giáo viên của lớp)
 
   return (
     <div className="class-detail-container">
@@ -121,7 +133,6 @@ const ClassDetail = () => {
         {/* === TAB BẢNG TIN === */}
         {activeTab === 'stream' && (
             <div className="stream-layout">
-                {/* Cột trái: Thông báo bài tập sắp đến hạn (Placeholder) */}
                 <div className="stream-left">
                     <div className="upcoming-box">
                         <h5>Sắp đến hạn</h5>
@@ -130,10 +141,7 @@ const ClassDetail = () => {
                     </div>
                 </div>
 
-                {/* Cột phải: Danh sách bài tập */}
                 <div className="stream-center">
-                    
-                    {/* KHUNG GIAO BÀI (Chỉ GV mới thấy) */}
                     {isTeacher && (
                         <div className="assign-box">
                             <div className="assign-header">
@@ -160,7 +168,6 @@ const ClassDetail = () => {
                         </div>
                     )}
 
-                    {/* DANH SÁCH BÀI ĐÃ GIAO */}
                     <div className="assignment-list">
                         {classroom.assignments && classroom.assignments.length > 0 ? (
                             classroom.assignments.map((assign, index) => (
@@ -208,11 +215,9 @@ const ClassDetail = () => {
                     <div className="divider"></div>
                 </div>
                 
-                {/* Ở đây tạm thời chưa có list members chi tiết từ API, ta hiển thị placeholder */}
                 {classroom.member_count > 0 ? (
                     <div className="student-list-placeholder">
                         <p>Danh sách học sinh sẽ hiển thị tại đây.</p>
-                        {/* Sau này bạn có thể bổ sung API lấy list members để map vào đây */}
                     </div>
                 ) : (
                     <div className="empty-members">
@@ -225,6 +230,25 @@ const ClassDetail = () => {
         )}
 
       </div>
+
+      {/* ✅ [MỚI] THÔNG BÁO COPY THÀNH CÔNG ĐẸP MẮT */}
+      <Snackbar 
+        open={openSnackbar} 
+        autoHideDuration={3000} 
+        onClose={handleCloseSnackbar}
+        TransitionComponent={TransitionDown}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+            onClose={handleCloseSnackbar} 
+            severity="success" 
+            variant="filled"
+            sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}
+        >
+          Đã sao chép mã lớp: <strong>{classroom.invite_code}</strong>
+        </Alert>
+      </Snackbar>
+
     </div>
   );
 };
