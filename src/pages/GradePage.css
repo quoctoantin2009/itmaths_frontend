@@ -1,0 +1,56 @@
+/* --- THANH TIÊU ĐỀ CỐ ĐỊNH (STICKY HEADER) --- */
+.sticky-header {
+    position: sticky; /* Giúp thanh này dính chặt khi cuộn */
+    top: 0;           /* Dính ở mép trên cùng */
+    z-index: 1000;    /* Nổi lên trên các nội dung khác */
+    
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    
+    padding: 12px 15px;
+    margin: 0 -24px 20px -24px; /* Mẹo: Kéo giãn ra lấp đầy lề của Container */
+    
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15); /* Đổ bóng nhẹ tạo chiều sâu */
+    transition: background-color 0.3s;
+}
+
+/* Trên mobile thì margin nhỏ hơn do padding container nhỏ hơn */
+@media (max-width: 600px) {
+    .sticky-header {
+        margin: 0 -16px 20px -16px;
+        padding-top: max(env(safe-area-inset-top), 12px); /* Tránh tai thỏ iPhone */
+    }
+}
+
+.header-title-text {
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Nếu tên dài quá thì hiện dấu ... */
+}
+
+/* Nút quay lại trong header */
+.btn-back-header {
+    color: white !important;
+    padding: 5px !important;
+}
+
+/* --- TÙY CHỈNH ACCORDION (DANH SÁCH) --- */
+.MuiAccordion-root {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+    border-radius: 8px !important;
+    margin-bottom: 12px !important;
+}
+
+.MuiAccordion-root:before {
+    display: none !important; /* Ẩn đường kẻ mặc định của MUI */
+}
+
+.MuiAccordionSummary-root {
+    border-radius: 8px !important;
+}

@@ -1,0 +1,210 @@
+/* Container chính */
+.exam-page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa; /* Nền xám nhẹ dịu mắt */
+    min-height: 100vh;
+}
+
+/* --- HEADER BANNER --- */
+.exam-header {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); /* Gradient Tím - Xanh cực đẹp */
+    padding: 30px 40px;
+    border-radius: 15px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 20px rgba(37, 117, 252, 0.2);
+}
+
+.header-content h2 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.header-content p {
+    margin: 5px 0 0;
+    opacity: 0.9;
+    font-size: 1rem;
+}
+
+.btn-history {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-history:hover {
+    background-color: white;
+    color: #2575fc;
+    transform: translateY(-2px);
+}
+
+/* --- THANH TÌM KIẾM --- */
+.search-bar-container {
+    margin-bottom: 25px;
+    position: relative;
+}
+
+.search-input {
+    width: 100%;
+    padding: 15px 20px;
+    padding-left: 50px; /* Chừa chỗ cho icon search */
+    border-radius: 30px;
+    border: 1px solid #e0e0e0;
+    font-size: 1rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    outline: none;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+.search-input:focus {
+    border-color: #2575fc;
+}
+
+.search-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+}
+
+/* --- DANH SÁCH ĐỀ THI (GRID LAYOUT) --- */
+.exam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); /* Tự động chia cột */
+    gap: 20px;
+}
+
+/* --- THẺ ĐỀ THI (CARD) --- */
+.exam-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid #f0f0f0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hiệu ứng hover cho Card */
+.exam-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    border-color: #2575fc;
+}
+
+/* Đường viền màu bên trái để trang trí */
+.exam-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 5px;
+    background: #2575fc;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.exam-icon-box {
+    width: 50px;
+    height: 50px;
+    background-color: #e3f2fd; /* Xanh nhạt */
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1976d2;
+    flex-shrink: 0;
+}
+
+.exam-info h3 {
+    margin: 0 0 5px;
+    font-size: 1.1rem;
+    color: #333;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.exam-topic {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 0;
+}
+
+.card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+    margin-top: auto; /* Đẩy xuống đáy */
+}
+
+/* Badge thông tin (Thời gian, Số câu) */
+.meta-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: #555;
+    background-color: #f5f5f5;
+    padding: 5px 10px;
+    border-radius: 20px;
+}
+
+.btn-start {
+    background: linear-gradient(90deg, #11998e, #38ef7d); /* Gradient xanh lá */
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(56, 239, 125, 0.3);
+    transition: 0.2s;
+}
+
+.btn-start:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(56, 239, 125, 0.4);
+}
+
+/* Trạng thái Loading/Empty */
+.loading-text, .empty-text {
+    text-align: center;
+    padding: 50px;
+    color: #888;
+    font-size: 1.1rem;
+    grid-column: 1 / -1; /* Chiếm hết chiều ngang */
+}

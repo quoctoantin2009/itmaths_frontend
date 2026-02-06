@@ -14,6 +14,9 @@ import StarIcon from '@mui/icons-material/Star';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import { AdMob } from '@capacitor-community/admob';
 
+// 🔥 Import CSS mới tạo
+import './GradePage.css';
+
 function GradePage() {
   const { gradeId } = useParams();
   const [searchParams] = useSearchParams();
@@ -31,7 +34,6 @@ function GradePage() {
   const sortAZ = (dataArray) => {
     if (!dataArray) return [];
     return [...dataArray].sort((a, b) => {
-        // Ưu tiên so sánh theo 'title', nếu không có thì so sánh theo 'name'
         const nameA = a.title || a.name || "";
         const nameB = b.title || b.name || "";
         return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
@@ -73,7 +75,6 @@ function GradePage() {
     if (isTN) {
         axiosClient.get('/exams/?standalone=true')
             .then(res => {
-                // Sắp xếp Đề thi Tốt nghiệp A-Z
                 setExams(sortAZ(res.data));
             })
             .catch(err => console.error("Lỗi tải đề thi:", err));
@@ -81,17 +82,13 @@ function GradePage() {
         const category = isGifted ? 'gifted' : 'standard';
         axiosClient.get(`/topics/?grade=${gradeId}&category=${category}`)
             .then(res => {
-                // 1. Sắp xếp Chuyên đề cha (Topics) A-Z
                 let sortedTopics = sortAZ(res.data);
-
-                // 2. Sắp xếp dữ liệu con bên trong (Video, PDF, Exam) A-Z
                 sortedTopics = sortedTopics.map(topic => ({
                     ...topic,
                     videos: sortAZ(topic.videos),
                     documents: sortAZ(topic.documents),
                     exercises: sortAZ(topic.exercises)
                 }));
-
                 setTopics(sortedTopics);
             })
             .catch(err => console.error("Lỗi tải chuyên đề:", err));
@@ -117,11 +114,19 @@ function GradePage() {
       });
   };
 
+  // 🔥 XÁC ĐỊNH TIÊU ĐỀ VÀ MÀU SẮC HEADER
+  const getHeaderInfo = () => {
+      if (isTN) return { title: "Luyện Thi Tốt Nghiệp THPT", color: "#d32f2f" }; // Màu đỏ
+      if (isGifted) return { title: `Bồi Dưỡng HSG Toán ${gradeId}`, color: "#ef6c00" }; // Màu cam
+      return { title: `Chương Trình Toán Lớp ${gradeId}`, color: "#1976d2" }; // Màu xanh
+  };
+
+  const headerInfo = getHeaderInfo();
+
   return (
-    <Container maxWidth={isTN ? "md" : "xl"} sx={{ 
-        mb: 10,
-        paddingTop: 'max(env(safe-area-inset-top), 50px)' 
-    }}>
+    <Container maxWidth={isTN ? "md" : "xl"} sx={{ mb: 10, padding: 0 }}> 
+      {/* padding 0 để header dính sát lề trên mobile */}
+      
       <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
          <Box textAlign="center">
             <CircularProgress color="inherit" />
@@ -129,138 +134,126 @@ function GradePage() {
          </Box>
       </Backdrop>
 
-      <Box mb={2}>
-            <IconButton 
-                onClick={() => navigate('/')} 
-                sx={{ 
-                    bgcolor: 'white', color: '#555', 
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-                    width: 45, height: 45,
-                    '&:hover': { bgcolor: '#f5f5f5', color: '#d32f2f' }
-                }}
-            >
-                <ArrowBackIcon />
-            </IconButton>
-      </Box>
+      {/* 🔥 [MỚI] HEADER CỐ ĐỊNH (STICKY HEADER) GIỐNG APP */}
+      <div className="sticky-header" style={{ backgroundColor: headerInfo.color }}>
+          <IconButton onClick={() => navigate('/')} className="btn-back-header">
+              <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" className="header-title-text">
+              {headerInfo.title}
+          </Typography>
+      </div>
 
-      {isTN ? (
-         <>
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
-                <Typography variant="h4" fontWeight="bold" color="#d32f2f" textTransform="uppercase">LUYỆN ĐỀ TỐT NGHIỆP THPT</Typography>
-                <Typography variant="body1" color="textSecondary" mt={1}>Tổng hợp các đề thi thử và đề chính thức mới nhất</Typography>
-            </Box>
-            
-            {exams.length === 0 && (
-                <Box textAlign="center" mt={5}>
-                    <Typography color="textSecondary">Chưa có đề thi nào.</Typography>
-                </Box>
-            )}
-
-            <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-                {exams.map((exam) => (
-                    <Button key={exam.id} fullWidth 
-                        onClick={() => handleClickExam(exam.id)} 
-                        sx={{ 
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, mb: 2, 
-                            bgcolor: 'white', borderRadius: 3, boxShadow: '0 4px 10px rgba(0,0,0,0.05)', 
-                            textTransform: 'none', border: '1px solid #eee', transition: '0.2s',
-                            '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 6px 15px rgba(0,0,0,0.1)', borderColor: '#d32f2f' }
-                        }}
-                    >
-                        <Box display="flex" alignItems="center">
-                            <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#ffebee', color: '#d32f2f', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 2, fontSize: 20 }}>📄</Box>
-                            <Box textAlign="left">
-                                <Typography variant="h6" fontWeight="bold" color="#333">{exam.title}</Typography>
-                                <Typography variant="caption" color="textSecondary">{exam.description || "Đề thi trắc nghiệm tổng hợp"}</Typography>
-                            </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', color: '#666', bgcolor: '#f5f5f5', px: 2, py: 0.5, borderRadius: 10 }}>
-                            <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                            <Typography variant="body2" fontWeight="500">{exam.duration} phút</Typography>
-                        </Box>
-                    </Button>
-                ))}
-            </Paper>
-         </>
-      ) : (
-         <>
-            <Box textAlign="center" mb={5}>
-                <Typography variant="h4" fontWeight="bold" color={isGifted ? "#e65100" : "primary"} textTransform="uppercase">
-                    {isGifted ? <StarIcon sx={{mr: 1, fontSize: 35, verticalAlign:'bottom'}}/> : null}
-                    CHƯƠNG TRÌNH {isGifted ? "BỒI DƯỠNG HSG" : ""} TOÁN LỚP {gradeId}
-                </Typography>
-            </Box>
-
-            {topics.length === 0 && (
-                <Box textAlign="center" mt={5}>
-                    <CircularProgress size={30} sx={{mb:2}} />
-                    <Typography color="textSecondary">Đang cập nhật dữ liệu...</Typography>
-                </Box>
-            )}
-
-            {topics.map((topic) => (
-                <Accordion key={topic.id} sx={{ mb: 3, boxShadow: 3, borderRadius: '12px !important', overflow: 'hidden' }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{color:'white'}}/>} sx={{ bgcolor: isGifted ? '#ef6c00' : '#1976d2', color: 'white' }}>
-                    <Typography variant="h6" fontWeight="bold">📚 {topic.title}</Typography>
-                </AccordionSummary>
+      {/* Phần Nội Dung Bên Dưới */}
+      <Box sx={{ px: { xs: 2, md: 3 } }}> {/* Thêm padding cho nội dung để không sát lề quá */}
+      
+          {isTN ? (
+             <>
+                {/* Đã bỏ tiêu đề to cũ ở đây */}
                 
-                <AccordionDetails sx={{ bgcolor: '#f5f7fa', p: 3 }}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 3, width: '100%' }}>
-                        
-                        {/* Cột 1: Tài liệu */}
-                        <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 3, borderTop: '5px solid #f44336', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={2}><PictureAsPdfIcon color="error" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="error">TÀI LIỆU LÝ THUYẾT</Typography></Box>
-                            <Divider sx={{ mb: 2 }} />
-                            <Box sx={{ flexGrow: 1 }}>
-                                {topic.pdf_file && (
-                                    <Button variant="outlined" color="error" fullWidth onClick={() => handleViewPDF(topic.pdf_file, `${topic.title} (Lý thuyết)`)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, fontWeight:'bold', border: '1px solid #ffcdd2', color: '#d32f2f', bgcolor: '#ffebee' }}>{topic.title} (Lý thuyết)</Button>
-                                )}
-                                {/* Danh sách Documents đã được sort AZ */}
-                                {topic.documents && topic.documents.filter(d => d.doc_type === 'theory' || !d.doc_type).map(doc => (
-                                    <Button key={doc.id} variant="outlined" color="error" fullWidth onClick={() => handleViewPDF(doc.file, doc.title)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1 }}>{doc.title}</Button>
-                                ))}
-                            </Box>
-                        </Paper>
-
-                        {/* Cột 2: Video */}
-                        <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 3, borderTop: '5px solid #ff9800', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={2}><YouTubeIcon color="warning" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="warning">VIDEO BÀI GIẢNG</Typography></Box>
-                            <Divider sx={{ mb: 2 }} />
-                            <Box sx={{ flexGrow: 1 }}>
-                                {/* Danh sách Video đã được sort AZ */}
-                                {topic.videos && topic.videos.map(video => (
-                                    <Button key={video.id} variant="outlined" fullWidth onClick={() => handleWatchVideo(video.youtube_url, video.title)} startIcon={<YouTubeIcon sx={{color: 'red'}}/>} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, borderColor: '#ffcc80', color: '#e65100', bgcolor: '#fff3e0' }}>{video.title}</Button>
-                                ))}
-                            </Box>
-                        </Paper>
-
-                        {/* Cột 3: Đề thi */}
-                        <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 3, borderTop: '5px solid #4caf50', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={2}><AssignmentIcon color="success" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="success">{isGifted ? "ĐỀ THI (PDF)" : "LUYỆN TẬP ONLINE"}</Typography></Box>
-                            <Divider sx={{ mb: 2 }} />
-                            <Box sx={{ flexGrow: 1 }}>
-                                {isGifted ? (
-                                    topic.documents && topic.documents.filter(d => d.doc_type === 'exam').map(doc => (
-                                        <Button key={doc.id} variant="contained" color="success" fullWidth onClick={() => handleViewPDF(doc.file, `${doc.title} (Đề thi)`)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, bgcolor: '#2e7d32' }}>{doc.title} (Đề thi)</Button>
-                                    ))
-                                ) : (
-                                    // Danh sách Bài tập đã được sort AZ
-                                    topic.exercises && topic.exercises.map(exam => (
-                                        <Button key={exam.id} variant="contained" fullWidth startIcon={<AssignmentIcon />} 
-                                            onClick={() => handleClickExam(exam.id)}
-                                            sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, bgcolor: '#4caf50' }}>
-                                            {exam.title} ({exam.duration}')
-                                        </Button>
-                                    ))
-                                )}
-                            </Box>
-                        </Paper>
+                {exams.length === 0 && (
+                    <Box textAlign="center" mt={5}>
+                        <Typography color="textSecondary">Chưa có đề thi nào.</Typography>
                     </Box>
-                </AccordionDetails>
-                </Accordion>
-            ))}
-         </>
-      )}
+                )}
+
+                <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
+                    {exams.map((exam) => (
+                        <Button key={exam.id} fullWidth 
+                            onClick={() => handleClickExam(exam.id)} 
+                            sx={{ 
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, mb: 2, 
+                                bgcolor: 'white', borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', 
+                                textTransform: 'none', border: '1px solid #eee', transition: '0.2s',
+                                '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderColor: '#d32f2f' }
+                            }}
+                        >
+                            <Box display="flex" alignItems="center">
+                                <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#ffebee', color: '#d32f2f', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 2, fontSize: 20 }}>📄</Box>
+                                <Box textAlign="left">
+                                    <Typography variant="h6" fontWeight="bold" color="#333" fontSize="1rem">{exam.title}</Typography>
+                                    <Typography variant="caption" color="textSecondary">{exam.description || "Đề thi trắc nghiệm"}</Typography>
+                                </Box>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', color: '#666', bgcolor: '#f5f5f5', px: 1.5, py: 0.5, borderRadius: 10 }}>
+                                <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                                <Typography variant="caption" fontWeight="600">{exam.duration}'</Typography>
+                            </Box>
+                        </Button>
+                    ))}
+                </Paper>
+             </>
+          ) : (
+             <>
+                {/* Đã bỏ tiêu đề to cũ ở đây */}
+
+                {topics.length === 0 && (
+                    <Box textAlign="center" mt={5}>
+                        <CircularProgress size={30} sx={{mb:2}} />
+                        <Typography color="textSecondary">Đang cập nhật dữ liệu...</Typography>
+                    </Box>
+                )}
+
+                {topics.map((topic) => (
+                    <Accordion key={topic.id} disableGutters>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{color: isGifted ? '#ef6c00' : '#1976d2'}}/>} sx={{ flexDirection: 'row-reverse' }}>
+                            <Typography variant="h6" fontWeight="600" fontSize="1rem" sx={{ ml: 2, color: '#333' }}>
+                                {topic.title}
+                            </Typography>
+                        </AccordionSummary>
+                        
+                        <AccordionDetails sx={{ bgcolor: '#fff', p: 2, borderTop: '1px solid #f0f0f0' }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+                                
+                                {/* Cột 1: Tài liệu */}
+                                {topic.pdf_file || (topic.documents && topic.documents.length > 0) ? (
+                                    <Box>
+                                        <Typography variant="caption" fontWeight="bold" color="error" mb={1} display="block">TÀI LIỆU</Typography>
+                                        {topic.pdf_file && (
+                                            <Button variant="outlined" color="error" fullWidth onClick={() => handleViewPDF(topic.pdf_file, `${topic.title} (Lý thuyết)`)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, fontSize:'0.9rem' }}>Lý thuyết PDF</Button>
+                                        )}
+                                        {topic.documents && topic.documents.filter(d => d.doc_type === 'theory' || !d.doc_type).map(doc => (
+                                            <Button key={doc.id} variant="outlined" color="error" fullWidth onClick={() => handleViewPDF(doc.file, doc.title)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, fontSize:'0.9rem' }}>{doc.title}</Button>
+                                        ))}
+                                    </Box>
+                                ) : null}
+
+                                {/* Cột 2: Video */}
+                                {topic.videos && topic.videos.length > 0 ? (
+                                    <Box>
+                                        <Typography variant="caption" fontWeight="bold" color="warning" mb={1} display="block">VIDEO</Typography>
+                                        {topic.videos.map(video => (
+                                            <Button key={video.id} variant="outlined" fullWidth onClick={() => handleWatchVideo(video.youtube_url, video.title)} startIcon={<YouTubeIcon sx={{color: 'red'}}/>} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, borderColor: '#ffcc80', color: '#e65100', fontSize:'0.9rem' }}>{video.title}</Button>
+                                        ))}
+                                    </Box>
+                                ) : null}
+
+                                {/* Cột 3: Đề thi */}
+                                {((topic.documents && topic.documents.some(d => d.doc_type === 'exam')) || (topic.exercises && topic.exercises.length > 0)) ? (
+                                    <Box>
+                                        <Typography variant="caption" fontWeight="bold" color="success" mb={1} display="block">LUYỆN TẬP</Typography>
+                                        {isGifted ? (
+                                            topic.documents && topic.documents.filter(d => d.doc_type === 'exam').map(doc => (
+                                                <Button key={doc.id} variant="contained" color="success" fullWidth onClick={() => handleViewPDF(doc.file, `${doc.title} (Đề thi)`)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, fontSize:'0.9rem', boxShadow:'none' }}>{doc.title}</Button>
+                                            ))
+                                        ) : (
+                                            topic.exercises && topic.exercises.map(exam => (
+                                                <Button key={exam.id} variant="contained" fullWidth startIcon={<AssignmentIcon />} 
+                                                    onClick={() => handleClickExam(exam.id)}
+                                                    sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, bgcolor: '#4caf50', fontSize:'0.9rem', boxShadow:'none' }}>
+                                                    {exam.title}
+                                                </Button>
+                                            ))
+                                        )}
+                                    </Box>
+                                ) : null}
+                            </Box>
+                        </AccordionDetails>
+                    </Accordion>
+                ))}
+             </>
+          )}
+      </Box>
     </Container>
   );
 }

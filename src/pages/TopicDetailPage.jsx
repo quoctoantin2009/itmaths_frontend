@@ -1,37 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import axiosClient from '../services/axiosClient'; // ✅ Dùng axiosClient chuẩn
 import { 
-  Container, Typography, Grid, Card, Button, Box, 
-  CircularProgress, Alert, Paper, Divider 
+  Container, Typography, Grid, Box, 
+  CircularProgress, Backdrop, IconButton
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import TimerIcon from '@mui/icons-material/Timer';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import HomeIcon from '@mui/icons-material/Home';
+import { AdMob } from '@capacitor-community/admob'; // ✅ Thêm AdMob
 
-// [QUAN TRỌNG] CẤU HÌNH ĐỊA CHỈ IP
-const API_BASE_URL = "https://api.itmaths.vn";
+// Import CSS mới
+import './TopicDetail.css';
 
 function TopicDetailPage() {
-  const { topicId } = useParams(); // Lấy ID từ URL
+  const { topicId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Nhận tên chuyên đề từ trang trước (nếu có) để hiển thị cho đẹp
+  // Nhận thông tin từ trang trước
   const topicTitle = location.state?.topicTitle || "Chi tiết Chuyên đề";
-  const topicDesc = location.state?.topicDesc || "Danh sách các bài tập và đề kiểm tra.";
-
+  
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingAd, setIsLoadingAd] = useState(false); // State loading quảng cáo
 
+  // --- 1. CONFIG ADMOB ---
+  useEffect(() => {
+    const initAdMob = async () => {
+        try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
+        catch (e) { console.error("Lỗi Init AdMob:", e); }
+    };
+    initAdMob();
+  }, []);
+
+  // --- 2. HÀM XỬ LÝ QUẢNG CÁO TRƯỚC KHI CHUYỂN TRANG ---
+  const handleActionWithAd = async (callback) => {
+      setIsLoadingAd(true); 
+      try {
+          await AdMob.prepareInterstitial({
+             adId: 'ca-app-pub-3940256099942544/1033173712', 
+             isTesting: true
+          });
+          await AdMob.showInterstitial();
+      } catch (e) {
+          console.error("Lỗi QC hoặc mạng yếu:", e);
+      } finally {
+          setIsLoadingAd(false); 
+          callback(); 
+      }
+  };
+
+  // --- 3. LOAD DATA ---
   useEffect(() => {
     const fetchExams = async () => {
       try {
-        // [ĐÃ SỬA] Dùng API_BASE_URL thay vì localhost
-        const res = await axios.get(`${API_BASE_URL}/api/topics/${topicId}/exercises/`);
-        setExams(res.data);
+        // Sử dụng axiosClient (đã cấu hình sẵn Base URL trong services)
+        const res = await axiosClient.get(`/topics/${topicId}/exercises/`);
+        
+        // Sắp xếp đề thi theo tên A-Z (nếu cần)
+        const sortedExams = res.data.sort((a, b) => a.title.localeCompare(b.title));
+        setExams(sortedExams);
       } catch (error) {
         console.error("Lỗi tải bài tập:", error);
       }
@@ -40,91 +70,87 @@ function TopicDetailPage() {
     fetchExams();
   }, [topicId]);
 
-  if (loading) return <Box display="flex" justifyContent="center" mt={5}><CircularProgress /></Box>;
+  // --- 4. HÀM BẤM LÀM BÀI ---
+  const handleStartExam = (examId) => {
+      handleActionWithAd(() => {
+          navigate(`/exams/${examId}`);
+      });
+  };
+
+  if (loading) return (
+      <Box display="flex" justifyContent="center" mt={10}>
+          <CircularProgress sx={{color: '#8e24aa'}}/>
+      </Box>
+  );
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+    <div className="topic-container">
       
-      {/* [MỚI] THANH ĐIỀU HƯỚNG (HOME & BACK) */}
-      <Box display="flex" gap={2} mb={2}>
-        <Button
-          startIcon={<HomeIcon />}
-          onClick={() => navigate('/')}
-          variant="outlined"
-          sx={{ textTransform: 'none', fontWeight: 'bold', borderRadius: '20px' }}
-        >
-          Trang chủ
-        </Button>
+      {/* Loading Quảng cáo */}
+      <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
+         <Box textAlign="center">
+            <CircularProgress color="inherit" />
+            <Typography sx={{mt: 2, fontWeight: 'bold'}}>Đang tải bài thi...</Typography>
+         </Box>
+      </Backdrop>
 
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          variant="text"
-          sx={{ textTransform: 'none', fontWeight: 'bold', color: '#666' }}
-        >
-          Quay lại
-        </Button>
-      </Box>
+      {/* 🔥 [MỚI] STICKY HEADER (Màu Tím) */}
+      <div className="topic-sticky-header">
+          <IconButton onClick={() => navigate(-1)} className="btn-back-topic">
+              <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" className="topic-header-title">
+              {topicTitle}
+          </Typography>
+      </div>
 
-      {/* Header Tên Chuyên đề */}
-      <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: '12px', background: 'linear-gradient(135deg, #f3e5f5 0%, #fff 100%)', borderLeft: '6px solid #9c27b0' }}>
-        <Typography variant="h4" component="h1" fontWeight="bold" color="#6a1b9a" gutterBottom>
-          {topicTitle}
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {topicDesc}
-        </Typography>
-      </Paper>
+      <Container maxWidth="md" sx={{ px: 2, pb: 5 }}>
+        
+        {exams.length === 0 ? (
+            <div className="empty-state-topic">
+                <AssignmentIcon sx={{ fontSize: 60, opacity: 0.3, mb: 1 }} />
+                <Typography>Chuyên đề này chưa có bài tập nào.</Typography>
+            </div>
+        ) : (
+            <Grid container spacing={0}> {/* spacing 0 vì ta dùng margin trong css */}
+                {exams.map((exam) => (
+                    <Grid item xs={12} key={exam.id}>
+                        <div className="exam-item-card" onClick={() => handleStartExam(exam.id)}>
+                            {/* Bên trái: Icon & Thông tin */}
+                            <Box display="flex" alignItems="center" flexGrow={1}>
+                                <div className="exam-icon-wrapper">
+                                    <AssignmentIcon />
+                                </div>
+                                <Box>
+                                    <Typography variant="subtitle1" fontWeight="bold" color="#333" lineHeight={1.2} mb={0.5}>
+                                        {exam.title}
+                                    </Typography>
+                                    
+                                    <Box display="flex" flexWrap="wrap" gap={1}>
+                                        <div className="exam-meta-badge badge-time">
+                                            <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                                            {exam.duration}'
+                                        </div>
+                                        {/* Nếu có thông tin số câu hỏi */}
+                                        <div className="exam-meta-badge badge-question">
+                                            <HelpOutlineIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                                            {exam.questions ? exam.questions.length : '?'} câu
+                                        </div>
+                                    </Box>
+                                </Box>
+                            </Box>
 
-      {/* Danh sách Bài tập */}
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-        <AssignmentIcon sx={{ mr: 1, color: '#1565c0' }} />
-        <Typography variant="h5" fontWeight="bold" color="#1565c0">
-          Danh sách bài luyện tập
-        </Typography>
-      </Box>
-      <Divider sx={{ mb: 3 }} />
-
-      {exams.length === 0 ? (
-        <Alert severity="warning" sx={{ mt: 2 }}>Chưa có bài tập nào được cập nhật trong chuyên đề này.</Alert>
-      ) : (
-        <Grid container spacing={2}>
-          {exams.map((exam) => (
-            <Grid item xs={12} key={exam.id}>
-              <Card sx={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2,
-                borderRadius: '10px', transition: '0.3s', border: '1px solid #e0e0e0',
-                '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderColor: '#2196f3' }
-              }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" color="#2c3e50" fontWeight="bold">
-                    {exam.title}
-                  </Typography>
-                  <Box display="flex" alignItems="center" mt={1} gap={2}>
-                    <Box display="flex" alignItems="center" color="#e65100" bgcolor="#fff3e0" px={1} py={0.5} borderRadius="4px">
-                      <TimerIcon fontSize="small" sx={{ mr: 0.5 }} />
-                      <Typography variant="body2" fontWeight="bold">{exam.duration} phút</Typography>
-                    </Box>
-                    <Box display="flex" alignItems="center" color="#2e7d32" bgcolor="#e8f5e9" px={1} py={0.5} borderRadius="4px">
-                      <HelpOutlineIcon fontSize="small" sx={{ mr: 0.5 }} />
-                      <Typography variant="body2" fontWeight="bold">{exam.questions ? exam.questions.length : 0} câu hỏi</Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Box>
-                  <Link to={`/exams/${exam.id}`} style={{ textDecoration: 'none' }}>
-                    <Button variant="contained" color="primary" sx={{ borderRadius: '20px', px: 3, fontWeight: 'bold' }}>
-                      Làm bài
-                    </Button>
-                  </Link>
-                </Box>
-              </Card>
+                            {/* Bên phải: Nút làm bài */}
+                            <button className="btn-do-exam">
+                                Làm bài
+                            </button>
+                        </div>
+                    </Grid>
+                ))}
             </Grid>
-          ))}
-        </Grid>
-      )}
-    </Container>
+        )}
+      </Container>
+    </div>
   );
 }
 

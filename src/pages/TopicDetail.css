@@ -1,0 +1,121 @@
+/* Container */
+.topic-container {
+    max-width: 900px;
+    margin: 0 auto;
+    /* padding: 0;  Bỏ padding để header dính sát lề trên mobile */
+    min-height: 100vh;
+    background-color: #fff;
+}
+
+/* --- THANH TIÊU ĐỀ CỐ ĐỊNH (STICKY HEADER) --- */
+.topic-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    
+    padding: 12px 15px;
+    /* Background Gradient Tím để khác biệt với trang Grade */
+    background: linear-gradient(90deg, #6a1b9a, #8e24aa); 
+    color: white;
+    
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    margin-bottom: 20px;
+}
+
+.topic-header-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+}
+
+/* Nút quay lại */
+.btn-back-topic {
+    color: white !important;
+    padding: 5px !important;
+}
+
+/* --- THẺ BÀI TẬP (EXAM CARD) --- */
+.exam-item-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-radius: 12px;
+    background-color: white;
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+    margin-bottom: 15px;
+}
+
+.exam-item-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(106, 27, 154, 0.15); /* Bóng màu tím nhẹ */
+    border-color: #ba68c8;
+}
+
+.exam-icon-wrapper {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: #f3e5f5; /* Tím rất nhạt */
+    color: #8e24aa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.exam-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-right: 8px;
+    font-weight: 600;
+}
+
+.badge-time {
+    background-color: #fff3e0;
+    color: #e65100;
+}
+
+.badge-question {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.btn-do-exam {
+    background-color: #8e24aa;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    text-transform: none;
+    transition: 0.2s;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-do-exam:hover {
+    background-color: #7b1fa2;
+    box-shadow: 0 2px 8px rgba(123, 31, 162, 0.3);
+}
+
+.empty-state-topic {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
