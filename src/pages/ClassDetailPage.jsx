@@ -9,7 +9,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
-// Import components thông báo đẹp
+// ✅ [MỚI] Import components thông báo đẹp
 import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
 import './ClassDetail.css';
@@ -24,45 +24,46 @@ const ClassDetail = () => {
   const navigate = useNavigate();
   
   const [classroom, setClassroom] = useState(null);
-  const [topics, setTopics] = useState([]); // Chứa toàn bộ chuyên đề tải từ API
+  const [topics, setTopics] = useState([]); 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
   // --- STATE CHO BỘ LỌC 3 CẤP ---
-  const [selectedGrade, setSelectedGrade] = useState('12'); // Mặc định chọn khối 12
-  const [filteredTopics, setFilteredTopics] = useState([]); // Danh sách chuyên đề sau khi lọc theo Khối
-  const [selectedTopicId, setSelectedTopicId] = useState(''); // ID chuyên đề đang chọn
-  
-  const [filteredExams, setFilteredExams] = useState([]);   // Danh sách Đề thi có trong chuyên đề đó
-  const [selectedExamId, setSelectedExamId] = useState(''); // ID đề thi cuối cùng để giao
+  const [selectedGrade, setSelectedGrade] = useState('12'); 
+  const [filteredTopics, setFilteredTopics] = useState([]); 
+  const [selectedTopicId, setSelectedTopicId] = useState(''); 
+  const [filteredExams, setFilteredExams] = useState([]);   
+  const [selectedExamId, setSelectedExamId] = useState(''); 
 
-  const [openSnackbar, setOpenSnackbar] = useState(false);
+  // ✅ [MỚI] State quản lý thông báo ĐẸP (Thay thế alert đen xì)
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' // 'success' | 'error' | 'warning' | 'info'
+  });
 
   useEffect(() => {
     fetchData();
   }, [id]);
 
-  // 1. Khi danh sách Topics tải về hoặc người dùng đổi Khối -> Lọc lại Chuyên đề
+  // Logic lọc Chuyên đề
   useEffect(() => {
     if (topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
         const newFilteredTopics = topics.filter(t => t.grade === gradeNum);
         setFilteredTopics(newFilteredTopics);
-        
-        // Reset lựa chọn con
         setSelectedTopicId('');
         setFilteredExams([]);
         setSelectedExamId('');
     }
   }, [selectedGrade, topics]);
 
-  // 2. Khi người dùng chọn Chuyên đề -> Lọc ra các Đề thi trong đó
+  // Logic lọc Đề thi
   useEffect(() => {
     if (selectedTopicId) {
         const topic = topics.find(t => t.id === parseInt(selectedTopicId));
-        // Lấy danh sách 'exercises' từ API trả về (đã cấu hình trong serializer)
         if (topic && topic.exercises) {
             setFilteredExams(topic.exercises);
         } else {
@@ -71,7 +72,6 @@ const ClassDetail = () => {
     } else {
         setFilteredExams([]);
     }
-    // Reset đề thi
     setSelectedExamId('');
   }, [selectedTopicId, topics]);
 
@@ -97,30 +97,46 @@ const ClassDetail = () => {
     }
   };
 
+  // Hàm hiển thị thông báo đẹp
+  const showNotification = (msg, type = 'success') => {
+    setNotification({ open: true, message: msg, severity: type });
+  };
+
+  const handleCloseNotification = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setNotification({ ...notification, open: false });
+  };
+
   const handleCopyCode = () => {
     navigator.clipboard.writeText(classroom.invite_code);
-    setOpenSnackbar(true); 
+    showNotification(`Đã sao chép mã lớp: ${classroom.invite_code}`, 'success');
   };
 
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setOpenSnackbar(false);
-  };
-
-  // Hàm Giao Bài (Sử dụng exam_id)
+  // ✅ [CẬP NHẬT] Hàm Giao Bài với xử lý lỗi chi tiết
   const handleAssignExam = async () => {
-    if (!selectedExamId) return alert("Vui lòng chọn một đề thi cụ thể!");
+    if (!selectedExamId) {
+        showNotification("Vui lòng chọn một đề thi cụ thể!", "warning");
+        return;
+    }
+    
     try {
       await axiosClient.post('/class_assignments/', {
         classroom: id,
-        exam: selectedExamId // 🔥 Gửi ID đề thi lên Server
+        exam: selectedExamId 
       });
-      alert("✅ Giao bài thành công!");
+      
+      // Thành công -> Màu xanh
+      showNotification("✅ Giao bài thành công!", "success");
+      
       fetchData(); 
-      setSelectedExamId(''); // Reset sau khi giao
+      setSelectedExamId(''); 
     } catch (error) {
-        const msg = error.response?.data?.message || "Lỗi khi giao bài";
-        alert("❌ " + msg);
+        console.error("Lỗi giao bài:", error);
+        // Lấy thông báo lỗi cụ thể từ Server (Ví dụ: "Bài này đã giao rồi")
+        const msg = error.response?.data?.message || "❌ Lỗi kết nối Server";
+        
+        // Thất bại -> Màu đỏ
+        showNotification(msg, "error");
     }
   };
 
@@ -183,7 +199,7 @@ const ClassDetail = () => {
 
                 <div className="stream-center">
                     
-                    {/* 🔥 GIAO DIỆN GIAO BÀI MỚI (3 CẤP) 🔥 */}
+                    {/* KHUNG GIAO BÀI (3 CẤP) */}
                     {isTeacher && (
                         <div className="assign-box">
                             <div className="assign-header">
@@ -192,7 +208,6 @@ const ClassDetail = () => {
                             </div>
                             
                             <div className="assign-filter-container">
-                                {/* 1. Chọn Khối */}
                                 <div className="filter-item">
                                     <label>1. Chọn Khối:</label>
                                     <select 
@@ -210,7 +225,6 @@ const ClassDetail = () => {
                                     </select>
                                 </div>
 
-                                {/* 2. Chọn Chuyên đề */}
                                 <div className="filter-item">
                                     <label>2. Chọn Chuyên đề:</label>
                                     <select 
@@ -226,7 +240,6 @@ const ClassDetail = () => {
                                     </select>
                                 </div>
 
-                                {/* 3. Chọn Đề thi cụ thể */}
                                 <div className="filter-item full-width">
                                     <label>3. Chọn Đề thi / Bài tập:</label>
                                     <div className="action-row">
@@ -323,7 +336,6 @@ const ClassDetail = () => {
                                         <div style={{fontSize: '0.8rem', color: '#888'}}>{mem.student_email}</div>
                                     </div>
                                 </div>
-                                
                                 {isTeacher && (
                                     <Tooltip title="Xóa khỏi lớp">
                                         <IconButton size="small">
@@ -345,20 +357,21 @@ const ClassDetail = () => {
 
       </div>
 
+      {/* ✅ [MỚI] THÔNG BÁO SNACKBAR HIỆN ĐẠI (THAY THẾ ALERT) */}
       <Snackbar 
-        open={openSnackbar} 
-        autoHideDuration={3000} 
-        onClose={handleCloseSnackbar}
+        open={notification.open} 
+        autoHideDuration={4000} // Tự tắt sau 4 giây
+        onClose={handleCloseNotification}
         TransitionComponent={TransitionDown}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert 
-            onClose={handleCloseSnackbar} 
-            severity="success" 
+            onClose={handleCloseNotification} 
+            severity={notification.severity} // Màu sắc tự động: success (xanh), error (đỏ)
             variant="filled"
             sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}
         >
-          Đã sao chép mã lớp: <strong>{classroom.invite_code}</strong>
+          {notification.message}
         </Alert>
       </Snackbar>
 
