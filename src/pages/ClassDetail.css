@@ -10,7 +10,7 @@
 
 /* --- BANNER --- */
 .class-banner {
-    background: linear-gradient(135deg, #1976d2, #64b5f6); /* Màu xanh Google */
+    background: linear-gradient(135deg, #1976d2, #64b5f6); 
     height: 240px;
     border-radius: 8px;
     padding: 24px;
@@ -18,7 +18,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* Đẩy chữ xuống dưới */
+    justify-content: flex-end; 
     margin-bottom: 20px;
 }
 
@@ -42,7 +42,7 @@
     border-radius: 4px;
 }
 
-/* Box Mã lớp nổi bật */
+/* Box Mã lớp */
 .class-code-box {
     position: absolute;
     top: 24px;
@@ -104,7 +104,7 @@
     border-bottom: 3px solid #1976d2;
 }
 
-/* --- STREAM LAYOUT (BẢNG TIN) --- */
+/* --- STREAM LAYOUT --- */
 .stream-layout {
     display: grid;
     grid-template-columns: 200px 1fr;
@@ -162,34 +162,70 @@
     font-size: 1rem;
 }
 
-.assign-body {
+/* --- CSS BỘ LỌC 3 CẤP --- */
+.assign-filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.filter-item {
+    flex: 1; 
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-item.full-width {
+    flex: 100%; 
+}
+
+.filter-item label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+.action-row {
     display: flex;
     gap: 10px;
 }
 
 .topic-select {
-    flex-grow: 1;
     padding: 10px;
-    border-radius: 4px;
     border: 1px solid #ccc;
-    font-size: 0.9rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    width: 100%;
+    background-color: white;
 }
 
 .btn-assign {
     background-color: #1976d2;
     color: white;
     border: none;
-    padding: 0 20px;
+    padding: 0 25px;
     border-radius: 4px;
     font-weight: bold;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .btn-assign:hover {
     background-color: #1565c0;
 }
 
-/* Thẻ bài tập (Stream Card) */
+.btn-assign:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Thẻ bài tập */
 .stream-card {
     display: flex;
     align-items: center;
@@ -198,13 +234,14 @@
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 15px;
-    cursor: pointer;
-    transition: box-shadow 0.2s;
+    cursor: pointer; /* Pointer cho biết bấm được */
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .stream-card:hover {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    background-color: #fafafa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    background-color: #f8faff;
 }
 
 .card-icon {
@@ -234,8 +271,15 @@
     font-weight: bold;
 }
 
+.sub-info {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
 .card-date {
-    margin: 5px 0 0;
+    margin: 0;
     font-size: 0.8rem;
     color: #5f6368;
 }
@@ -287,6 +331,7 @@
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid #eee;
+    justify-content: space-between; /* Để đẩy nút xóa sang phải */
 }
 
 .member-avatar {
@@ -298,7 +343,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 15px;
     font-weight: bold;
 }
 
@@ -317,14 +361,99 @@
     color: #1976d2;
     margin-top: 10px;
 }
-/* Thêm hiệu ứng cho thẻ bài tập để người dùng biết là bấm được */
-.stream-card {
-    cursor: pointer; /* Biến con trỏ thành hình bàn tay */
-    transition: transform 0.2s, box-shadow 0.2s;
+
+/* --- CSS TAB BẢNG ĐIỂM (GRADES) --- */
+.grades-layout {
+    max-width: 900px;
+    margin: 0 auto;
 }
 
-.stream-card:hover {
-    transform: translateY(-2px); /* Nhấc nhẹ thẻ lên khi di chuột */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* Tăng bóng đổ */
-    background-color: #f8faff; /* Đổi màu nền nhẹ */
+.grades-subtitle {
+    color: #666;
+    margin-top: -5px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.student-grade-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.student-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.student-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.student-name-bold {
+    font-weight: bold;
+    color: #333;
+    font-size: 1rem;
+}
+
+.student-username {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.grade-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.grade-table th {
+    text-align: left;
+    color: #5f6368;
+    font-weight: 500;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+}
+
+.grade-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    color: #333;
+}
+
+.grade-table tr:last-child td {
+    border-bottom: none;
+}
+
+.score-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.score-badge.pass {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.score-badge.fail {
+    background-color: #fce8e6;
+    color: #c5221f;
+}
+
+.no-grade-text {
+    color: #999;
+    font-style: italic;
+    font-size: 0.9rem;
 }

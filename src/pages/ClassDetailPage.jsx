@@ -7,6 +7,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import AssessmentIcon from '@mui/icons-material/Assessment'; // Icon Bảng điểm
 
 import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
@@ -18,11 +19,12 @@ function TransitionDown(props) {
 
 const ClassDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate(); // Hook dùng để chuyển trang
+  const navigate = useNavigate();
   
   const [classroom, setClassroom] = useState(null);
   const [topics, setTopics] = useState([]); 
   const [members, setMembers] = useState([]);
+  const [reportData, setReportData] = useState([]); // ✅ [MỚI] Dữ liệu bảng điểm
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
@@ -35,15 +37,21 @@ const ClassDetail = () => {
   const [selectedExamId, setSelectedExamId] = useState(''); 
 
   const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
+    open: false, message: '', severity: 'success'
   });
 
   useEffect(() => {
     fetchData();
   }, [id]);
 
+  // ✅ [MỚI] Tải dữ liệu báo cáo khi vào tab Grades
+  useEffect(() => {
+    if (activeTab === 'grades' && currentUser?.id === classroom?.teacher) {
+        fetchReport();
+    }
+  }, [activeTab]);
+
+  // Logic lọc Chuyên đề
   useEffect(() => {
     if (topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
@@ -55,6 +63,7 @@ const ClassDetail = () => {
     }
   }, [selectedGrade, topics]);
 
+  // Logic lọc Đề thi
   useEffect(() => {
     if (selectedTopicId) {
         const topic = topics.find(t => t.id === parseInt(selectedTopicId));
@@ -89,6 +98,16 @@ const ClassDetail = () => {
       console.error("Lỗi:", error);
       setLoading(false);
     }
+  };
+
+  // ✅ [MỚI] Hàm lấy bảng điểm
+  const fetchReport = async () => {
+      try {
+          const res = await axiosClient.get(`/classrooms/${id}/report/`);
+          setReportData(res.data);
+      } catch (error) {
+          console.error("Lỗi tải báo cáo:", error);
+      }
   };
 
   const showNotification = (msg, type = 'success') => {
@@ -144,10 +163,7 @@ const ClassDetail = () => {
     }
   };
 
-  // ✅ [MỚI] Hàm xử lý khi bấm vào bài tập để làm bài
   const handleOpenExam = (examId) => {
-      // Chuyển hướng đến trang chi tiết đề thi
-      // Bạn kiểm tra lại đường dẫn router của bạn, thường là /exams/:id hoặc /exam/:id
       navigate(`/exams/${examId}`); 
   };
 
@@ -159,6 +175,7 @@ const ClassDetail = () => {
   return (
     <div className="class-detail-container">
       
+      {/* BANNER */}
       <div className="class-banner">
         <div className="banner-content">
           <h1 className="banner-title">{classroom.name}</h1>
@@ -177,6 +194,7 @@ const ClassDetail = () => {
         </div>
       </div>
 
+      {/* NAV TAB */}
       <div className="class-nav">
         <button 
             className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`}
@@ -190,10 +208,20 @@ const ClassDetail = () => {
         >
             Thành viên ({members.length})
         </button>
+        {/* ✅ [MỚI] Tab Bảng điểm chỉ hiện cho Giáo viên */}
+        {isTeacher && (
+            <button 
+                className={`nav-item ${activeTab === 'grades' ? 'active' : ''}`}
+                onClick={() => setActiveTab('grades')}
+            >
+                Bảng điểm
+            </button>
+        )}
       </div>
 
       <div className="class-body">
         
+        {/* TAB BẢNG TIN */}
         {activeTab === 'stream' && (
             <div className="stream-layout">
                 <div className="stream-left">
@@ -283,7 +311,6 @@ const ClassDetail = () => {
                     <div className="assignment-list">
                         {classroom.assignments && classroom.assignments.length > 0 ? (
                             classroom.assignments.map((assign, index) => (
-                                // 🔥 [MỚI] Thêm onClick để chuyển hướng khi bấm vào thẻ
                                 <div 
                                     key={index} 
                                     className="stream-card"
@@ -314,9 +341,9 @@ const ClassDetail = () => {
             </div>
         )}
 
+        {/* TAB THÀNH VIÊN */}
         {activeTab === 'members' && (
             <div className="members-layout">
-                {/* (Giữ nguyên phần Members cũ của bạn) */}
                 <div className="section-header">
                     <h2 className="section-title">Giáo viên</h2>
                     <div className="divider"></div>
@@ -361,6 +388,72 @@ const ClassDetail = () => {
                     <div className="empty-members">
                         <GroupIcon sx={{ fontSize: 60, color: '#ddd' }}/>
                         <p>Chưa có học sinh nào tham gia lớp học.</p>
+                    </div>
+                )}
+            </div>
+        )}
+
+        {/* ✅ [MỚI] TAB BẢNG ĐIỂM (GRADES) */}
+        {activeTab === 'grades' && isTeacher && (
+            <div className="grades-layout">
+                <div className="section-header">
+                    <h2 className="section-title">Bảng điểm lớp học</h2>
+                    <p className="grades-subtitle">Kết quả các bài tập đã giao ({reportData.length} học sinh)</p>
+                    <div className="divider"></div>
+                </div>
+
+                {reportData.length > 0 ? (
+                    <div className="grades-container">
+                        {reportData.map((student) => (
+                            <div key={student.student_id} className="student-grade-card">
+                                <div className="student-header">
+                                    <div className="student-info">
+                                        <div className="member-avatar">{student.student_name.charAt(0)}</div>
+                                        <div>
+                                            <span className="student-name-bold">{student.student_name}</span>
+                                            <span className="student-username"> ({student.username})</span>
+                                        </div>
+                                    </div>
+                                    <div className="score-summary">
+                                        Đã làm: <strong>{student.results.length}</strong> bài
+                                    </div>
+                                </div>
+
+                                {student.results.length > 0 ? (
+                                    <table className="grade-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Bài tập / Đề thi</th>
+                                                <th>Chuyên đề</th>
+                                                <th>Ngày làm</th>
+                                                <th>Điểm số</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {student.results.map((res, idx) => (
+                                                <tr key={idx}>
+                                                    <td>{res.exam_title}</td>
+                                                    <td>{res.topic_title}</td>
+                                                    <td>{new Date(res.date).toLocaleDateString('vi-VN')} {new Date(res.date).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</td>
+                                                    <td>
+                                                        <span className={`score-badge ${res.score >= 5 ? 'pass' : 'fail'}`}>
+                                                            {res.score}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p className="no-grade-text">Học sinh này chưa làm bài tập nào.</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="empty-stream">
+                        <AssessmentIcon sx={{ fontSize: 60, color: '#ddd' }}/>
+                        <p>Chưa có dữ liệu điểm số nào.</p>
                     </div>
                 )}
             </div>
