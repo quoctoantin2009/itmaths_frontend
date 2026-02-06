@@ -2,19 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../services/axiosClient';
 
-// Import Icon đẹp
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
-// ✅ [MỚI] Import components thông báo đẹp
 import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
 import './ClassDetail.css';
 
-// Hiệu ứng trượt xuống cho thông báo
 function TransitionDown(props) {
   return <Slide {...props} direction="down" />;
 }
@@ -37,18 +34,17 @@ const ClassDetail = () => {
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
 
-  // ✅ [MỚI] State quản lý thông báo ĐẸP (Thay thế alert đen xì)
+  // State quản lý thông báo ĐẸP
   const [notification, setNotification] = useState({
     open: false,
     message: '',
-    severity: 'success' // 'success' | 'error' | 'warning' | 'info'
+    severity: 'success'
   });
 
   useEffect(() => {
     fetchData();
   }, [id]);
 
-  // Logic lọc Chuyên đề
   useEffect(() => {
     if (topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
@@ -60,7 +56,6 @@ const ClassDetail = () => {
     }
   }, [selectedGrade, topics]);
 
-  // Logic lọc Đề thi
   useEffect(() => {
     if (selectedTopicId) {
         const topic = topics.find(t => t.id === parseInt(selectedTopicId));
@@ -97,7 +92,6 @@ const ClassDetail = () => {
     }
   };
 
-  // Hàm hiển thị thông báo đẹp
   const showNotification = (msg, type = 'success') => {
     setNotification({ open: true, message: msg, severity: type });
   };
@@ -112,7 +106,7 @@ const ClassDetail = () => {
     showNotification(`Đã sao chép mã lớp: ${classroom.invite_code}`, 'success');
   };
 
-  // ✅ [CẬP NHẬT] Hàm Giao Bài với xử lý lỗi chi tiết
+  // ✅ [CẬP NHẬT] Hàm Giao Bài với logic bắt lỗi chi tiết
   const handleAssignExam = async () => {
     if (!selectedExamId) {
         showNotification("Vui lòng chọn một đề thi cụ thể!", "warning");
@@ -125,17 +119,31 @@ const ClassDetail = () => {
         exam: selectedExamId 
       });
       
-      // Thành công -> Màu xanh
       showNotification("✅ Giao bài thành công!", "success");
-      
       fetchData(); 
       setSelectedExamId(''); 
     } catch (error) {
         console.error("Lỗi giao bài:", error);
-        // Lấy thông báo lỗi cụ thể từ Server (Ví dụ: "Bài này đã giao rồi")
-        const msg = error.response?.data?.message || "❌ Lỗi kết nối Server";
         
-        // Thất bại -> Màu đỏ
+        let msg = "❌ Có lỗi xảy ra";
+        const data = error.response?.data;
+
+        if (data) {
+            if (data.message) {
+                // Lỗi logic từ Views (VD: Đã giao rồi)
+                msg = "⚠️ " + data.message;
+            } else if (data.non_field_errors) {
+                // Lỗi ràng buộc Unique
+                msg = "⚠️ Bài tập này đã có trong lớp rồi!";
+            } else if (data.exam) {
+                msg = "⚠️ Lỗi đề thi: " + data.exam[0];
+            } else {
+                msg = "❌ Lỗi: " + JSON.stringify(data);
+            }
+        } else {
+            msg = "❌ Lỗi kết nối Server (Vui lòng kiểm tra lại Backend)";
+        }
+        
         showNotification(msg, "error");
     }
   };
@@ -257,7 +265,7 @@ const ClassDetail = () => {
                                                     </option>
                                                 ))
                                             ) : (
-                                                <option disabled>Không có bài tập nào trong chuyên đề này</option>
+                                                <option disabled>Không có bài tập nào</option>
                                             )}
                                         </select>
                                         
@@ -357,17 +365,16 @@ const ClassDetail = () => {
 
       </div>
 
-      {/* ✅ [MỚI] THÔNG BÁO SNACKBAR HIỆN ĐẠI (THAY THẾ ALERT) */}
       <Snackbar 
         open={notification.open} 
-        autoHideDuration={4000} // Tự tắt sau 4 giây
+        autoHideDuration={4000} 
         onClose={handleCloseNotification}
         TransitionComponent={TransitionDown}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert 
             onClose={handleCloseNotification} 
-            severity={notification.severity} // Màu sắc tự động: success (xanh), error (đỏ)
+            severity={notification.severity} 
             variant="filled"
             sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}
         >
