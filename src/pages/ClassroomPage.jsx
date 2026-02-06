@@ -106,9 +106,13 @@ const ClassroomPage = () => {
                   value={newClass.grade}
                   onChange={e => setNewClass({...newClass, grade: e.target.value})}
                 >
-                  <option value="10">Khối 10</option>
-                  <option value="11">Khối 11</option>
                   <option value="12">Khối 12</option>
+                  <option value="11">Khối 11</option>
+                  <option value="10">Khối 10</option>
+                  <option value="9">Khối 9</option>
+                  <option value="8">Khối 8</option>
+                  <option value="7">Khối 7</option>
+                  <option value="6">Khối 6</option>
                 </select>
             </div>
 

@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-
-// 🟢 [QUAN TRỌNG] Dùng axiosClient thay vì axios thường
-// Để nó tự động nhận link https://api.itmaths.vn khi lên mạng
 import axiosClient from "../services/axiosClient"; 
-
 import { 
     Container, Typography, Box, Accordion, AccordionSummary, AccordionDetails, 
     Button, Paper, Divider, CircularProgress, Backdrop, IconButton
@@ -16,8 +12,6 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import AccessTimeIcon from '@mui/icons-material/AccessTime'; 
 import StarIcon from '@mui/icons-material/Star';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
-
-// IMPORT ADMOB
 import { AdMob } from '@capacitor-community/admob';
 
 function GradePage() {
@@ -31,10 +25,19 @@ function GradePage() {
 
   const [topics, setTopics] = useState([]);
   const [exams, setExams] = useState([]); 
-  
   const [isLoadingAd, setIsLoadingAd] = useState(false);
 
-  // 1. KHỞI TẠO ADMOB
+  // --- HÀM SẮP XẾP A-Z TIẾNG VIỆT ---
+  const sortAZ = (dataArray) => {
+    if (!dataArray) return [];
+    return [...dataArray].sort((a, b) => {
+        // Ưu tiên so sánh theo 'title', nếu không có thì so sánh theo 'name'
+        const nameA = a.title || a.name || "";
+        const nameB = b.title || b.name || "";
+        return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+    });
+  };
+
   useEffect(() => {
     const initAdMob = async () => {
         try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
@@ -59,28 +62,38 @@ function GradePage() {
       }
   };
 
-  // 🟢 [SỬA LẠI] Hàm lấy Full URL dựa trên axiosClient
-  // Nó sẽ tự động lấy link gốc (Local hoặc Online) + đường dẫn file
   const getFullUrl = (url) => { 
       if (!url) return ""; 
       if (url.startsWith("http")) return url; 
-      
-      // Lấy baseURL từ axiosClient (đã được cấu hình thông minh)
-      // Loại bỏ chữ '/api' nếu cần thiết để nối với đường dẫn media
       const baseUrl = axiosClient.defaults.baseURL.replace('/api', '');
       return `${baseUrl}${url}`; 
   };
 
   useEffect(() => {
-    // 🟢 [QUAN TRỌNG] Dùng axiosClient.get và thêm dấu / ở cuối
     if (isTN) {
         axiosClient.get('/exams/?standalone=true')
-            .then(res => setExams(res.data))
+            .then(res => {
+                // Sắp xếp Đề thi Tốt nghiệp A-Z
+                setExams(sortAZ(res.data));
+            })
             .catch(err => console.error("Lỗi tải đề thi:", err));
     } else {
         const category = isGifted ? 'gifted' : 'standard';
         axiosClient.get(`/topics/?grade=${gradeId}&category=${category}`)
-            .then(res => setTopics(res.data))
+            .then(res => {
+                // 1. Sắp xếp Chuyên đề cha (Topics) A-Z
+                let sortedTopics = sortAZ(res.data);
+
+                // 2. Sắp xếp dữ liệu con bên trong (Video, PDF, Exam) A-Z
+                sortedTopics = sortedTopics.map(topic => ({
+                    ...topic,
+                    videos: sortAZ(topic.videos),
+                    documents: sortAZ(topic.documents),
+                    exercises: sortAZ(topic.exercises)
+                }));
+
+                setTopics(sortedTopics);
+            })
             .catch(err => console.error("Lỗi tải chuyên đề:", err));
     }
   }, [gradeId, isTN, isGifted]);
@@ -109,7 +122,6 @@ function GradePage() {
         mb: 10,
         paddingTop: 'max(env(safe-area-inset-top), 50px)' 
     }}>
-      
       <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
          <Box textAlign="center">
             <CircularProgress color="inherit" />
@@ -117,7 +129,6 @@ function GradePage() {
          </Box>
       </Backdrop>
 
-      {/* Nút Back */}
       <Box mb={2}>
             <IconButton 
                 onClick={() => navigate('/')} 
@@ -180,7 +191,6 @@ function GradePage() {
                 </Typography>
             </Box>
 
-            {/* Thông báo nếu chưa có dữ liệu */}
             {topics.length === 0 && (
                 <Box textAlign="center" mt={5}>
                     <CircularProgress size={30} sx={{mb:2}} />
@@ -189,7 +199,6 @@ function GradePage() {
             )}
 
             {topics.map((topic) => (
-                // 🟢 [ĐÃ SỬA] Đã xóa 'defaultExpanded' để mặc định đóng lại
                 <Accordion key={topic.id} sx={{ mb: 3, boxShadow: 3, borderRadius: '12px !important', overflow: 'hidden' }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{color:'white'}}/>} sx={{ bgcolor: isGifted ? '#ef6c00' : '#1976d2', color: 'white' }}>
                     <Typography variant="h6" fontWeight="bold">📚 {topic.title}</Typography>
@@ -206,6 +215,7 @@ function GradePage() {
                                 {topic.pdf_file && (
                                     <Button variant="outlined" color="error" fullWidth onClick={() => handleViewPDF(topic.pdf_file, `${topic.title} (Lý thuyết)`)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, fontWeight:'bold', border: '1px solid #ffcdd2', color: '#d32f2f', bgcolor: '#ffebee' }}>{topic.title} (Lý thuyết)</Button>
                                 )}
+                                {/* Danh sách Documents đã được sort AZ */}
                                 {topic.documents && topic.documents.filter(d => d.doc_type === 'theory' || !d.doc_type).map(doc => (
                                     <Button key={doc.id} variant="outlined" color="error" fullWidth onClick={() => handleViewPDF(doc.file, doc.title)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1 }}>{doc.title}</Button>
                                 ))}
@@ -217,6 +227,7 @@ function GradePage() {
                             <Box display="flex" alignItems="center" mb={2}><YouTubeIcon color="warning" sx={{ mr: 1 }} /><Typography variant="subtitle1" fontWeight="bold" color="warning">VIDEO BÀI GIẢNG</Typography></Box>
                             <Divider sx={{ mb: 2 }} />
                             <Box sx={{ flexGrow: 1 }}>
+                                {/* Danh sách Video đã được sort AZ */}
                                 {topic.videos && topic.videos.map(video => (
                                     <Button key={video.id} variant="outlined" fullWidth onClick={() => handleWatchVideo(video.youtube_url, video.title)} startIcon={<YouTubeIcon sx={{color: 'red'}}/>} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, borderColor: '#ffcc80', color: '#e65100', bgcolor: '#fff3e0' }}>{video.title}</Button>
                                 ))}
@@ -233,6 +244,7 @@ function GradePage() {
                                         <Button key={doc.id} variant="contained" color="success" fullWidth onClick={() => handleViewPDF(doc.file, `${doc.title} (Đề thi)`)} startIcon={<PictureAsPdfIcon />} sx={{ justifyContent: 'flex-start', textTransform: 'none', mb: 1, bgcolor: '#2e7d32' }}>{doc.title} (Đề thi)</Button>
                                     ))
                                 ) : (
+                                    // Danh sách Bài tập đã được sort AZ
                                     topic.exercises && topic.exercises.map(exam => (
                                         <Button key={exam.id} variant="contained" fullWidth startIcon={<AssignmentIcon />} 
                                             onClick={() => handleClickExam(exam.id)}
