@@ -18,7 +18,7 @@ function TransitionDown(props) {
 
 const ClassDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Hook dùng để chuyển trang
   
   const [classroom, setClassroom] = useState(null);
   const [topics, setTopics] = useState([]); 
@@ -34,7 +34,6 @@ const ClassDetail = () => {
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
 
-  // State quản lý thông báo ĐẸP
   const [notification, setNotification] = useState({
     open: false,
     message: '',
@@ -106,7 +105,6 @@ const ClassDetail = () => {
     showNotification(`Đã sao chép mã lớp: ${classroom.invite_code}`, 'success');
   };
 
-  // ✅ [CẬP NHẬT] Hàm Giao Bài với logic bắt lỗi chi tiết
   const handleAssignExam = async () => {
     if (!selectedExamId) {
         showNotification("Vui lòng chọn một đề thi cụ thể!", "warning");
@@ -130,10 +128,8 @@ const ClassDetail = () => {
 
         if (data) {
             if (data.message) {
-                // Lỗi logic từ Views (VD: Đã giao rồi)
                 msg = "⚠️ " + data.message;
             } else if (data.non_field_errors) {
-                // Lỗi ràng buộc Unique
                 msg = "⚠️ Bài tập này đã có trong lớp rồi!";
             } else if (data.exam) {
                 msg = "⚠️ Lỗi đề thi: " + data.exam[0];
@@ -141,11 +137,18 @@ const ClassDetail = () => {
                 msg = "❌ Lỗi: " + JSON.stringify(data);
             }
         } else {
-            msg = "❌ Lỗi kết nối Server (Vui lòng kiểm tra lại Backend)";
+            msg = "❌ Lỗi kết nối Server";
         }
         
         showNotification(msg, "error");
     }
+  };
+
+  // ✅ [MỚI] Hàm xử lý khi bấm vào bài tập để làm bài
+  const handleOpenExam = (examId) => {
+      // Chuyển hướng đến trang chi tiết đề thi
+      // Bạn kiểm tra lại đường dẫn router của bạn, thường là /exams/:id hoặc /exam/:id
+      navigate(`/exams/${examId}`); 
   };
 
   if (loading) return <div className="loading-screen">Đang tải dữ liệu lớp học...</div>;
@@ -156,7 +159,6 @@ const ClassDetail = () => {
   return (
     <div className="class-detail-container">
       
-      {/* BANNER */}
       <div className="class-banner">
         <div className="banner-content">
           <h1 className="banner-title">{classroom.name}</h1>
@@ -175,7 +177,6 @@ const ClassDetail = () => {
         </div>
       </div>
 
-      {/* NAV TAB */}
       <div className="class-nav">
         <button 
             className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`}
@@ -191,10 +192,8 @@ const ClassDetail = () => {
         </button>
       </div>
 
-      {/* BODY */}
       <div className="class-body">
         
-        {/* === TAB BẢNG TIN === */}
         {activeTab === 'stream' && (
             <div className="stream-layout">
                 <div className="stream-left">
@@ -207,7 +206,6 @@ const ClassDetail = () => {
 
                 <div className="stream-center">
                     
-                    {/* KHUNG GIAO BÀI (3 CẤP) */}
                     {isTeacher && (
                         <div className="assign-box">
                             <div className="assign-header">
@@ -282,11 +280,16 @@ const ClassDetail = () => {
                         </div>
                     )}
 
-                    {/* DANH SÁCH BÀI ĐÃ GIAO */}
                     <div className="assignment-list">
                         {classroom.assignments && classroom.assignments.length > 0 ? (
                             classroom.assignments.map((assign, index) => (
-                                <div key={index} className="stream-card">
+                                // 🔥 [MỚI] Thêm onClick để chuyển hướng khi bấm vào thẻ
+                                <div 
+                                    key={index} 
+                                    className="stream-card"
+                                    onClick={() => handleOpenExam(assign.exam)} 
+                                    title="Nhấn để làm bài"
+                                >
                                     <div className="card-icon">
                                         <AssignmentIcon sx={{ color: 'white' }} />
                                     </div>
@@ -311,9 +314,9 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* === TAB THÀNH VIÊN === */}
         {activeTab === 'members' && (
             <div className="members-layout">
+                {/* (Giữ nguyên phần Members cũ của bạn) */}
                 <div className="section-header">
                     <h2 className="section-title">Giáo viên</h2>
                     <div className="divider"></div>
@@ -367,7 +370,7 @@ const ClassDetail = () => {
 
       <Snackbar 
         open={notification.open} 
-        autoHideDuration={4000} 
+        autoHideDuration={4000}
         onClose={handleCloseNotification}
         TransitionComponent={TransitionDown}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}

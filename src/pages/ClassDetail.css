@@ -317,3 +317,14 @@
     color: #1976d2;
     margin-top: 10px;
 }
+/* Thêm hiệu ứng cho thẻ bài tập để người dùng biết là bấm được */
+.stream-card {
+    cursor: pointer; /* Biến con trỏ thành hình bàn tay */
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stream-card:hover {
+    transform: translateY(-2px); /* Nhấc nhẹ thẻ lên khi di chuột */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* Tăng bóng đổ */
+    background-color: #f8faff; /* Đổi màu nền nhẹ */
+}
