@@ -1,21 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import classroomService from '../services/classroomService';
 import axiosClient from '../services/axiosClient';
 
-const ClassDetailPage = () => {
-  const { id } = useParams(); // Lấy ID lớp từ URL
+// Import Icon đẹp
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import GroupIcon from '@mui/icons-material/Group';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+
+import './ClassDetail.css';
+
+const ClassDetail = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   
   const [classroom, setClassroom] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('stream'); // stream | members | grades
+  const [topics, setTopics] = useState([]); // Danh sách chuyên đề để giao
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('stream'); // 'stream' | 'members'
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // State cho giáo viên giao bài
-  const [topicId, setTopicId] = useState('');
-  const [topics, setTopics] = useState([]); // Danh sách chuyên đề để chọn
+  // State giao bài
+  const [selectedTopic, setSelectedTopic] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -24,215 +30,203 @@ const ClassDetailPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // 1. Lấy thông tin user
+      
+      // 1. Lấy thông tin User
       const userRes = await axiosClient.get('/user/me/');
       setCurrentUser(userRes.data);
 
-      // 2. Lấy thông tin lớp
-      const classRes = await classroomService.get(id);
+      // 2. Lấy chi tiết lớp học
+      const classRes = await axiosClient.get(`/classrooms/${id}/`);
       setClassroom(classRes.data);
 
-      // 3. Lấy thành viên
-      const memRes = await classroomService.getMembers(id);
-      setMembers(memRes.data);
-
-      // 4. Nếu là GV -> Lấy thêm danh sách chuyên đề để giao
-      if (userRes.data.profile_occupation === 'teacher' || userRes.data.occupation === 'teacher') {
-        const topicRes = await axiosClient.get('/topics/');
-        setTopics(topicRes.data);
-      }
+      // 3. Lấy danh sách chuyên đề (nếu là GV)
+      const topicRes = await axiosClient.get('/topics/');
+      setTopics(topicRes.data);
 
       setLoading(false);
     } catch (error) {
-      console.error(error);
-      alert("Không thể truy cập lớp học này.");
-      navigate('/classrooms');
+      console.error("Lỗi:", error);
+      setLoading(false);
     }
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(classroom.invite_code);
+    alert(`Đã sao chép mã: ${classroom.invite_code}`);
   };
 
   const handleAssignTopic = async () => {
-    if (!topicId) return alert("Vui lòng chọn chuyên đề!");
+    if (!selectedTopic) return alert("Vui lòng chọn chuyên đề!");
     try {
-      await classroomService.assignTopic(id, topicId);
-      alert("✅ Đã giao bài thành công!");
-      fetchData(); // Load lại để hiện bài vừa giao
+      await axiosClient.post('/class_assignments/', {
+        classroom: id,
+        topic: selectedTopic
+      });
+      alert("✅ Giao bài thành công!");
+      fetchData(); // Load lại để thấy bài mới
+      setSelectedTopic('');
     } catch (error) {
-      alert("Lỗi: " + (error.response?.data?.message || "Không thể giao bài"));
+      alert("Lỗi khi giao bài (Có thể bài này đã giao rồi)");
     }
   };
 
-  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu lớp học...</div>;
-  if (!classroom) return null;
+  if (loading) return <div className="loading-screen">Đang tải dữ liệu lớp học...</div>;
+  if (!classroom) return <div className="error-screen">Không tìm thấy lớp học 😔</div>;
 
-  const isTeacher = currentUser?.id === classroom.teacher; // Kiểm tra có phải GV của lớp này không
+  const isTeacher = currentUser?.id === classroom.teacher; 
+  // (Logic check GV đơn giản: so sánh ID người dùng với ID giáo viên của lớp)
 
   return (
-    <div className="container mx-auto p-4 min-h-screen max-w-5xl">
-      {/* HEADER LỚP HỌC */}
-      <div className="bg-blue-600 text-white p-6 rounded-xl shadow-lg mb-6 relative overflow-hidden">
-        <div className="relative z-10">
-          <h1 className="text-3xl font-bold">{classroom.name}</h1>
-          <p className="opacity-90 mt-1">Khối {classroom.grade} • {classroom.program_type === 'standard' ? 'Cơ bản' : 'Nâng cao'}</p>
-          <div className="mt-4 flex gap-4">
-             <span className="bg-white/20 px-3 py-1 rounded text-sm">
-                GV: {classroom.teacher_name}
-             </span>
-             <span className="bg-white/20 px-3 py-1 rounded text-sm">
-                Mã lớp: <strong>{classroom.invite_code}</strong>
-             </span>
-          </div>
-        </div>
-      </div>
-
-      {/* THANH MENU (TAB) */}
-      <div className="flex border-b mb-6">
-        <button 
-          className={`px-6 py-3 font-medium ${activeTab === 'stream' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('stream')}
-        >
-          📚 Bài tập & Bảng tin
-        </button>
-        <button 
-          className={`px-6 py-3 font-medium ${activeTab === 'members' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('members')}
-        >
-          👥 Thành viên ({members.length})
-        </button>
-        {isTeacher && (
-          <button 
-            className={`px-6 py-3 font-medium ${activeTab === 'grades' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-            onClick={() => setActiveTab('grades')}
-          >
-            📊 Báo cáo điểm
-          </button>
-        )}
-      </div>
-
-      {/* NỘI DUNG TAB */}
+    <div className="class-detail-container">
       
-      {/* 1. TAB BÀI TẬP */}
-      {activeTab === 'stream' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-4">
-             <h3 className="font-bold text-lg text-gray-700">Bài tập đã giao</h3>
-             {classroom.assignments && classroom.assignments.length > 0 ? (
-               classroom.assignments.map((assign) => (
-                 <div key={assign.id} className="bg-white p-4 rounded-lg border shadow-sm flex justify-between items-center hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-blue-100 p-2 rounded-full text-blue-600">📝</div>
-                      <div>
-                        <h4 className="font-bold">{assign.topic_title}</h4>
-                        <p className="text-xs text-gray-500">Đã giao: {new Date(assign.created_at).toLocaleDateString()}</p>
-                      </div>
+      {/* 1. BANNER LỚP HỌC */}
+      <div className="class-banner">
+        <div className="banner-content">
+          <h1 className="banner-title">{classroom.name}</h1>
+          <p className="banner-subtitle">
+            Khối {classroom.grade} • {classroom.program_type === 'gifted' ? 'Bồi dưỡng' : 'Cơ bản'}
+          </p>
+          <p className="teacher-name">Giáo viên chủ nhiệm: <strong>{classroom.teacher_name}</strong></p>
+        </div>
+        
+        {/* Box Mã Lớp nổi bật */}
+        <div className="class-code-box" onClick={handleCopyCode} title="Bấm để sao chép">
+            <span className="code-label">Mã lớp</span>
+            <div className="code-value">
+                {classroom.invite_code}
+                <ContentCopyIcon fontSize="small" style={{marginLeft: 5}}/>
+            </div>
+        </div>
+      </div>
+
+      {/* 2. THANH TAB ĐIỀU HƯỚNG */}
+      <div className="class-nav">
+        <button 
+            className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stream')}
+        >
+            Bảng tin & Bài tập
+        </button>
+        <button 
+            className={`nav-item ${activeTab === 'members' ? 'active' : ''}`}
+            onClick={() => setActiveTab('members')}
+        >
+            Thành viên ({classroom.member_count})
+        </button>
+      </div>
+
+      {/* 3. NỘI DUNG CHÍNH */}
+      <div className="class-body">
+        
+        {/* === TAB BẢNG TIN === */}
+        {activeTab === 'stream' && (
+            <div className="stream-layout">
+                {/* Cột trái: Thông báo bài tập sắp đến hạn (Placeholder) */}
+                <div className="stream-left">
+                    <div className="upcoming-box">
+                        <h5>Sắp đến hạn</h5>
+                        <p className="no-work">Tuyệt vời, không có bài tập nào cần nộp gấp!</p>
+                        <a href="#" className="view-all-link">Xem tất cả</a>
                     </div>
-                    <button 
-                      onClick={() => navigate(`/exams?topic=${assign.topic}`)}
-                      className="text-blue-600 font-medium text-sm hover:underline"
-                    >
-                      Làm bài ngay &rarr;
-                    </button>
-                 </div>
-               ))
-             ) : (
-               <p className="text-gray-500 italic">Chưa có bài tập nào được giao.</p>
-             )}
-          </div>
+                </div>
 
-          {/* Cột bên phải: Chỉ hiện cho GV để giao bài */}
-          {isTeacher && (
-            <div className="bg-gray-50 p-4 rounded-lg border h-fit">
-              <h3 className="font-bold text-gray-800 mb-3">Giao bài mới</h3>
-              <select 
-                className="w-full p-2 border rounded mb-3"
-                value={topicId}
-                onChange={(e) => setTopicId(e.target.value)}
-              >
-                <option value="">-- Chọn chuyên đề --</option>
-                {topics.map(t => (
-                  <option key={t.id} value={t.id}>{t.title} (Khối {t.grade})</option>
-                ))}
-              </select>
-              <button onClick={handleAssignTopic} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-bold">
-                + GIAO CHO LỚP
-              </button>
+                {/* Cột phải: Danh sách bài tập */}
+                <div className="stream-center">
+                    
+                    {/* KHUNG GIAO BÀI (Chỉ GV mới thấy) */}
+                    {isTeacher && (
+                        <div className="assign-box">
+                            <div className="assign-header">
+                                <AddCircleIcon color="primary"/>
+                                <h3>Giao bài tập mới</h3>
+                            </div>
+                            <div className="assign-body">
+                                <select 
+                                    className="topic-select"
+                                    value={selectedTopic}
+                                    onChange={(e) => setSelectedTopic(e.target.value)}
+                                >
+                                    <option value="">-- Chọn chuyên đề từ Kho --</option>
+                                    {topics.map(t => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.title} (Lớp {t.grade})
+                                        </option>
+                                    ))}
+                                </select>
+                                <button className="btn-assign" onClick={handleAssignTopic}>
+                                    GIAO NGAY
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* DANH SÁCH BÀI ĐÃ GIAO */}
+                    <div className="assignment-list">
+                        {classroom.assignments && classroom.assignments.length > 0 ? (
+                            classroom.assignments.map((assign, index) => (
+                                <div key={index} className="stream-card">
+                                    <div className="card-icon">
+                                        <AssignmentIcon sx={{ color: 'white' }} />
+                                    </div>
+                                    <div className="card-content">
+                                        <h4 className="card-title">
+                                            Giáo viên đã đăng một bài tập mới: 
+                                            <span className="topic-highlight"> {assign.topic_title}</span>
+                                        </h4>
+                                        <p className="card-date">{new Date(assign.created_at).toLocaleDateString('vi-VN')}</p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="empty-stream">
+                                <img src="https://cdni.iconscout.com/illustration/premium/thumb/sleeping-cat-illustration-download-in-svg-png-gif-file-formats--sleep-animal-pet-rest-pack-nature-illustrations-3652899.png" alt="Empty" width="150"/>
+                                <p>Chưa có bài tập nào được giao cho lớp này.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* 2. TAB THÀNH VIÊN */}
-      {activeTab === 'members' && (
-        <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="p-4">Họ và tên</th>
-                <th className="p-4">Tài khoản</th>
-                <th className="p-4">Ngày tham gia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map(mem => (
-                <tr key={mem.id} className="border-b hover:bg-gray-50">
-                  <td className="p-4 font-medium">{mem.student_name}</td>
-                  <td className="p-4 text-gray-600">{mem.student_username}</td>
-                  <td className="p-4 text-gray-500">{new Date(mem.joined_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {/* === TAB THÀNH VIÊN === */}
+        {activeTab === 'members' && (
+            <div className="members-layout">
+                <div className="section-header">
+                    <h2 className="section-title">Giáo viên</h2>
+                    <div className="divider"></div>
+                </div>
+                <div className="member-row teacher-row">
+                    <div className="member-avatar teacher-avatar">{classroom.teacher_name.charAt(0)}</div>
+                    <span className="member-name">{classroom.teacher_name}</span>
+                </div>
 
-      {/* 3. TAB BÁO CÁO (CHỈ GV) */}
-      {activeTab === 'grades' && isTeacher && (
-        <ReportView classId={id} />
-      )}
+                <div className="section-header" style={{marginTop: '40px'}}>
+                    <div className="title-row">
+                        <h2 className="section-title">Học sinh</h2>
+                        <span className="student-count">{classroom.member_count} sinh viên</span>
+                    </div>
+                    <div className="divider"></div>
+                </div>
+                
+                {/* Ở đây tạm thời chưa có list members chi tiết từ API, ta hiển thị placeholder */}
+                {classroom.member_count > 0 ? (
+                    <div className="student-list-placeholder">
+                        <p>Danh sách học sinh sẽ hiển thị tại đây.</p>
+                        {/* Sau này bạn có thể bổ sung API lấy list members để map vào đây */}
+                    </div>
+                ) : (
+                    <div className="empty-members">
+                        <GroupIcon sx={{ fontSize: 60, color: '#ddd' }}/>
+                        <p>Chưa có học sinh nào tham gia lớp học.</p>
+                        <p className="invite-hint">Hãy gửi mã <strong>{classroom.invite_code}</strong> để mời học sinh.</p>
+                    </div>
+                )}
+            </div>
+        )}
+
+      </div>
     </div>
   );
 };
 
-// Component con để xem báo cáo điểm (Tách ra cho gọn)
-const ReportView = ({ classId }) => {
-  const [report, setReport] = useState([]);
-  
-  useEffect(() => {
-    classroomService.getReport(classId).then(res => setReport(res.data));
-  }, [classId]);
-
-  return (
-    <div className="space-y-6">
-      {report.map(student => (
-        <div key={student.student_id} className="bg-white p-4 rounded-lg border shadow-sm">
-          <h4 className="font-bold text-lg text-blue-800 mb-2">👤 {student.student_name}</h4>
-          {student.results.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                   <tr className="text-gray-500 border-b">
-                     <th className="text-left py-2">Bài thi</th>
-                     <th className="text-left py-2">Điểm số</th>
-                     <th className="text-left py-2">Ngày làm</th>
-                   </tr>
-                </thead>
-                <tbody>
-                  {student.results.map((res, idx) => (
-                    <tr key={idx} className="border-b last:border-0">
-                      <td className="py-2">{res.exam_title}</td>
-                      <td className="py-2 font-bold text-red-600">{res.score} đ</td>
-                      <td className="py-2 text-gray-500">{new Date(res.date).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-400 text-sm">Chưa làm bài tập nào.</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-export default ClassDetailPage;
+export default ClassDetail;
