@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     Dialog, DialogContent, Button, Typography, Box, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, Paper, IconButton, 
@@ -40,8 +40,11 @@ export default function ExamHistoryDialog({ customId }) {
     const [detailExamTitle, setDetailExamTitle] = useState("");
     const [currentTotalScore, setCurrentTotalScore] = useState(0); 
 
-    // 🔥 STATE ĐIỂM THÀNH PHẦN (ĐÃ KHÔI PHỤC)
+    // 🔥 STATE ĐIỂM THÀNH PHẦN (QUAN TRỌNG ĐỂ HIỆN BẢNG ĐIỂM)
     const [scoreDetails, setScoreDetails] = useState({ p1: 0, p2: 0, p3: 0 });
+
+    // Ref để cuộn trang lên đầu
+    const contentRef = useRef(null);
 
     // State cho Feedback & Toast
     const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -72,13 +75,20 @@ export default function ExamHistoryDialog({ customId }) {
         return () => window.removeEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted);
     }, []);
 
+    // Tự động cuộn lên đầu khi vào màn hình chi tiết
+    useEffect(() => {
+        if (viewMode === 'detail' && contentRef.current) {
+            contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [viewMode]);
+
     const handleOpen = () => {
         setOpen(true);
         setViewMode('list'); 
         fetchHistory(); 
     };
 
-    // 🔥 HÀM XEM CHI TIẾT + TÍNH LẠI ĐIỂM
+    // 🔥 HÀM XEM CHI TIẾT + TÍNH TOÁN LẠI BẢNG ĐIỂM
     const handleViewDetail = async (resultId, examId, examTitle, totalScore) => {
         setIsLoadingAd(true);
         try {
@@ -105,7 +115,7 @@ export default function ExamHistoryDialog({ customId }) {
             const qData = resQuestions.data;
             setDetailQuestions(qData);
             
-            // --- BẮT ĐẦU TÍNH ĐIỂM THÀNH PHẦN ---
+            // 🔥 [LOGIC TÍNH ĐIỂM] - Bắt buộc có đoạn này bảng mới hiện số liệu
             let p1 = 0, p2 = 0, p3 = 0;
             qData.forEach(q => {
                 const ans = userAns[q.id];
@@ -126,7 +136,6 @@ export default function ExamHistoryDialog({ customId }) {
                 }
             });
             setScoreDetails({ p1, p2, p3 });
-            // --- KẾT THÚC TÍNH ĐIỂM ---
             
             setDetailExamTitle(examTitle);
             setCurrentResultId(resultId);
@@ -204,7 +213,8 @@ export default function ExamHistoryDialog({ customId }) {
                     </Toolbar>
                 </AppBar>
 
-                <DialogContent sx={{ bgcolor: '#f5f5f5', p: viewMode === 'detail' ? 0 : 2 }}>
+                {/* Gán ref={contentRef} để điều khiển việc cuộn trang */}
+                <DialogContent ref={contentRef} sx={{ bgcolor: '#f5f5f5', p: viewMode === 'detail' ? 2 : 2 }}>
                     {viewMode === 'list' ? (
                         history.length === 0 ? (
                             <Box textAlign="center" py={10}><Typography color="textSecondary">Chưa có dữ liệu bài làm nào.</Typography></Box>
@@ -236,12 +246,12 @@ export default function ExamHistoryDialog({ customId }) {
                             </TableContainer>
                         )
                     ) : (
-                        <Box sx={{ p: 1 }}>
+                        <Box sx={{ maxWidth: '800px', margin: '0 auto' }}>
                             {loading ? <Box textAlign="center" mt={5}><CircularProgress /></Box> : (
                                 <>
-                                    {/* 🔥 BẢNG TỔNG HỢP ĐIỂM (ĐÃ XUẤT HIỆN TRỞ LẠI) 🔥 */}
-                                    <Paper elevation={3} sx={{ mb: 3, overflow: 'hidden', borderRadius: 2 }}>
-                                        <Box sx={{ bgcolor: '#e8f5e9', p: 1.5, textAlign: 'center' }}>
+                                    {/* 🔥🔥🔥 BẢNG TỔNG HỢP ĐIỂM (ĐƯỢC ĐẶT Ở VỊ TRÍ ĐẦU TIÊN) 🔥🔥🔥 */}
+                                    <Paper elevation={3} sx={{ mb: 3, overflow: 'hidden', borderRadius: 2, border: '1px solid #ddd' }}>
+                                        <Box sx={{ bgcolor: '#e8f5e9', p: 1.5, textAlign: 'center', borderBottom: '1px solid #c8e6c9' }}>
                                             <Typography variant="subtitle1" fontWeight="bold" color="#2e7d32">KẾT QUẢ BÀI LÀM</Typography>
                                         </Box>
                                         <TableContainer>
@@ -272,10 +282,12 @@ export default function ExamHistoryDialog({ customId }) {
                                         </TableContainer>
                                     </Paper>
 
+                                    {/* DANH SÁCH CÂU HỎI */}
                                     {detailQuestions.map((q, index) => (
                                         <QuestionCard key={q.id} question={q} index={index} userAnswer={detailUserAnswers[q.id]} onAnswerChange={() => {}} isSubmitted={true} />
                                     ))}
                                     
+                                    {/* NÚT GÓP Ý */}
                                     <Box sx={{ mt: 4, mb: 4, p: 2, textAlign: 'center', bgcolor: '#fff', borderRadius: 2, border: '1px solid #ddd' }}>
                                         <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontWeight: 400 }}>
                                             Bạn phát hiện lỗi trong đề thi này?
