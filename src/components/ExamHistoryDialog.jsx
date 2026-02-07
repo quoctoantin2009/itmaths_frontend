@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogContent, Button, Typography, Box, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, Paper, IconButton, 
-    Chip, CircularProgress, AppBar, Toolbar, Slide, Backdrop
+    Chip, CircularProgress, AppBar, Toolbar, Slide, Backdrop, TextField, DialogTitle, DialogActions
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import axiosClient from '../services/axiosClient'; // 🔥 Sử dụng axiosClient cho chuẩn Token và URL
+import FeedbackIcon from '@mui/icons-material/Feedback'; // Thêm icon góp ý
+import axiosClient from '../services/axiosClient'; 
 import QuestionCard from './QuestionCard'; 
 import { AdMob } from '@capacitor-community/admob';
 
@@ -31,27 +32,30 @@ export default function ExamHistoryDialog({ customId }) {
 
     // State chi tiết
     const [viewMode, setViewMode] = useState('list'); 
+    const [currentResultId, setCurrentResultId] = useState(null);
+    const [currentExamId, setCurrentExamId] = useState(null);
     const [detailQuestions, setDetailQuestions] = useState([]);
     const [detailUserAnswers, setDetailUserAnswers] = useState({});
     const [detailExamTitle, setDetailExamTitle] = useState("");
 
+    // State cho Feedback
+    const [feedbackOpen, setFeedbackOpen] = useState(false);
+    const [feedbackContent, setFeedbackContent] = useState("");
+    const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+
     useEffect(() => {
         const initAdMob = async () => {
-            try {
-                await AdMob.initialize({ requestTrackingAuthorization: true });
-            } catch (e) { console.error("Lỗi Init AdMob:", e); }
+            try { await AdMob.initialize({ requestTrackingAuthorization: true }); } 
+            catch (e) { console.error("Lỗi Init AdMob:", e); }
         };
         initAdMob();
     }, []);
 
-    // 🔥 Sửa lỗi gọi sai URL: Bỏ "/api" dư thừa vì axiosClient đã có sẵn
     const fetchHistory = async () => {
         try {
             const res = await axiosClient.get('/my-results/'); 
             setHistory(res.data);
-        } catch (error) {
-            console.error("Lỗi lấy lịch sử:", error);
-        }
+        } catch (error) { console.error("Lỗi lấy lịch sử:", error); }
     };
 
     useEffect(() => {
@@ -76,15 +80,13 @@ export default function ExamHistoryDialog({ customId }) {
                 isTesting: true
             });
             await AdMob.showInterstitial();
-        } catch (e) { console.error("Lỗi QC:", e); }
+        } catch (e) {}
 
         setIsLoadingAd(false);
         setLoading(true);
 
         try {
-            // 🔥 Gọi đúng route detail đã khai báo ở backend
             const resResult = await axiosClient.get(`/history/${resultId}/`);
-            
             let userAns = resResult.data.detail_answers;
             if (typeof userAns === 'string') {
                 try { userAns = JSON.parse(userAns); } catch(e) {}
@@ -92,22 +94,37 @@ export default function ExamHistoryDialog({ customId }) {
             setDetailUserAnswers(userAns || {});
 
             const resQuestions = await axiosClient.get(`/exams/${examId}/questions/`);
-            
             setDetailQuestions(resQuestions.data);
             setDetailExamTitle(examTitle);
+            setCurrentResultId(resultId);
+            setCurrentExamId(examId);
             setViewMode('detail'); 
         } catch (error) {
-            console.error(error);
             alert("Không thể tải chi tiết bài làm.");
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
     const handleBackToList = () => {
         setViewMode('list');
         setDetailQuestions([]);
         setDetailUserAnswers({});
+    };
+
+    // Logic gửi Feedback
+    const handleSendFeedback = async () => {
+        if (!feedbackContent.trim()) return;
+        setIsSendingFeedback(true);
+        try {
+            await axiosClient.post('/feedbacks/', {
+                exam: currentExamId,
+                content: `[Phản hồi từ Lịch sử bài làm ID: ${currentResultId}] - Nội dung: ${feedbackContent}`
+            });
+            alert("Cảm ơn bạn đã góp ý! Hệ thống đã ghi nhận.");
+            setFeedbackOpen(false);
+            setFeedbackContent("");
+        } catch (e) {
+            alert("Không thể gửi góp ý lúc này. Vui lòng thử lại sau.");
+        } finally { setIsSendingFeedback(false); }
     };
 
     const handleClearHistory = async () => {
@@ -120,15 +137,7 @@ export default function ExamHistoryDialog({ customId }) {
 
     return (
         <>
-            <Button 
-                id={customId}
-                variant="outlined" 
-                startIcon={<HistoryIcon />} 
-                onClick={handleOpen}
-                sx={{ mr: 1, textTransform: 'none', borderRadius: 2 }}
-            >
-                Lịch sử
-            </Button>
+            <Button id={customId} variant="outlined" startIcon={<HistoryIcon />} onClick={handleOpen} sx={{ mr: 1, textTransform: 'none', borderRadius: 2 }}>Lịch sử</Button>
 
             <Dialog open={open} onClose={() => setOpen(false)} fullScreen TransitionComponent={Transition}>
                 <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
@@ -192,6 +201,24 @@ export default function ExamHistoryDialog({ customId }) {
                                     {detailQuestions.map((q, index) => (
                                         <QuestionCard key={q.id} question={q} index={index} userAnswer={detailUserAnswers[q.id]} onAnswerChange={() => {}} isSubmitted={true} />
                                     ))}
+                                    
+                                    {/* PHẦN GÓP Ý ĐỀ THI Ở CUỐI DANH SÁCH CÂU HỎI */}
+                                    <Box sx={{ mt: 4, mb: 4, p: 2, textAlign: 'center', bgcolor: '#fff', borderRadius: 2, border: '1px solid #ddd' }}>
+                                        <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontWeight: 400 }}>
+                                            Bạn phát hiện lỗi trong đề thi này?
+                                        </Typography>
+                                        <Button 
+                                            variant="outlined" 
+                                            color="warning" 
+                                            size="small"
+                                            startIcon={<FeedbackIcon />}
+                                            onClick={() => setFeedbackOpen(true)}
+                                            sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 400 }}
+                                        >
+                                            Góp ý nội dung đề thi
+                                        </Button>
+                                    </Box>
+
                                     <Box textAlign="center" mt={3} mb={5}>
                                         <Button variant="contained" onClick={handleBackToList} startIcon={<ArrowBackIcon />}>Quay lại danh sách</Button>
                                     </Box>
@@ -200,6 +227,36 @@ export default function ExamHistoryDialog({ customId }) {
                         </Box>
                     )}
                 </DialogContent>
+            </Dialog>
+
+            {/* DIALOG GIAO DIỆN NHẬP GÓP Ý */}
+            <Dialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} fullWidth maxWidth="xs">
+                <DialogTitle sx={{ fontWeight: 'bold' }}>Góp ý nội dung</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Mô tả lỗi hoặc góp ý..."
+                        type="text"
+                        fullWidth
+                        multiline
+                        rows={4}
+                        variant="outlined"
+                        value={feedbackContent}
+                        onChange={(e) => setFeedbackContent(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ pb: 2, px: 3 }}>
+                    <Button onClick={() => setFeedbackOpen(false)} color="inherit">Hủy</Button>
+                    <Button 
+                        onClick={handleSendFeedback} 
+                        variant="contained" 
+                        color="primary"
+                        disabled={isSendingFeedback || !feedbackContent.trim()}
+                    >
+                        {isSendingFeedback ? "Đang gửi..." : "Gửi"}
+                    </Button>
+                </DialogActions>
             </Dialog>
         </>
     );
