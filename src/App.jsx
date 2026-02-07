@@ -17,14 +17,15 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import HistoryPage from './pages/HistoryPage';
-import ExamHistoryDetail from './components/ExamHistoryDialog'; 
 import VideoPlayerPage from './pages/VideoPlayerPage';
 import PDFViewerPage from './pages/PDFViewerPage';
 
-// 🟢 [MỚI] IMPORT CÁC TRANG QUẢN LÝ LỚP HỌC
+// 🟢 [MỚI] IMPORT CÁC TRANG QUẢN LÝ LỚP HỌC & CHI TIẾT
 import ProfilePage from './pages/ProfilePage';
 import ClassroomPage from './pages/ClassroomPage';
-import ClassDetailPage from './pages/ClassDetailPage'; // <--- Thêm dòng này
+import ClassDetailPage from './pages/ClassDetailPage';
+import TopicDetailPage from './pages/TopicDetailPage'; // Nếu bạn có dùng trang này
+import ExamResultPage from './pages/ExamResultPage';   // 🔥 [QUAN TRỌNG] Trang xem chi tiết kết quả
 
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
 const PrivateRoute = ({ children }) => {
@@ -102,24 +103,38 @@ function App() {
               </PrivateRoute>
           } />
 
-          {/* 🟢 [MỚI] ROUTE HỒ SƠ CÁ NHÂN */}
+          {/* 🔥 [MỚI] ROUTE XEM CHI TIẾT KẾT QUẢ THI (Sửa lỗi bấm vào không được) */}
+          <Route path="/history/:id" element={
+              <PrivateRoute>
+                  <ExamResultPage />
+              </PrivateRoute>
+          } />
+
+          {/* 🟢 ROUTE HỒ SƠ CÁ NHÂN */}
           <Route path="/profile" element={
               <PrivateRoute>
                   <ProfilePage />
               </PrivateRoute>
           } />
 
-          {/* 🟢 [MỚI] ROUTE DANH SÁCH LỚP HỌC */}
+          {/* 🟢 ROUTE DANH SÁCH LỚP HỌC */}
           <Route path="/classrooms" element={
               <PrivateRoute>
                   <ClassroomPage />
               </PrivateRoute>
           } />
 
-          {/* 🟢 [MỚI] ROUTE CHI TIẾT LỚP HỌC (QUAN TRỌNG) */}
+          {/* 🟢 ROUTE CHI TIẾT LỚP HỌC */}
           <Route path="/classrooms/:id" element={
               <PrivateRoute>
                   <ClassDetailPage />
+              </PrivateRoute>
+          } />
+
+          {/* 🟢 ROUTE CHI TIẾT CHUYÊN ĐỀ (Nếu dùng) */}
+          <Route path="/topic/:topicId" element={
+              <PrivateRoute>
+                  <TopicDetailPage />
               </PrivateRoute>
           } />
 
@@ -128,6 +143,8 @@ function App() {
                   <GradePage />
               </PrivateRoute>
           } />
+          
+          {/* Route làm bài thi */}
           <Route path="/exams/:id" element={
               <PrivateRoute>
                   <ExamPage />
