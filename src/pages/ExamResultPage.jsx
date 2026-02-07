@@ -2,18 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../services/axiosClient';
 import { 
-    Container, Typography, Box, Paper, Button, Grid, 
+    Container, Typography, Box, Paper, Button, 
     CircularProgress, Chip, Card, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, Radio
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 
-// IMPORT LOGIC XỬ LÝ NỘI DUNG GIỐNG QUESTION CARD CỦA BẠN
+// IMPORT LOGIC XỬ LÝ NỘI DUNG TỪ QUESTION CARD CỦA BẠN
 import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
 
-// --- HÀM XỬ LÝ NỘI DUNG (ĐÃ COPY TỪ LOGIC BẠN GỬI) ---
+// --- HÀM XỬ LÝ NỘI DUNG (ĐÃ ÉP KIỂU KHÔNG IN ĐẬM) ---
 const processContent = (content) => {
     if (!content) return "";
     let cleanContent = content
@@ -25,7 +25,7 @@ const processContent = (content) => {
     const parts = cleanContent.split(mathRegex);
 
     return (
-        <span style={{ fontWeight: '400' }}>
+        <span style={{ fontWeight: 400 }}> {/* Ép kiểu không in đậm mặc định */}
             {parts.map((part, index) => {
                 if (!part) return null;
                 const isMath = /^\$|^\$\.|^\\begin|^\\\[/.test(part.trim());
@@ -39,7 +39,7 @@ const processContent = (content) => {
                 for (let i = 0; i < subParts.length; i += 3) {
                     if (subParts[i]) elements.push(renderTextWithFormatting(subParts[i], `${index}-txt-${i}`));
                     if (i + 1 < subParts.length) {
-                        elements.push(<img key={`${index}-img-${i}`} src={subParts[i+1]} style={{ maxWidth: '100%', display: 'block', margin: '10px auto' }} alt="img" />);
+                        elements.push(<img key={`${index}-img-${i}`} src={subParts[i+1]} style={{ maxWidth: '100%', display: 'block', margin: '10px auto', borderRadius: '4px' }} alt="img" />);
                     }
                 }
                 return <React.Fragment key={index}>{elements}</React.Fragment>;
@@ -50,12 +50,18 @@ const processContent = (content) => {
 
 const renderTextWithFormatting = (text, keyPrefix) => {
     const textLines = text.split('\n');
-    return textLines.map((line, lineIdx) => (
-        <React.Fragment key={`${keyPrefix}-${lineIdx}`}>
-            {line}
-            {lineIdx < textLines.length - 1 && <br />}
-        </React.Fragment>
-    ));
+    return textLines.map((line, lineIdx) => {
+        const boldParts = line.split(/\\textbf\{(.*?)\}/g);
+        return (
+            <React.Fragment key={`${keyPrefix}-${lineIdx}`}>
+                {boldParts.map((bPart, bIdx) => {
+                    if (bIdx % 2 === 1) return <strong key={bIdx} style={{ fontWeight: 700 }}>{bPart}</strong>;
+                    return <span key={bIdx} style={{ fontWeight: 400 }}>{bPart}</span>;
+                })}
+                {lineIdx < textLines.length - 1 && <br />}
+            </React.Fragment>
+        );
+    });
 };
 
 const ExamResultPage = () => {
@@ -113,43 +119,46 @@ const ExamResultPage = () => {
     let userAnswers = typeof result.detail_answers === 'string' ? JSON.parse(result.detail_answers) : result.detail_answers;
 
     return (
-        <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
+        <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa', fontWeight: 400 }}>
             <Box display="flex" gap={2} mb={3}>
-                <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>Quay lại</Button>
-                <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')}>Trang chủ</Button>
+                <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ textTransform: 'none' }}>Quay lại</Button>
+                <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')} sx={{ textTransform: 'none' }}>Trang chủ</Button>
             </Box>
 
-            {/* BẢNG ĐIỂM TỔNG HỢP (GIỐNG HÌNH BẠN GỬI) */}
+            {/* BẢNG ĐIỂM TỔNG HỢP */}
             <Paper elevation={4} sx={{ mb: 4, overflow: 'hidden', borderRadius: 2 }}>
                 <Box sx={{ bgcolor: '#e8f5e9', p: 2, borderBottom: '2px solid #4caf50', textAlign: 'center' }}>
-                    <Typography variant="h6" fontWeight="bold" color="#2e7d32">KẾT QUẢ CHI TIẾT</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="#2e7d32">KẾT QUẢ BÀI LÀM</Typography>
                 </Box>
                 <TableContainer>
                     <Table size="small">
                         <TableHead sx={{ bgcolor: '#f5f5f5' }}><TableRow><TableCell align="center"><b>Phần thi</b></TableCell><TableCell align="center"><b>Điểm</b></TableCell></TableRow></TableHead>
                         <TableBody>
-                            <TableRow hover><TableCell align="center">Phần I (Trắc nghiệm)</TableCell><TableCell align="center" sx={{ fontWeight: 'bold' }}>{scoreDetails.p1.toFixed(2)}</TableCell></TableRow>
-                            <TableRow hover><TableCell align="center">Phần II (Đúng/Sai)</TableCell><TableCell align="center" sx={{ fontWeight: 'bold' }}>{scoreDetails.p2.toFixed(2)}</TableCell></TableRow>
-                            <TableRow hover><TableCell align="center">Phần III (Điền đáp án)</TableCell><TableCell align="center" sx={{ fontWeight: 'bold' }}>{scoreDetails.p3.toFixed(2)}</TableCell></TableRow>
+                            <TableRow hover><TableCell align="center" style={{fontWeight: 400}}>Phần I (Trắc nghiệm)</TableCell><TableCell align="center" sx={{ color: '#1976d2', fontWeight: 'bold' }}>{scoreDetails.p1.toFixed(2)}</TableCell></TableRow>
+                            <TableRow hover><TableCell align="center" style={{fontWeight: 400}}>Phần II (Đúng/Sai)</TableCell><TableCell align="center" sx={{ color: '#1976d2', fontWeight: 'bold' }}>{scoreDetails.p2.toFixed(2)}</TableCell></TableRow>
+                            <TableRow hover><TableCell align="center" style={{fontWeight: 400}}>Phần III (Điền đáp án)</TableCell><TableCell align="center" sx={{ color: '#1976d2', fontWeight: 'bold' }}>{scoreDetails.p3.toFixed(2)}</TableCell></TableRow>
                             <TableRow sx={{ bgcolor: '#fff9c4' }}><TableCell align="right"><b>TỔNG ĐIỂM:</b></TableCell><TableCell align="center"><Typography variant="h5" fontWeight="bold" color="#d32f2f">{result.score.toFixed(2)}</Typography></TableCell></TableRow>
                         </TableBody>
                     </Table>
                 </TableContainer>
             </Paper>
 
-            {/* DANH SÁCH CÂU HỎI THEO LOGIC CỦA BẠN */}
+            {/* DANH SÁCH CÂU HỎI */}
             {questions.map((q, index) => {
                 const ans = userAnswers[q.id];
                 return (
                     <Card key={q.id} sx={{ mb: 3, p: 2, borderRadius: 2 }}>
-                        <Typography fontWeight="bold" mb={1}>Câu {index + 1}:</Typography>
-                        <Box mb={2}>{processContent(q.content)}</Box>
+                        <Box display="flex" justifyContent="space-between" mb={1}>
+                            <Typography fontWeight="bold">Câu {index + 1}:</Typography>
+                        </Box>
+                        <Box mb={2} sx={{ fontWeight: 400 }}>{processContent(q.content)}</Box>
 
-                        {/* HIỂN THỊ THEO TỪNG LOẠI CÂU HỎI */}
+                        {/* HIỂN THỊ THEO LOẠI CÂU HỎI */}
                         {q.question_type === 'MCQ' && q.choices.map((c, idx) => (
-                            <Box key={idx} sx={{ p: 1, my: 0.5, borderRadius: 1, border: '1px solid #eee', bgcolor: c.is_correct ? '#e8f5e9' : (ans === c.content ? '#ffebee' : 'transparent'), display: 'flex', alignItems: 'center' }}>
-                                <strong style={{marginRight: '8px'}}>{c.label}.</strong> {processContent(c.content)}
-                                {ans === c.content && <Typography variant="caption" sx={{ml: 1}}>(Bạn chọn)</Typography>}
+                            <Box key={idx} sx={{ p: 1, my: 0.5, borderRadius: 1, border: '1px solid #eee', bgcolor: c.is_correct ? '#e8f5e9' : (ans === c.content ? '#ffebee' : 'transparent'), display: 'flex', alignItems: 'center', fontWeight: 400 }}>
+                                <strong style={{marginRight: '8px', fontWeight: 700}}>{c.label}.</strong> {processContent(c.content)}
+                                {ans === c.content && <Typography variant="caption" sx={{ml: 1, color: '#666'}}>(Bạn chọn)</Typography>}
+                                {c.is_correct && <span style={{marginLeft: 'auto'}}>✅</span>}
                             </Box>
                         ))}
 
@@ -163,7 +172,7 @@ const ExamResultPage = () => {
                                             const isRight = (uVal === "true" && c.is_correct) || (uVal === "false" && !c.is_correct);
                                             return (
                                                 <TableRow key={idx} sx={{ bgcolor: uVal ? (isRight ? '#d4edda' : '#f8d7da') : 'transparent' }}>
-                                                    <TableCell>{c.label}) {processContent(c.content)}</TableCell>
+                                                    <TableCell style={{fontWeight: 400}}>{c.label}) {processContent(c.content)}</TableCell>
                                                     <TableCell align="center"><Radio checked={uVal === "true"} disabled size="small" color="success" /></TableCell>
                                                     <TableCell align="center"><Radio checked={uVal === "false"} disabled size="small" color="error" /></TableCell>
                                                 </TableRow>
@@ -177,17 +186,19 @@ const ExamResultPage = () => {
                         {q.question_type === 'SHORT' && (
                             <Box sx={{ mt: 1 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="body2">Bạn trả lời: </Typography>
-                                    <Box sx={{ border: '2px solid', borderColor: parseFloat(String(ans).replace(',','.')) === q.short_answer_correct ? '#28a745' : '#dc3545', p: '4px 12px', borderRadius: 1, bgcolor: '#fff' }}><b>{ans || "Trống"}</b></Box>
+                                    <Typography variant="body2" style={{fontWeight: 400}}>Bạn trả lời: </Typography>
+                                    <Box sx={{ border: '2px solid', borderColor: parseFloat(String(ans).replace(',','.')) === q.short_answer_correct ? '#28a745' : '#dc3545', p: '4px 12px', borderRadius: 1, bgcolor: '#fff' }}>
+                                        <b>{ans || "Trống"}</b>
+                                    </Box>
                                 </Box>
-                                <Typography variant="body2" color="success.main" mt={1}>Đáp án đúng: <b>{q.short_answer_correct.toString().replace('.',',')}</b></Typography>
+                                <Typography variant="body2" color="success.main" mt={1} style={{fontWeight: 400}}>Đáp án đúng: <b style={{fontWeight: 700}}>{q.short_answer_correct.toString().replace('.',',')}</b></Typography>
                             </Box>
                         )}
 
                         {q.solution && (
                             <Box mt={2} p={2} bgcolor="#fffde7" borderRadius={2} border="1px dashed #fbc02d">
-                                <Typography variant="subtitle2" fontWeight="bold" color="#f57f17">💡 Lời giải chi tiết:</Typography>
-                                {processContent(q.solution)}
+                                <Typography variant="subtitle2" fontWeight="bold" color="#f57f17" mb={1}>💡 Lời giải chi tiết:</Typography>
+                                <Box sx={{ fontWeight: 400 }}>{processContent(q.solution)}</Box>
                             </Box>
                         )}
                     </Card>
