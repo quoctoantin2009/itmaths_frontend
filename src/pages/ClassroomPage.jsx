@@ -4,9 +4,10 @@ import axiosClient from '../services/axiosClient';
 
 // Import thêm các component đẹp của MUI
 import { 
-    Dialog, DialogContent, Button, Typography, Box, Slide 
+    Dialog, DialogContent, Button, Typography, Box, Slide, IconButton 
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import DeleteIcon from '@mui/icons-material/Delete'; // 🔥 Icon xóa lớp
 
 import './ClassroomPage.css';
 
@@ -69,12 +70,25 @@ const ClassroomPage = () => {
     setOpenSuccess(false);
   };
 
-  // ✅ [MỚI] Hàm copy mã lớp nhanh
   const handleCopyCode = (code, e) => {
-    e.stopPropagation(); // Ngăn không cho nó nhảy vào trang chi tiết lớp
+    e.stopPropagation(); 
     navigator.clipboard.writeText(code);
-    // Bạn có thể thay alert bằng Snackbar nếu muốn đẹp hơn
     alert(`✅ Đã sao chép mã lớp: ${code}`); 
+  };
+
+  // 🔥 [MỚI] HÀM XÓA LỚP
+  const handleDeleteClass = async (classId, e) => {
+      e.stopPropagation(); // Ngăn sự kiện click vào thẻ lớp
+      if (!window.confirm("⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa lớp này không?\n\nMọi dữ liệu bài tập và danh sách thành viên sẽ bị xóa vĩnh viễn!")) return;
+
+      try {
+          await axiosClient.delete(`/classrooms/${classId}/`);
+          alert("✅ Đã xóa lớp học thành công!");
+          // Cập nhật lại danh sách ngay lập tức (xóa khỏi state)
+          setClasses(classes.filter(c => c.id !== classId));
+      } catch (error) {
+          alert("❌ Lỗi khi xóa lớp. Có thể bạn không phải là giáo viên chủ nhiệm.");
+      }
   };
 
   const handleJoinClass = async () => {
@@ -194,8 +208,24 @@ const ClassroomPage = () => {
                 </p>
                 
                 <div className="teacher-badge">GV: {cls.teacher_name}</div>
-              </div>
 
+                {/* 🔥 [MỚI] NÚT XÓA LỚP (CHỈ HIỆN NẾU LÀ GIÁO VIÊN CỦA LỚP ĐÓ) */}
+                {cls.is_teacher && (
+                    <IconButton 
+                        onClick={(e) => handleDeleteClass(cls.id, e)}
+                        sx={{ 
+                            position: 'absolute', top: 5, right: 5, 
+                            color: 'white', bgcolor: 'rgba(211, 47, 47, 0.8)',
+                            '&:hover': { bgcolor: '#b71c1c' }
+                        }}
+                        size="small"
+                        title="Xóa lớp học này"
+                    >
+                        <DeleteIcon fontSize="small" />
+                    </IconButton>
+                )}
+              </div>
+              
               {/* Phần Nội Dung */}
               <div className="card-body">
                 <p className="class-desc">
