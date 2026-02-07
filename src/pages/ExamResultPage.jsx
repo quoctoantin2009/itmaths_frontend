@@ -3,132 +3,106 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../services/axiosClient';
 import { 
     Container, Typography, Box, Paper, Button, Grid, 
-    CircularProgress, Chip, Card 
+    CircularProgress, Chip, Card, Table, TableBody, TableCell, 
+    TableContainer, TableHead, TableRow, Radio
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 
-// 1. IMPORT THƯ VIỆN TOÁN & CÁC STYLE
-import Latex from 'react-latex-next'; // 🔥 Dùng thư viện giống QuestionCard
+// IMPORT LOGIC XỬ LÝ NỘI DUNG GIỐNG QUESTION CARD CỦA BẠN
+import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
 
-// --- HÀM XỬ LÝ NỘI DUNG (COPY TỪ QUESTION CARD) ---
-// Hàm này giúp hiển thị đúng cả Latex và Thẻ ảnh HTML
+// --- HÀM XỬ LÝ NỘI DUNG (ĐÃ COPY TỪ LOGIC BẠN GỬI) ---
 const processContent = (content) => {
     if (!content) return "";
-    
-    // 1. Xử lý các lỗi ký hiệu LaTeX phổ biến & Thay thế bullet
     let cleanContent = content
         .replaceAll('\\bullet', '•') 
         .replaceAll('begin{eqnarray*}', 'begin{aligned}')
-        .replaceAll('end{eqnarray*}', 'end{aligned}')
-        .replaceAll('begin{eqnarray}', 'begin{aligned}')
-        .replaceAll('end{eqnarray}', 'end{aligned}');
+        .replaceAll('end{eqnarray*}', 'end{aligned}');
 
-    // 2. Tách Toán học và Văn bản
     const mathRegex = /((?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$.*?(?<!\\)\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\\[[\s\S]*?\\\])/gs;
     const parts = cleanContent.split(mathRegex);
 
     return (
-        <span style={{fontWeight: '400 !important'}}>
+        <span style={{ fontWeight: '400' }}>
             {parts.map((part, index) => {
                 if (!part) return null;
-
                 const isMath = /^\$|^\$\.|^\\begin|^\\\[/.test(part.trim());
+                if (isMath) return <Latex key={index}>{part}</Latex>;
+                
+                const imgRegex = /<img src='(.*?)' style='(.*?)' \/>/g;
+                const subParts = part.split(imgRegex);
+                if (subParts.length === 1) return renderTextWithFormatting(part, index);
 
-                if (isMath) {
-                    return <Latex key={index}>{part}</Latex>;
-                } else {
-                    // Xử lý thẻ HTML <img> do Python Tool gửi lên
-                    const imgRegex = /<img src='(.*?)' style='(.*?)' \/>/g;
-                    const subParts = part.split(imgRegex);
-
-                    if (subParts.length === 1) {
-                        return renderTextWithFormatting(part, index);
+                let elements = [];
+                for (let i = 0; i < subParts.length; i += 3) {
+                    if (subParts[i]) elements.push(renderTextWithFormatting(subParts[i], `${index}-txt-${i}`));
+                    if (i + 1 < subParts.length) {
+                        elements.push(<img key={`${index}-img-${i}`} src={subParts[i+1]} style={{ maxWidth: '100%', display: 'block', margin: '10px auto' }} alt="img" />);
                     }
-
-                    let elements = [];
-                    for (let i = 0; i < subParts.length; i += 3) {
-                        // Phần Text
-                        if (subParts[i]) {
-                            elements.push(renderTextWithFormatting(subParts[i], `${index}-txt-${i}`));
-                        }
-                        // Phần Ảnh (nếu có)
-                        if (i + 1 < subParts.length) {
-                            const src = subParts[i+1];
-                            const styleObj = { maxWidth: '100%', display: 'block', margin: '10px auto', borderRadius: '4px' };
-                            
-                            elements.push(
-                                <img 
-                                    key={`${index}-img-${i}`}
-                                    src={src} 
-                                    style={styleObj} 
-                                    alt="Minh họa"
-                                />
-                            );
-                        }
-                    }
-                    return <React.Fragment key={index}>{elements}</React.Fragment>;
                 }
+                return <React.Fragment key={index}>{elements}</React.Fragment>;
             })}
         </span>
     );
 };
 
-// Hàm phụ: Xử lý xuống dòng (\n) và in đậm (\textbf)
 const renderTextWithFormatting = (text, keyPrefix) => {
     const textLines = text.split('\n');
-    return (
-        <React.Fragment key={keyPrefix}>
-            {textLines.map((line, lineIdx) => {
-                const boldParts = line.split(/\\textbf\{(.*?)\}/g);
-                return (
-                    <React.Fragment key={`${keyPrefix}-${lineIdx}`}>
-                        {boldParts.map((bPart, bIdx) => {
-                            if (bIdx % 2 === 1) return <strong key={bIdx}>{bPart}</strong>;
-                            return <span key={bIdx}>{bPart}</span>;
-                        })}
-                        {lineIdx < textLines.length - 1 && <br />}
-                    </React.Fragment>
-                );
-            })}
+    return textLines.map((line, lineIdx) => (
+        <React.Fragment key={`${keyPrefix}-${lineIdx}`}>
+            {line}
+            {lineIdx < textLines.length - 1 && <br />}
         </React.Fragment>
-    );
+    ));
 };
 
 const ExamResultPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    
     const [result, setResult] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Style cho vùng chứa nội dung (để scroll nếu tràn)
-    const scrollableContainerStyle = {
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        maxWidth: '100%',
-        paddingBottom: '5px'
-    };
+    const [scoreDetails, setScoreDetails] = useState({ p1: 0, p2: 0, p3: 0 });
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const resResult = await axiosClient.get(`/history/${id}/`);
-                setResult(resResult.data);
+                const data = resResult.data;
+                setResult(data);
 
-                if (resResult.data.exam) {
-                    const resQuestions = await axiosClient.get(`/exams/${resResult.data.exam}/questions/`);
-                    setQuestions(resQuestions.data);
-                }
-            } catch (error) {
-                console.error("Lỗi tải kết quả:", error);
-            } finally {
-                setLoading(false);
-            }
+                const resQuestions = await axiosClient.get(`/exams/${data.exam}/questions/`);
+                const qData = resQuestions.data;
+                setQuestions(qData);
+                
+                // Logic tính điểm 3 phần
+                let p1 = 0, p2 = 0, p3 = 0;
+                let userAns = typeof data.detail_answers === 'string' ? JSON.parse(data.detail_answers) : data.detail_answers;
+
+                qData.forEach(q => {
+                    const ans = userAns[q.id];
+                    if (!ans) return;
+                    if (q.question_type === 'MCQ') {
+                        if (q.choices.find(c => c.is_correct && c.content === ans)) p1 += 0.25;
+                    } else if (q.question_type === 'TF') {
+                        let subCorrect = 0;
+                        q.choices.forEach(c => {
+                            const actual = c.is_correct ? "true" : "false";
+                            if (ans[c.id] === actual) subCorrect++;
+                        });
+                        if (subCorrect === 1) p2 += 0.1;
+                        else if (subCorrect === 2) p2 += 0.25;
+                        else if (subCorrect === 3) p2 += 0.5;
+                        else if (subCorrect === 4) p2 += 1.0;
+                    } else if (q.question_type === 'SHORT') {
+                        if (parseFloat(String(ans).replace(',','.')) === q.short_answer_correct) p3 += 0.5;
+                    }
+                });
+                setScoreDetails({ p1, p2, p3 });
+            } catch (error) { console.error(error); }
+            finally { setLoading(false); }
         };
         fetchData();
     }, [id]);
@@ -136,133 +110,84 @@ const ExamResultPage = () => {
     if (loading) return <Box textAlign="center" mt={10}><CircularProgress /></Box>;
     if (!result) return <Box textAlign="center" mt={10}><Typography>Không tìm thấy kết quả.</Typography></Box>;
 
-    let userAnswers = {};
-    try {
-        userAnswers = typeof result.detail_answers === 'string' 
-            ? JSON.parse(result.detail_answers) 
-            : result.detail_answers;
-    } catch (e) { userAnswers = {}; }
+    let userAnswers = typeof result.detail_answers === 'string' ? JSON.parse(result.detail_answers) : result.detail_answers;
 
     return (
         <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
-            
             <Box display="flex" gap={2} mb={3}>
                 <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>Quay lại</Button>
                 <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')}>Trang chủ</Button>
             </Box>
 
-            {/* Bảng điểm tổng quan */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: 3, textAlign: 'center', background: 'linear-gradient(to right, #ffffff, #f3e5f5)' }}>
-                <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
-                    KẾT QUẢ BÀI THI: {result.exam_title}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" mb={3}>
-                    Học sinh: <strong>{result.student_name}</strong>
-                </Typography>
-
-                <Grid container spacing={3} justifyContent="center">
-                    <Grid item>
-                        <Box sx={{ p: 2, border: '2px solid #1976d2', borderRadius: 2, minWidth: 120 }}>
-                            <Typography variant="h3" fontWeight="bold" color="#1976d2">{result.score}</Typography>
-                            <Typography variant="caption">ĐIỂM SỐ</Typography>
-                        </Box>
-                    </Grid>
-                    <Grid item>
-                        <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 2, minWidth: 120, bgcolor: 'white' }}>
-                            <Typography variant="h4" fontWeight="bold" color="#2e7d32">
-                                {result.correct_answers}/{result.total_questions}
-                            </Typography>
-                            <Typography variant="caption">SỐ CÂU ĐÚNG</Typography>
-                        </Box>
-                    </Grid>
-                </Grid>
+            {/* BẢNG ĐIỂM TỔNG HỢP (GIỐNG HÌNH BẠN GỬI) */}
+            <Paper elevation={4} sx={{ mb: 4, overflow: 'hidden', borderRadius: 2 }}>
+                <Box sx={{ bgcolor: '#e8f5e9', p: 2, borderBottom: '2px solid #4caf50', textAlign: 'center' }}>
+                    <Typography variant="h6" fontWeight="bold" color="#2e7d32">KẾT QUẢ CHI TIẾT</Typography>
+                </Box>
+                <TableContainer>
+                    <Table size="small">
+                        <TableHead sx={{ bgcolor: '#f5f5f5' }}><TableRow><TableCell align="center"><b>Phần thi</b></TableCell><TableCell align="center"><b>Điểm</b></TableCell></TableRow></TableHead>
+                        <TableBody>
+                            <TableRow hover><TableCell align="center">Phần I (Trắc nghiệm)</TableCell><TableCell align="center" sx={{ fontWeight: 'bold' }}>{scoreDetails.p1.toFixed(2)}</TableCell></TableRow>
+                            <TableRow hover><TableCell align="center">Phần II (Đúng/Sai)</TableCell><TableCell align="center" sx={{ fontWeight: 'bold' }}>{scoreDetails.p2.toFixed(2)}</TableCell></TableRow>
+                            <TableRow hover><TableCell align="center">Phần III (Điền đáp án)</TableCell><TableCell align="center" sx={{ fontWeight: 'bold' }}>{scoreDetails.p3.toFixed(2)}</TableCell></TableRow>
+                            <TableRow sx={{ bgcolor: '#fff9c4' }}><TableCell align="right"><b>TỔNG ĐIỂM:</b></TableCell><TableCell align="center"><Typography variant="h5" fontWeight="bold" color="#d32f2f">{result.score.toFixed(2)}</Typography></TableCell></TableRow>
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             </Paper>
 
-            <Typography variant="h6" fontWeight="bold" mb={2}>CHI TIẾT BÀI LÀM:</Typography>
-            
+            {/* DANH SÁCH CÂU HỎI THEO LOGIC CỦA BẠN */}
             {questions.map((q, index) => {
-                const userChoiceKey = userAnswers[q.id]; 
-                let isCorrect = false;
-                
-                // --- Logic kiểm tra đáp án ---
-                if (q.question_type === 'MCQ') {
-                    const userSelectedChoice = q.choices.find(c => c.content === userChoiceKey);
-                    if (userSelectedChoice && userSelectedChoice.is_correct) isCorrect = true;
-                } 
-                else if (q.question_type === 'SHORT') {
-                    // Logic check câu trả lời ngắn (đơn giản)
-                    try {
-                        const u = parseFloat(String(userChoiceKey).replace(',', '.'));
-                        const c = parseFloat(String(q.short_answer_correct).replace(',', '.'));
-                        if (Math.abs(u - c) < 0.001) isCorrect = true;
-                    } catch(e) {}
-                }
-                // (Có thể bổ sung logic TF nếu cần)
-
+                const ans = userAnswers[q.id];
                 return (
-                    <Card key={q.id} sx={{ mb: 2, p: 2, borderRadius: 2, borderLeft: isCorrect ? '5px solid #2e7d32' : '5px solid #d32f2f' }}>
-                        <Box display="flex" justifyContent="space-between" mb={1}>
-                            <Typography fontWeight="bold">Câu {index + 1}:</Typography>
-                            {isCorrect 
-                                ? <Chip icon={<CheckCircleIcon />} label="Đúng" color="success" size="small" />
-                                : <Chip icon={<CancelIcon />} label="Sai" color="error" size="small" />
-                            }
-                        </Box>
-                        
-                        {/* 🔥 HIỂN THỊ NỘI DUNG CÂU HỎI (Dùng hàm processContent) */}
-                        <div style={{ marginBottom: '15px', fontSize: '1rem', ...scrollableContainerStyle }}>
-                            {processContent(q.content)}
-                        </div>
-                        
-                        {/* Ảnh đính kèm (nếu có trường image riêng) */}
-                        {q.image && <img src={q.image} alt="Question" style={{maxWidth: '100%', marginBottom: 15, borderRadius: 8}}/>}
+                    <Card key={q.id} sx={{ mb: 3, p: 2, borderRadius: 2 }}>
+                        <Typography fontWeight="bold" mb={1}>Câu {index + 1}:</Typography>
+                        <Box mb={2}>{processContent(q.content)}</Box>
 
-                        {/* --- HIỂN THỊ ĐÁP ÁN --- */}
-                        <Box>
-                            {q.question_type === 'MCQ' && q.choices.map((choice) => {
-                                const isUserSelected = (choice.content === userChoiceKey);
-                                const isTrueAnswer = choice.is_correct;
-                                
-                                let optionBg = 'transparent';
-                                let optionColor = 'inherit';
-                                let fontWeight = 'normal';
+                        {/* HIỂN THỊ THEO TỪNG LOẠI CÂU HỎI */}
+                        {q.question_type === 'MCQ' && q.choices.map((c, idx) => (
+                            <Box key={idx} sx={{ p: 1, my: 0.5, borderRadius: 1, border: '1px solid #eee', bgcolor: c.is_correct ? '#e8f5e9' : (ans === c.content ? '#ffebee' : 'transparent'), display: 'flex', alignItems: 'center' }}>
+                                <strong style={{marginRight: '8px'}}>{c.label}.</strong> {processContent(c.content)}
+                                {ans === c.content && <Typography variant="caption" sx={{ml: 1}}>(Bạn chọn)</Typography>}
+                            </Box>
+                        ))}
 
-                                if (isTrueAnswer) { optionBg = '#e8f5e9'; optionColor = '#2e7d32'; fontWeight = 'bold'; }
-                                if (isUserSelected && !isTrueAnswer) { optionBg = '#ffebee'; optionColor = '#d32f2f'; }
+                        {q.question_type === 'TF' && (
+                            <TableContainer component={Paper} elevation={0} variant="outlined">
+                                <Table size="small">
+                                    <TableHead><TableRow><TableCell><b>Mệnh đề</b></TableCell><TableCell align="center"><b>Đúng</b></TableCell><TableCell align="center"><b>Sai</b></TableCell></TableRow></TableHead>
+                                    <TableBody>
+                                        {q.choices.map((c, idx) => {
+                                            const uVal = ans ? ans[c.id] : null;
+                                            const isRight = (uVal === "true" && c.is_correct) || (uVal === "false" && !c.is_correct);
+                                            return (
+                                                <TableRow key={idx} sx={{ bgcolor: uVal ? (isRight ? '#d4edda' : '#f8d7da') : 'transparent' }}>
+                                                    <TableCell>{c.label}) {processContent(c.content)}</TableCell>
+                                                    <TableCell align="center"><Radio checked={uVal === "true"} disabled size="small" color="success" /></TableCell>
+                                                    <TableCell align="center"><Radio checked={uVal === "false"} disabled size="small" color="error" /></TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
 
-                                return (
-                                    <Box key={choice.id} sx={{ 
-                                        p: 1, my: 0.5, borderRadius: 1, 
-                                        bgcolor: optionBg, color: optionColor, fontWeight: fontWeight,
-                                        border: isUserSelected ? '1px solid currentColor' : '1px solid #eee',
-                                        display: 'flex', alignItems: 'center',
-                                        ...scrollableContainerStyle
-                                    }}>
-                                        <span style={{fontWeight: 'bold', marginRight: '8px'}}>{choice.label}.</span>
-                                        {/* 🔥 Hiển thị nội dung đáp án qua processContent */}
-                                        <div style={{flex: 1}}>{processContent(choice.content)}</div>
-                                        
-                                        {isUserSelected && <span style={{marginLeft: 8, fontSize: '0.8rem', whiteSpace:'nowrap'}}>(Bạn chọn)</span>}
-                                        {isTrueAnswer && <span style={{marginLeft: 8}}>✅</span>}
-                                    </Box>
-                                );
-                            })}
-
-                            {q.question_type === 'SHORT' && (
-                                <Box sx={{mt: 1}}>
-                                    <Typography>Bạn trả lời: <strong>{userChoiceKey || "Chưa trả lời"}</strong></Typography>
-                                    <Typography color="success.main">Đáp án đúng: <strong>{q.short_answer_correct}</strong></Typography>
+                        {q.question_type === 'SHORT' && (
+                            <Box sx={{ mt: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="body2">Bạn trả lời: </Typography>
+                                    <Box sx={{ border: '2px solid', borderColor: parseFloat(String(ans).replace(',','.')) === q.short_answer_correct ? '#28a745' : '#dc3545', p: '4px 12px', borderRadius: 1, bgcolor: '#fff' }}><b>{ans || "Trống"}</b></Box>
                                 </Box>
-                            )}
-                        </Box>
-                        
-                        {/* 🔥 HIỂN THỊ LỜI GIẢI (Dùng processContent) */}
+                                <Typography variant="body2" color="success.main" mt={1}>Đáp án đúng: <b>{q.short_answer_correct.toString().replace('.',',')}</b></Typography>
+                            </Box>
+                        )}
+
                         {q.solution && (
                             <Box mt={2} p={2} bgcolor="#fffde7" borderRadius={2} border="1px dashed #fbc02d">
-                                <Typography variant="subtitle2" fontWeight="bold" color="#f57f17" mb={1}>💡 Lời giải chi tiết:</Typography>
-                                <div style={{...scrollableContainerStyle}}>
-                                    {processContent(q.solution)}
-                                </div>
+                                <Typography variant="subtitle2" fontWeight="bold" color="#f57f17">💡 Lời giải chi tiết:</Typography>
+                                {processContent(q.solution)}
                             </Box>
                         )}
                     </Card>
