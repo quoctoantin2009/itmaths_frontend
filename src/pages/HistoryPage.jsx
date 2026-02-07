@@ -30,14 +30,14 @@ function HistoryPage() {
   const fetchHistory = () => {
     const token = localStorage.getItem("accessToken");
     
-    // Nếu không có token thì đá về login ngay
     if (!token) {
         navigate('/login');
         return;
     }
 
     setLoading(true);
-    axios.get(`${API_BASE_URL}/api/my-results/`, {
+    // Sử dụng URL chuẩn từ config của bạn
+    axios.get(`${API_BASE_URL}/my-results/`, {
         headers: { Authorization: `Bearer ${token}` }
     })
     .then((res) => {
@@ -47,23 +47,18 @@ function HistoryPage() {
     .catch((err) => {
         console.error("Lỗi tải lịch sử:", err);
         setLoading(false);
-
-        // XỬ LÝ KHI TOKEN HẾT HẠN HOẶC LỖI
         if (err.response && err.response.status === 401) {
             alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-            localStorage.removeItem('accessToken'); // Xóa token hỏng
+            localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
-            navigate('/login'); // Chuyển về trang đăng nhập
+            navigate('/login');
         }
     });
   };
 
-  // Gọi hàm fetchHistory mỗi khi vào trang (Mount)
   useEffect(() => {
     fetchHistory();
-
     const handleExamSubmitted = () => {
-        console.log("♻️ Phát hiện bài thi mới -> Đang cập nhật lịch sử...");
         setTimeout(() => { fetchHistory(); }, 1500);
     };
     window.addEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted);
@@ -81,7 +76,8 @@ function HistoryPage() {
       } catch (e) { console.error("Lỗi QC:", e); } 
       finally {
           setIsLoadingAd(false); 
-          navigate(`/review/${resultId}`);
+          // 🔥 [SỬA LỖI] Chuyển hướng đúng route /history/:id đã khai báo ở App.jsx
+          navigate(`/history/${resultId}`);
       }
   };
 
@@ -102,8 +98,6 @@ function HistoryPage() {
         background: '#f4f6f8',
         padding: '10px', boxSizing: 'border-box',
         fontFamily: "'Segoe UI', sans-serif",
-        
-        // 🟢 [SỬA LỖI] Đẩy nội dung xuống để tránh Tai thỏ / Status Bar
         paddingTop: 'max(env(safe-area-inset-top), 40px)', 
         paddingBottom: '20px'
     },
@@ -172,7 +166,7 @@ function HistoryPage() {
                                         {item.exam_title || "Đề thi không tên"}
                                     </Typography>
                                     <Typography variant="caption" color="textSecondary">
-                                        {formatDate(item.completed_at)}
+                                        {formatDate(item.completed_at || item.created_at)}
                                     </Typography>
                                 </TableCell>
                                 <TableCell align="center">
