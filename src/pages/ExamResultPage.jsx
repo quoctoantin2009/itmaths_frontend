@@ -1,18 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../services/axiosClient';
 import { 
     Container, Typography, Box, Paper, Button, Grid, 
-    CircularProgress, Chip, Divider, Card 
+    CircularProgress, Chip, Card 
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 
+// 🔥 1. IMPORT THƯ VIỆN TOÁN (Bạn đã có sẵn, giờ ta lôi ra dùng cho trang này)
+import 'katex/dist/katex.min.css';
+import renderMathInElement from 'katex/dist/contrib/auto-render';
+
 const ExamResultPage = () => {
-    const { id } = useParams(); // Lấy ID kết quả từ URL
+    const { id } = useParams();
     const navigate = useNavigate();
+    
+    // Tạo Ref để khoanh vùng nội dung cần biến đổi thành công thức Toán
+    const contentRef = useRef(null);
     
     const [result, setResult] = useState(null);
     const [questions, setQuestions] = useState([]);
@@ -21,11 +28,9 @@ const ExamResultPage = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. Lấy thông tin kết quả thi
                 const resResult = await axiosClient.get(`/history/${id}/`);
                 setResult(resResult.data);
 
-                // 2. Lấy danh sách câu hỏi của đề thi này để hiển thị lại
                 if (resResult.data.exam) {
                     const resQuestions = await axiosClient.get(`/exams/${resResult.data.exam}/questions/`);
                     setQuestions(resQuestions.data);
@@ -39,10 +44,28 @@ const ExamResultPage = () => {
         fetchData();
     }, [id]);
 
+    // 🔥 2. KÍCH HOẠT HIỂN THỊ TOÁN (KATEX) SAU KHI DỮ LIỆU TẢI XONG
+    useEffect(() => {
+        if (!loading && contentRef.current) {
+            try {
+                renderMathInElement(contentRef.current, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}, // Nhận diện ký tự $...$
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            } catch (e) {
+                console.error("Lỗi render Katex:", e);
+            }
+        }
+    }, [loading, questions]); 
+
     if (loading) return <Box textAlign="center" mt={10}><CircularProgress /></Box>;
     if (!result) return <Box textAlign="center" mt={10}><Typography>Không tìm thấy kết quả.</Typography></Box>;
 
-    // Parse chi tiết đáp án người dùng đã chọn (JSON string -> Object)
     let userAnswers = {};
     try {
         userAnswers = typeof result.detail_answers === 'string' 
@@ -51,15 +74,14 @@ const ExamResultPage = () => {
     } catch (e) { userAnswers = {}; }
 
     return (
-        <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
+        // Gắn ref={contentRef} để Katex biết phải xử lý nội dung trong này
+        <Container maxWidth="md" ref={contentRef} sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
             
-            {/* Header điều hướng */}
             <Box display="flex" gap={2} mb={3}>
                 <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>Quay lại</Button>
                 <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')}>Trang chủ</Button>
             </Box>
 
-            {/* Thẻ Điểm Số Tổng Quan */}
             <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: 3, textAlign: 'center', background: 'linear-gradient(to right, #ffffff, #f3e5f5)' }}>
                 <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
                     KẾT QUẢ BÀI THI: {result.exam_title}
@@ -86,23 +108,14 @@ const ExamResultPage = () => {
                 </Grid>
             </Paper>
 
-            {/* Danh sách chi tiết câu hỏi */}
             <Typography variant="h6" fontWeight="bold" mb={2}>CHI TIẾT BÀI LÀM:</Typography>
             
             {questions.map((q, index) => {
-                const userChoiceKey = userAnswers[q.id]; // Ví dụ: "A" hoặc "true"
-                // Logic xác định đúng sai (đơn giản hóa cho MCQ)
+                const userChoiceKey = userAnswers[q.id]; 
                 let isCorrect = false;
-                let correctLabel = "";
                 
-                // Tìm đáp án đúng trong danh sách choices
-                const correctChoice = q.choices.find(c => c.is_correct);
-                if (correctChoice) correctLabel = correctChoice.label; // Ví dụ "B"
-
-                // Kiểm tra xem user chọn có trùng với đáp án đúng không
+                // Logic kiểm tra đáp án
                 if (q.question_type === 'MCQ') {
-                    // Cần so sánh nội dung hoặc label tùy vào cách lưu backend
-                    // Ở đây giả sử backend lưu text đáp án, ta so sánh text
                     const userSelectedChoice = q.choices.find(c => c.content === userChoiceKey);
                     if (userSelectedChoice && userSelectedChoice.is_correct) isCorrect = true;
                 }
@@ -117,11 +130,14 @@ const ExamResultPage = () => {
                             }
                         </Box>
                         
-                        {/* Nội dung câu hỏi (có thể chứa LaTeX) */}
-                        <Typography variant="body1" mb={2} dangerouslySetInnerHTML={{__html: q.content}}></Typography>
+                        {/* 🔥 3. FIX LỖI HIỂN THỊ CÂU HỎI (Dùng dangerouslySetInnerHTML để hiện Latex & Ảnh) */}
+                        <div 
+                            style={{marginBottom: '15px', fontSize: '1.1rem'}}
+                            dangerouslySetInnerHTML={{__html: q.content}} 
+                        />
+                        
                         {q.image && <img src={q.image} alt="Question" style={{maxWidth: '100%', marginBottom: 10, borderRadius: 8}}/>}
 
-                        {/* Các lựa chọn */}
                         <Box>
                             {q.choices.map((choice) => {
                                 const isUserSelected = (choice.content === userChoiceKey);
@@ -131,35 +147,34 @@ const ExamResultPage = () => {
                                 let optionColor = 'inherit';
                                 let fontWeight = 'normal';
 
-                                if (isTrueAnswer) {
-                                    optionBg = '#e8f5e9'; // Xanh nhạt cho đáp án đúng
-                                    optionColor = '#2e7d32';
-                                    fontWeight = 'bold';
-                                }
-                                if (isUserSelected && !isTrueAnswer) {
-                                    optionBg = '#ffebee'; // Đỏ nhạt cho câu sai user chọn
-                                    optionColor = '#d32f2f';
-                                }
+                                if (isTrueAnswer) { optionBg = '#e8f5e9'; optionColor = '#2e7d32'; fontWeight = 'bold'; }
+                                if (isUserSelected && !isTrueAnswer) { optionBg = '#ffebee'; optionColor = '#d32f2f'; }
 
                                 return (
                                     <Box key={choice.id} sx={{ 
                                         p: 1, my: 0.5, borderRadius: 1, 
                                         bgcolor: optionBg, color: optionColor, fontWeight: fontWeight,
-                                        border: isUserSelected ? '1px solid currentColor' : '1px solid #eee'
+                                        border: isUserSelected ? '1px solid currentColor' : '1px solid #eee',
+                                        display: 'flex', alignItems: 'center'
                                     }}>
-                                        {choice.label}. {choice.content} 
-                                        {isUserSelected && " (Bạn chọn)"}
-                                        {isTrueAnswer && " ✅"}
+                                        <span style={{fontWeight: 'bold', marginRight: '5px'}}>{choice.label}.</span>
+                                        {/* 🔥 Hiển thị đáp án có công thức toán */}
+                                        <span dangerouslySetInnerHTML={{__html: choice.content}} />
+                                        {isUserSelected && <span style={{marginLeft: 5, fontSize: '0.8rem'}}>(Bạn chọn)</span>}
+                                        {isTrueAnswer && <span style={{marginLeft: 5}}>✅</span>}
                                     </Box>
                                 );
                             })}
                         </Box>
                         
-                        {/* Lời giải chi tiết (chỉ hiện khi xem lại) */}
+                        {/* 🔥 4. FIX LỖI HIỂN THỊ LỜI GIẢI (Hiện được ảnh trong lời giải) */}
                         {q.solution && (
-                            <Box mt={2} p={2} bgcolor="#f0f4c3" borderRadius={2}>
-                                <Typography variant="subtitle2" fontWeight="bold">💡 Lời giải:</Typography>
-                                <Typography variant="body2">{q.solution}</Typography>
+                            <Box mt={2} p={2} bgcolor="#fffde7" borderRadius={2} border="1px dashed #fbc02d">
+                                <Typography variant="subtitle2" fontWeight="bold" color="#f57f17" mb={1}>💡 Lời giải chi tiết:</Typography>
+                                <div 
+                                    style={{lineHeight: 1.6}}
+                                    dangerouslySetInnerHTML={{__html: q.solution}} 
+                                />
                             </Box>
                         )}
                     </Card>
