@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import axiosClient from "../services/axiosClient"; // Dùng axiosClient cho chuẩn
 import { useNavigate } from "react-router-dom"; 
 import { 
     Backdrop, CircularProgress, Typography, Box, IconButton,
@@ -8,8 +8,6 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { AdMob } from '@capacitor-community/admob';
-
-const API_BASE_URL = "https://api.itmaths.vn/api";
 
 function HistoryPage() {
   const navigate = useNavigate();
@@ -26,26 +24,18 @@ function HistoryPage() {
   }, []);
 
   const fetchHistory = () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-        navigate('/login');
-        return;
-    }
     setLoading(true);
-    axios.get(`${API_BASE_URL}/my-results/`, {
-        headers: { Authorization: `Bearer ${token}` }
-    })
+    axiosClient.get('/my-results/') // Đường dẫn ngắn gọn vì đã có baseURL
     .then((res) => {
         setResults(res.data);
-        setLoading(false);
     })
     .catch((err) => {
-        setLoading(false);
+        console.error("Lỗi tải lịch sử:", err);
         if (err.response && err.response.status === 401) {
-            localStorage.removeItem('accessToken');
             navigate('/login');
         }
-    });
+    })
+    .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -63,8 +53,7 @@ function HistoryPage() {
       } catch (e) { console.error("Lỗi QC:", e); } 
       finally {
           setIsLoadingAd(false); 
-          // ✅ SỬA LỖI: Điều hướng đúng route đã khai báo trong App.jsx
-          navigate(`/history/${resultId}`);
+          navigate(`/history/${resultId}`); // Khớp với App.jsx
       }
   };
 
@@ -79,14 +68,26 @@ function HistoryPage() {
       return 'error'; 
   };
 
+  const styles = {
+    pageWrapper: {
+        minHeight: '100vh', width: '100%', background: '#f4f6f8',
+        padding: '10px', boxSizing: 'border-box',
+        paddingTop: 'max(env(safe-area-inset-top), 40px)', paddingBottom: '20px'
+    },
+    container: {
+        maxWidth: '900px', margin: '0 auto', padding: '20px',
+        backgroundColor: 'white', borderRadius: '15px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.05)', minHeight: '80vh'
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', width: '100%', background: '#f4f6f8', padding: '10px', boxSizing: 'border-box', paddingTop: 'max(env(safe-area-inset-top), 40px)' }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', backgroundColor: 'white', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', minHeight: '80vh' }}>
-        
+    <div style={styles.pageWrapper}>
+      <div style={styles.container}>
         <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
             <Box textAlign="center">
                 <CircularProgress color="inherit" />
-                <Typography sx={{mt: 2, fontWeight: 'bold'}}>Đang tải lại bài làm...</Typography>
+                <Typography sx={{mt: 2, fontWeight: 'bold'}}>Đang tải bài làm...</Typography>
             </Box>
         </Backdrop>
 
@@ -94,36 +95,34 @@ function HistoryPage() {
             <ArrowBackIcon />
         </IconButton>
         
-        <Typography variant="h5" sx={{ textAlign: 'center', color: '#4527a0', mb: 3, fontWeight: 'bold', textTransform: 'uppercase' }}>📜 Lịch Sử Làm Bài</Typography>
+        <Typography variant="h5" sx={{ textAlign: 'center', color: '#4527a0', mb: 3, fontWeight: 'bold' }}>📜 LỊCH SỬ LÀM BÀI</Typography>
 
         {loading ? (
-            <Box display="flex" justifyContent="center" mt={5}><CircularProgress /></Box>
+            <Box textAlign="center" mt={5}><CircularProgress /></Box>
         ) : results.length === 0 ? (
-            <Box textAlign="center" mt={5}><Typography>Bạn chưa làm bài thi nào.</Typography></Box>
+            <Box textAlign="center" mt={5}><Typography color="textSecondary">Bạn chưa có bài làm nào.</Typography></Box>
         ) : (
-            <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: '1px solid #eee' }}>
+            <TableContainer component={Paper} elevation={0}>
                 <Table>
                     <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                         <TableRow>
-                            <TableCell sx={{fontWeight:'bold'}}>Tên đề thi</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold'}}>Điểm</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold'}}>Xem</TableCell>
+                            <TableCell><b>Đề thi</b></TableCell>
+                            <TableCell align="center"><b>Điểm</b></TableCell>
+                            <TableCell align="center"><b>Xem</b></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {results.map((item) => (
                             <TableRow key={item.id} hover>
                                 <TableCell>
-                                    <Typography variant="subtitle2" fontWeight="bold" color="primary">{item.exam_title}</Typography>
+                                    <Typography variant="subtitle2" fontWeight="bold">{item.exam_title}</Typography>
                                     <Typography variant="caption" color="textSecondary">{formatDate(item.completed_at || item.created_at)}</Typography>
                                 </TableCell>
                                 <TableCell align="center">
-                                    <Chip label={item.score} color={getScoreColor(item.score)} size="small" sx={{fontWeight:'bold'}} />
+                                    <Chip label={item.score} color={getScoreColor(item.score)} size="small" />
                                 </TableCell>
                                 <TableCell align="center">
-                                    <IconButton color="primary" onClick={() => handleReviewClick(item.id)} sx={{bgcolor: '#e3f2fd'}}>
-                                        <VisibilityIcon />
-                                    </IconButton>
+                                    <IconButton onClick={() => handleReviewClick(item.id)} color="primary"><VisibilityIcon /></IconButton>
                                 </TableCell>
                             </TableRow>
                         ))}
