@@ -7,8 +7,6 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-
-// IMPORT ADMOB
 import { AdMob } from '@capacitor-community/admob';
 
 const API_BASE_URL = "https://api.itmaths.vn/api";
@@ -29,14 +27,11 @@ function HistoryPage() {
 
   const fetchHistory = () => {
     const token = localStorage.getItem("accessToken");
-    
     if (!token) {
         navigate('/login');
         return;
     }
-
     setLoading(true);
-    // Sử dụng URL chuẩn từ config của bạn
     axios.get(`${API_BASE_URL}/my-results/`, {
         headers: { Authorization: `Bearer ${token}` }
     })
@@ -45,12 +40,9 @@ function HistoryPage() {
         setLoading(false);
     })
     .catch((err) => {
-        console.error("Lỗi tải lịch sử:", err);
         setLoading(false);
         if (err.response && err.response.status === 401) {
-            alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
             localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
             navigate('/login');
         }
     });
@@ -58,11 +50,6 @@ function HistoryPage() {
 
   useEffect(() => {
     fetchHistory();
-    const handleExamSubmitted = () => {
-        setTimeout(() => { fetchHistory(); }, 1500);
-    };
-    window.addEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted);
-    return () => { window.removeEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted); };
   }, []);
 
   const handleReviewClick = async (resultId) => {
@@ -76,7 +63,7 @@ function HistoryPage() {
       } catch (e) { console.error("Lỗi QC:", e); } 
       finally {
           setIsLoadingAd(false); 
-          // 🔥 [SỬA LỖI] Chuyển hướng đúng route /history/:id đã khai báo ở App.jsx
+          // ✅ SỬA LỖI: Điều hướng đúng route đã khai báo trong App.jsx
           navigate(`/history/${resultId}`);
       }
   };
@@ -92,30 +79,9 @@ function HistoryPage() {
       return 'error'; 
   };
 
-  const styles = {
-    pageWrapper: {
-        minHeight: '100vh', width: '100%',
-        background: '#f4f6f8',
-        padding: '10px', boxSizing: 'border-box',
-        fontFamily: "'Segoe UI', sans-serif",
-        paddingTop: 'max(env(safe-area-inset-top), 40px)', 
-        paddingBottom: '20px'
-    },
-    container: {
-        maxWidth: '900px', margin: '0 auto', padding: '20px',
-        backgroundColor: 'white', borderRadius: '15px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.05)', minHeight: '80vh',
-        position: 'relative'
-    },
-    title: {
-        textAlign: 'center', color: '#4527a0', marginBottom: '20px',
-        fontWeight: 'bold', textTransform: 'uppercase', marginTop: '10px'
-    }
-  };
-
   return (
-    <div style={styles.pageWrapper}>
-      <div style={styles.container}>
+    <div style={{ minHeight: '100vh', width: '100%', background: '#f4f6f8', padding: '10px', boxSizing: 'border-box', paddingTop: 'max(env(safe-area-inset-top), 40px)' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', backgroundColor: 'white', borderRadius: '15px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', minHeight: '80vh' }}>
         
         <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
             <Box textAlign="center">
@@ -124,30 +90,16 @@ function HistoryPage() {
             </Box>
         </Backdrop>
 
-        <Box display="flex" alignItems="center">
-            <IconButton 
-                onClick={() => navigate('/')} 
-                sx={{ 
-                    bgcolor: '#ede7f6', color: '#673ab7', 
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                    '&:hover': { bgcolor: '#d1c4e9' }
-                }}
-            >
-                <ArrowBackIcon />
-            </IconButton>
-        </Box>
+        <IconButton onClick={() => navigate('/')} sx={{ bgcolor: '#ede7f6', color: '#673ab7', mb: 2 }}>
+            <ArrowBackIcon />
+        </IconButton>
         
-        <Typography variant="h5" style={styles.title}>📜 Lịch Sử Làm Bài</Typography>
+        <Typography variant="h5" sx={{ textAlign: 'center', color: '#4527a0', mb: 3, fontWeight: 'bold', textTransform: 'uppercase' }}>📜 Lịch Sử Làm Bài</Typography>
 
-        {loading && <p style={{textAlign:'center', color:'#666'}}>⏳ Đang tải dữ liệu...</p>}
-
-        {!loading && results.length === 0 ? (
-            <div style={{textAlign: 'center', color: '#666', marginTop: '50px'}}>
-                <p style={{fontSize: '18px'}}>Bạn chưa làm bài thi nào cả.</p>
-                <Typography onClick={() => navigate('/')} sx={{color: '#673ab7', fontWeight: 'bold', cursor:'pointer'}}>
-                    Làm bài ngay!
-                </Typography>
-            </div>
+        {loading ? (
+            <Box display="flex" justifyContent="center" mt={5}><CircularProgress /></Box>
+        ) : results.length === 0 ? (
+            <Box textAlign="center" mt={5}><Typography>Bạn chưa làm bài thi nào.</Typography></Box>
         ) : (
             <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: '1px solid #eee' }}>
                 <Table>
@@ -162,30 +114,14 @@ function HistoryPage() {
                         {results.map((item) => (
                             <TableRow key={item.id} hover>
                                 <TableCell>
-                                    <Typography variant="subtitle2" fontWeight="bold" color="primary">
-                                        {item.exam_title || "Đề thi không tên"}
-                                    </Typography>
-                                    <Typography variant="caption" color="textSecondary">
-                                        {formatDate(item.completed_at || item.created_at)}
-                                    </Typography>
+                                    <Typography variant="subtitle2" fontWeight="bold" color="primary">{item.exam_title}</Typography>
+                                    <Typography variant="caption" color="textSecondary">{formatDate(item.completed_at || item.created_at)}</Typography>
                                 </TableCell>
                                 <TableCell align="center">
-                                    <Chip 
-                                        label={item.score} 
-                                        color={getScoreColor(item.score)} 
-                                        size="small" 
-                                        sx={{fontWeight:'bold', minWidth: '40px'}}
-                                    />
-                                    <Typography variant="caption" display="block" mt={0.5}>
-                                        {item.correct_answers}/{item.total_questions} câu
-                                    </Typography>
+                                    <Chip label={item.score} color={getScoreColor(item.score)} size="small" sx={{fontWeight:'bold'}} />
                                 </TableCell>
                                 <TableCell align="center">
-                                    <IconButton 
-                                        color="primary" 
-                                        onClick={() => handleReviewClick(item.id)}
-                                        sx={{bgcolor: '#e3f2fd', '&:hover':{bgcolor:'#bbdefb'}}}
-                                    >
+                                    <IconButton color="primary" onClick={() => handleReviewClick(item.id)} sx={{bgcolor: '#e3f2fd'}}>
                                         <VisibilityIcon />
                                     </IconButton>
                                 </TableCell>
