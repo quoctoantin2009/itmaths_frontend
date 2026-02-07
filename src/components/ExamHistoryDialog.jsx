@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogContent, Button, Typography, Box, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, Paper, IconButton, 
-    Chip, CircularProgress, AppBar, Toolbar, Slide, Backdrop, TextField, DialogTitle, DialogActions
+    Chip, CircularProgress, AppBar, Toolbar, Slide, Backdrop, TextField, 
+    DialogTitle, DialogActions, Snackbar, Alert 
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import FeedbackIcon from '@mui/icons-material/Feedback'; // Thêm icon góp ý
+import FeedbackIcon from '@mui/icons-material/Feedback';
 import axiosClient from '../services/axiosClient'; 
 import QuestionCard from './QuestionCard'; 
 import { AdMob } from '@capacitor-community/admob';
@@ -37,11 +38,16 @@ export default function ExamHistoryDialog({ customId }) {
     const [detailQuestions, setDetailQuestions] = useState([]);
     const [detailUserAnswers, setDetailUserAnswers] = useState({});
     const [detailExamTitle, setDetailExamTitle] = useState("");
+    const [currentTotalScore, setCurrentTotalScore] = useState(0); // Lưu tổng điểm để hiển thị
 
-    // State cho Feedback
+    // 🔥 STATE ĐIỂM THÀNH PHẦN (MỚI THÊM)
+    const [scoreDetails, setScoreDetails] = useState({ p1: 0, p2: 0, p3: 0 });
+
+    // State cho Feedback & Toast
     const [feedbackOpen, setFeedbackOpen] = useState(false);
     const [feedbackContent, setFeedbackContent] = useState("");
     const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+    const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
     useEffect(() => {
         const initAdMob = async () => {
@@ -72,7 +78,7 @@ export default function ExamHistoryDialog({ customId }) {
         fetchHistory(); 
     };
 
-    const handleViewDetail = async (resultId, examId, examTitle) => {
+    const handleViewDetail = async (resultId, examId, examTitle, totalScore) => {
         setIsLoadingAd(true);
         try {
             await AdMob.prepareInterstitial({
@@ -91,16 +97,42 @@ export default function ExamHistoryDialog({ customId }) {
             if (typeof userAns === 'string') {
                 try { userAns = JSON.parse(userAns); } catch(e) {}
             }
-            setDetailUserAnswers(userAns || {});
+            userAns = userAns || {};
+            setDetailUserAnswers(userAns);
 
             const resQuestions = await axiosClient.get(`/exams/${examId}/questions/`);
-            setDetailQuestions(resQuestions.data);
+            const qData = resQuestions.data;
+            setDetailQuestions(qData);
+            
+            // 🔥 TÍNH TOÁN LẠI ĐIỂM THÀNH PHẦN (Logic giống ExamResultPage)
+            let p1 = 0, p2 = 0, p3 = 0;
+            qData.forEach(q => {
+                const ans = userAns[q.id];
+                if (!ans) return;
+                
+                if (q.question_type === 'MCQ') {
+                    if (q.choices.find(c => c.is_correct && c.content === ans)) p1 += 0.25;
+                } else if (q.question_type === 'TF') {
+                    let sub = 0;
+                    q.choices.forEach(c => { 
+                        if (ans[c.id] === (c.is_correct ? "true" : "false")) sub++; 
+                    });
+                    if (sub === 1) p2 += 0.1; else if (sub === 2) p2 += 0.25; else if (sub === 3) p2 += 0.5; else if (sub === 4) p2 += 1.0;
+                } else if (q.question_type === 'SHORT') {
+                    const uVal = parseFloat(String(ans).replace(',','.'));
+                    const cVal = parseFloat(String(q.short_answer_correct).replace(',','.'));
+                    if (Math.abs(uVal - cVal) < 0.001) p3 += 0.5;
+                }
+            });
+            setScoreDetails({ p1, p2, p3 });
+            
             setDetailExamTitle(examTitle);
             setCurrentResultId(resultId);
             setCurrentExamId(examId);
+            setCurrentTotalScore(totalScore); // Lưu tổng điểm từ danh sách truyền vào
             setViewMode('detail'); 
         } catch (error) {
-            alert("Không thể tải chi tiết bài làm.");
+            setToast({ open: true, message: 'Không thể tải chi tiết bài làm.', severity: 'error' });
         } finally { setLoading(false); }
     };
 
@@ -119,11 +151,11 @@ export default function ExamHistoryDialog({ customId }) {
                 exam: currentExamId,
                 content: `[Phản hồi từ Lịch sử bài làm ID: ${currentResultId}] - Nội dung: ${feedbackContent}`
             });
-            alert("Cảm ơn bạn đã góp ý! Hệ thống đã ghi nhận.");
+            setToast({ open: true, message: 'Cảm ơn bạn! Góp ý đã được gửi.', severity: 'success' });
             setFeedbackOpen(false);
             setFeedbackContent("");
         } catch (e) {
-            alert("Không thể gửi góp ý lúc này. Vui lòng thử lại sau.");
+            setToast({ open: true, message: 'Lỗi gửi góp ý.', severity: 'error' });
         } finally { setIsSendingFeedback(false); }
     };
 
@@ -132,7 +164,15 @@ export default function ExamHistoryDialog({ customId }) {
         try {
             await axiosClient.delete('/my-results/');
             setHistory([]);
-        } catch (error) { alert("Lỗi khi xóa lịch sử"); }
+            setToast({ open: true, message: 'Đã xóa lịch sử.', severity: 'success' });
+        } catch (error) { 
+            setToast({ open: true, message: 'Lỗi xóa lịch sử.', severity: 'error' });
+        }
+    };
+
+    const handleCloseToast = (event, reason) => {
+        if (reason === 'clickaway') return;
+        setToast({ ...toast, open: false });
     };
 
     return (
@@ -179,7 +219,7 @@ export default function ExamHistoryDialog({ customId }) {
                                     </TableHead>
                                     <TableBody>
                                         {history.map((item) => (
-                                            <TableRow key={item.id} hover onClick={() => handleViewDetail(item.id, item.exam, item.exam_title)} sx={{ cursor: 'pointer' }}>
+                                            <TableRow key={item.id} hover onClick={() => handleViewDetail(item.id, item.exam, item.exam_title, item.score)} sx={{ cursor: 'pointer' }}>
                                                 <TableCell sx={{fontWeight:'bold', color: '#3f51b5'}}>
                                                     {item.exam_title || "Bài tập"}
                                                     <div style={{fontSize:'0.7rem', color:'#666', fontWeight:'normal'}}>{formatDate(item.created_at)}</div>
@@ -198,20 +238,51 @@ export default function ExamHistoryDialog({ customId }) {
                         <Box sx={{ p: 1 }}>
                             {loading ? <Box textAlign="center" mt={5}><CircularProgress /></Box> : (
                                 <>
+                                    {/* 🔥 BẢNG TỔNG HỢP ĐIỂM (ĐÃ KHÔI PHỤC) 🔥 */}
+                                    <Paper elevation={3} sx={{ mb: 3, overflow: 'hidden', borderRadius: 2 }}>
+                                        <Box sx={{ bgcolor: '#e8f5e9', p: 1.5, textAlign: 'center' }}>
+                                            <Typography variant="subtitle1" fontWeight="bold" color="#2e7d32">KẾT QUẢ BÀI LÀM</Typography>
+                                        </Box>
+                                        <TableContainer>
+                                            <Table size="small">
+                                                <TableBody>
+                                                    <TableRow hover>
+                                                        <TableCell align="center" sx={{ fontWeight: 400 }}>Phần I (Trắc nghiệm)</TableCell>
+                                                        <TableCell align="center"><b>{scoreDetails.p1.toFixed(2)}</b></TableCell>
+                                                    </TableRow>
+                                                    <TableRow hover>
+                                                        <TableCell align="center" sx={{ fontWeight: 400 }}>Phần II (Đúng/Sai)</TableCell>
+                                                        <TableCell align="center"><b>{scoreDetails.p2.toFixed(2)}</b></TableCell>
+                                                    </TableRow>
+                                                    <TableRow hover>
+                                                        <TableCell align="center" sx={{ fontWeight: 400 }}>Phần III (Điền đáp án)</TableCell>
+                                                        <TableCell align="center"><b>{scoreDetails.p3.toFixed(2)}</b></TableCell>
+                                                    </TableRow>
+                                                    <TableRow sx={{ bgcolor: '#fff9c4' }}>
+                                                        <TableCell align="right"><b>TỔNG ĐIỂM:</b></TableCell>
+                                                        <TableCell align="center">
+                                                            <Typography variant="h6" fontWeight="bold" color="#d32f2f">
+                                                                {currentTotalScore}
+                                                            </Typography>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    </Paper>
+
+                                    {/* DANH SÁCH CÂU HỎI */}
                                     {detailQuestions.map((q, index) => (
                                         <QuestionCard key={q.id} question={q} index={index} userAnswer={detailUserAnswers[q.id]} onAnswerChange={() => {}} isSubmitted={true} />
                                     ))}
                                     
-                                    {/* PHẦN GÓP Ý ĐỀ THI Ở CUỐI DANH SÁCH CÂU HỎI */}
+                                    {/* PHẦN GÓP Ý ĐỀ THI */}
                                     <Box sx={{ mt: 4, mb: 4, p: 2, textAlign: 'center', bgcolor: '#fff', borderRadius: 2, border: '1px solid #ddd' }}>
                                         <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontWeight: 400 }}>
                                             Bạn phát hiện lỗi trong đề thi này?
                                         </Typography>
                                         <Button 
-                                            variant="outlined" 
-                                            color="warning" 
-                                            size="small"
-                                            startIcon={<FeedbackIcon />}
+                                            variant="outlined" color="warning" size="small" startIcon={<FeedbackIcon />}
                                             onClick={() => setFeedbackOpen(true)}
                                             sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 400 }}
                                         >
@@ -229,35 +300,24 @@ export default function ExamHistoryDialog({ customId }) {
                 </DialogContent>
             </Dialog>
 
-            {/* DIALOG GIAO DIỆN NHẬP GÓP Ý */}
+            {/* DIALOG GÓP Ý */}
             <Dialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} fullWidth maxWidth="xs">
                 <DialogTitle sx={{ fontWeight: 'bold' }}>Góp ý nội dung</DialogTitle>
                 <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Mô tả lỗi hoặc góp ý..."
-                        type="text"
-                        fullWidth
-                        multiline
-                        rows={4}
-                        variant="outlined"
-                        value={feedbackContent}
-                        onChange={(e) => setFeedbackContent(e.target.value)}
-                    />
+                    <TextField autoFocus margin="dense" label="Mô tả lỗi hoặc góp ý..." type="text" fullWidth multiline rows={4} variant="outlined" value={feedbackContent} onChange={(e) => setFeedbackContent(e.target.value)} />
                 </DialogContent>
                 <DialogActions sx={{ pb: 2, px: 3 }}>
                     <Button onClick={() => setFeedbackOpen(false)} color="inherit">Hủy</Button>
-                    <Button 
-                        onClick={handleSendFeedback} 
-                        variant="contained" 
-                        color="primary"
-                        disabled={isSendingFeedback || !feedbackContent.trim()}
-                    >
+                    <Button onClick={handleSendFeedback} variant="contained" color="primary" disabled={isSendingFeedback || !feedbackContent.trim()}>
                         {isSendingFeedback ? "Đang gửi..." : "Gửi"}
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* THÔNG BÁO TOAST */}
+            <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+                <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%', boxShadow: 3 }}>{toast.message}</Alert>
+            </Snackbar>
         </>
     );
 }
