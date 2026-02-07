@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../services/axiosClient';
 import { 
@@ -10,20 +10,110 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 
-// 1. IMPORT THƯ VIỆN TOÁN (KATEX)
+// 1. IMPORT THƯ VIỆN TOÁN & CÁC STYLE
+import Latex from 'react-latex-next'; // 🔥 Dùng thư viện giống QuestionCard
 import 'katex/dist/katex.min.css';
-import renderMathInElement from 'katex/dist/contrib/auto-render';
+
+// --- HÀM XỬ LÝ NỘI DUNG (COPY TỪ QUESTION CARD) ---
+// Hàm này giúp hiển thị đúng cả Latex và Thẻ ảnh HTML
+const processContent = (content) => {
+    if (!content) return "";
+    
+    // 1. Xử lý các lỗi ký hiệu LaTeX phổ biến & Thay thế bullet
+    let cleanContent = content
+        .replaceAll('\\bullet', '•') 
+        .replaceAll('begin{eqnarray*}', 'begin{aligned}')
+        .replaceAll('end{eqnarray*}', 'end{aligned}')
+        .replaceAll('begin{eqnarray}', 'begin{aligned}')
+        .replaceAll('end{eqnarray}', 'end{aligned}');
+
+    // 2. Tách Toán học và Văn bản
+    const mathRegex = /((?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$.*?(?<!\\)\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\\[[\s\S]*?\\\])/gs;
+    const parts = cleanContent.split(mathRegex);
+
+    return (
+        <span style={{fontWeight: '400 !important'}}>
+            {parts.map((part, index) => {
+                if (!part) return null;
+
+                const isMath = /^\$|^\$\.|^\\begin|^\\\[/.test(part.trim());
+
+                if (isMath) {
+                    return <Latex key={index}>{part}</Latex>;
+                } else {
+                    // Xử lý thẻ HTML <img> do Python Tool gửi lên
+                    const imgRegex = /<img src='(.*?)' style='(.*?)' \/>/g;
+                    const subParts = part.split(imgRegex);
+
+                    if (subParts.length === 1) {
+                        return renderTextWithFormatting(part, index);
+                    }
+
+                    let elements = [];
+                    for (let i = 0; i < subParts.length; i += 3) {
+                        // Phần Text
+                        if (subParts[i]) {
+                            elements.push(renderTextWithFormatting(subParts[i], `${index}-txt-${i}`));
+                        }
+                        // Phần Ảnh (nếu có)
+                        if (i + 1 < subParts.length) {
+                            const src = subParts[i+1];
+                            const styleObj = { maxWidth: '100%', display: 'block', margin: '10px auto', borderRadius: '4px' };
+                            
+                            elements.push(
+                                <img 
+                                    key={`${index}-img-${i}`}
+                                    src={src} 
+                                    style={styleObj} 
+                                    alt="Minh họa"
+                                />
+                            );
+                        }
+                    }
+                    return <React.Fragment key={index}>{elements}</React.Fragment>;
+                }
+            })}
+        </span>
+    );
+};
+
+// Hàm phụ: Xử lý xuống dòng (\n) và in đậm (\textbf)
+const renderTextWithFormatting = (text, keyPrefix) => {
+    const textLines = text.split('\n');
+    return (
+        <React.Fragment key={keyPrefix}>
+            {textLines.map((line, lineIdx) => {
+                const boldParts = line.split(/\\textbf\{(.*?)\}/g);
+                return (
+                    <React.Fragment key={`${keyPrefix}-${lineIdx}`}>
+                        {boldParts.map((bPart, bIdx) => {
+                            if (bIdx % 2 === 1) return <strong key={bIdx}>{bPart}</strong>;
+                            return <span key={bIdx}>{bPart}</span>;
+                        })}
+                        {lineIdx < textLines.length - 1 && <br />}
+                    </React.Fragment>
+                );
+            })}
+        </React.Fragment>
+    );
+};
 
 const ExamResultPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const contentRef = useRef(null); // Ref để vùng chứa nội dung cần render Latex
     
     const [result, setResult] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // --- 1. TẢI DỮ LIỆU ---
+    // Style cho vùng chứa nội dung (để scroll nếu tràn)
+    const scrollableContainerStyle = {
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        maxWidth: '100%',
+        paddingBottom: '5px'
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -43,25 +133,6 @@ const ExamResultPage = () => {
         fetchData();
     }, [id]);
 
-    // --- 2. KÍCH HOẠT KATEX SAU KHI RENDER XONG ---
-    useEffect(() => {
-        if (!loading && contentRef.current) {
-            try {
-                renderMathInElement(contentRef.current, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false},
-                        {left: '\\(', right: '\\)', display: false},
-                        {left: '\\[', right: '\\]', display: true}
-                    ],
-                    throwOnError: false
-                });
-            } catch (e) {
-                console.error("Lỗi render Katex:", e);
-            }
-        }
-    }, [loading, questions]); 
-
     if (loading) return <Box textAlign="center" mt={10}><CircularProgress /></Box>;
     if (!result) return <Box textAlign="center" mt={10}><Typography>Không tìm thấy kết quả.</Typography></Box>;
 
@@ -73,9 +144,8 @@ const ExamResultPage = () => {
     } catch (e) { userAnswers = {}; }
 
     return (
-        <Container maxWidth="md" ref={contentRef} sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
+        <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
             
-            {/* Header */}
             <Box display="flex" gap={2} mb={3}>
                 <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>Quay lại</Button>
                 <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')}>Trang chủ</Button>
@@ -114,10 +184,20 @@ const ExamResultPage = () => {
                 const userChoiceKey = userAnswers[q.id]; 
                 let isCorrect = false;
                 
+                // --- Logic kiểm tra đáp án ---
                 if (q.question_type === 'MCQ') {
                     const userSelectedChoice = q.choices.find(c => c.content === userChoiceKey);
                     if (userSelectedChoice && userSelectedChoice.is_correct) isCorrect = true;
+                } 
+                else if (q.question_type === 'SHORT') {
+                    // Logic check câu trả lời ngắn (đơn giản)
+                    try {
+                        const u = parseFloat(String(userChoiceKey).replace(',', '.'));
+                        const c = parseFloat(String(q.short_answer_correct).replace(',', '.'));
+                        if (Math.abs(u - c) < 0.001) isCorrect = true;
+                    } catch(e) {}
                 }
+                // (Có thể bổ sung logic TF nếu cần)
 
                 return (
                     <Card key={q.id} sx={{ mb: 2, p: 2, borderRadius: 2, borderLeft: isCorrect ? '5px solid #2e7d32' : '5px solid #d32f2f' }}>
@@ -129,18 +209,17 @@ const ExamResultPage = () => {
                             }
                         </Box>
                         
-                        {/* 🔥 3. PHẦN QUAN TRỌNG: Render HTML chuẩn (Cho phép hiện ảnh & Latex) */}
-                        <div 
-                            className="question-content"
-                            style={{marginBottom: '15px', fontSize: '1rem', lineHeight: '1.6'}}
-                            dangerouslySetInnerHTML={{__html: q.content}} 
-                        />
+                        {/* 🔥 HIỂN THỊ NỘI DUNG CÂU HỎI (Dùng hàm processContent) */}
+                        <div style={{ marginBottom: '15px', fontSize: '1rem', ...scrollableContainerStyle }}>
+                            {processContent(q.content)}
+                        </div>
                         
-                        {/* Nếu có ảnh đính kèm riêng (trường image của model) */}
+                        {/* Ảnh đính kèm (nếu có trường image riêng) */}
                         {q.image && <img src={q.image} alt="Question" style={{maxWidth: '100%', marginBottom: 15, borderRadius: 8}}/>}
 
+                        {/* --- HIỂN THỊ ĐÁP ÁN --- */}
                         <Box>
-                            {q.choices.map((choice) => {
+                            {q.question_type === 'MCQ' && q.choices.map((choice) => {
                                 const isUserSelected = (choice.content === userChoiceKey);
                                 const isTrueAnswer = choice.is_correct;
                                 
@@ -156,28 +235,34 @@ const ExamResultPage = () => {
                                         p: 1, my: 0.5, borderRadius: 1, 
                                         bgcolor: optionBg, color: optionColor, fontWeight: fontWeight,
                                         border: isUserSelected ? '1px solid currentColor' : '1px solid #eee',
-                                        display: 'flex', alignItems: 'center'
+                                        display: 'flex', alignItems: 'center',
+                                        ...scrollableContainerStyle
                                     }}>
                                         <span style={{fontWeight: 'bold', marginRight: '8px'}}>{choice.label}.</span>
+                                        {/* 🔥 Hiển thị nội dung đáp án qua processContent */}
+                                        <div style={{flex: 1}}>{processContent(choice.content)}</div>
                                         
-                                        {/* 🔥 Render nội dung đáp án (có thể chứa Latex) */}
-                                        <span dangerouslySetInnerHTML={{__html: choice.content}} />
-                                        
-                                        {isUserSelected && <span style={{marginLeft: 8, fontSize: '0.8rem'}}>(Bạn chọn)</span>}
+                                        {isUserSelected && <span style={{marginLeft: 8, fontSize: '0.8rem', whiteSpace:'nowrap'}}>(Bạn chọn)</span>}
                                         {isTrueAnswer && <span style={{marginLeft: 8}}>✅</span>}
                                     </Box>
                                 );
                             })}
+
+                            {q.question_type === 'SHORT' && (
+                                <Box sx={{mt: 1}}>
+                                    <Typography>Bạn trả lời: <strong>{userChoiceKey || "Chưa trả lời"}</strong></Typography>
+                                    <Typography color="success.main">Đáp án đúng: <strong>{q.short_answer_correct}</strong></Typography>
+                                </Box>
+                            )}
                         </Box>
                         
-                        {/* 🔥 Render Lời giải chi tiết (Hiển thị ảnh và Latex) */}
+                        {/* 🔥 HIỂN THỊ LỜI GIẢI (Dùng processContent) */}
                         {q.solution && (
                             <Box mt={2} p={2} bgcolor="#fffde7" borderRadius={2} border="1px dashed #fbc02d">
                                 <Typography variant="subtitle2" fontWeight="bold" color="#f57f17" mb={1}>💡 Lời giải chi tiết:</Typography>
-                                <div 
-                                    style={{lineHeight: 1.6}}
-                                    dangerouslySetInnerHTML={{__html: q.solution}} 
-                                />
+                                <div style={{...scrollableContainerStyle}}>
+                                    {processContent(q.solution)}
+                                </div>
                             </Box>
                         )}
                     </Card>
