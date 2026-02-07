@@ -10,21 +10,20 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 
-// 🔥 1. IMPORT THƯ VIỆN TOÁN (Bạn đã có sẵn, giờ ta lôi ra dùng cho trang này)
+// 1. IMPORT THƯ VIỆN TOÁN (KATEX)
 import 'katex/dist/katex.min.css';
 import renderMathInElement from 'katex/dist/contrib/auto-render';
 
 const ExamResultPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    
-    // Tạo Ref để khoanh vùng nội dung cần biến đổi thành công thức Toán
-    const contentRef = useRef(null);
+    const contentRef = useRef(null); // Ref để vùng chứa nội dung cần render Latex
     
     const [result, setResult] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // --- 1. TẢI DỮ LIỆU ---
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -44,14 +43,14 @@ const ExamResultPage = () => {
         fetchData();
     }, [id]);
 
-    // 🔥 2. KÍCH HOẠT HIỂN THỊ TOÁN (KATEX) SAU KHI DỮ LIỆU TẢI XONG
+    // --- 2. KÍCH HOẠT KATEX SAU KHI RENDER XONG ---
     useEffect(() => {
         if (!loading && contentRef.current) {
             try {
                 renderMathInElement(contentRef.current, {
                     delimiters: [
                         {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false}, // Nhận diện ký tự $...$
+                        {left: '$', right: '$', display: false},
                         {left: '\\(', right: '\\)', display: false},
                         {left: '\\[', right: '\\]', display: true}
                     ],
@@ -74,14 +73,15 @@ const ExamResultPage = () => {
     } catch (e) { userAnswers = {}; }
 
     return (
-        // Gắn ref={contentRef} để Katex biết phải xử lý nội dung trong này
         <Container maxWidth="md" ref={contentRef} sx={{ py: 4, minHeight: '100vh', bgcolor: '#f5f7fa' }}>
             
+            {/* Header */}
             <Box display="flex" gap={2} mb={3}>
                 <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>Quay lại</Button>
                 <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')}>Trang chủ</Button>
             </Box>
 
+            {/* Bảng điểm tổng quan */}
             <Paper elevation={3} sx={{ p: 4, mb: 4, borderRadius: 3, textAlign: 'center', background: 'linear-gradient(to right, #ffffff, #f3e5f5)' }}>
                 <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
                     KẾT QUẢ BÀI THI: {result.exam_title}
@@ -114,7 +114,6 @@ const ExamResultPage = () => {
                 const userChoiceKey = userAnswers[q.id]; 
                 let isCorrect = false;
                 
-                // Logic kiểm tra đáp án
                 if (q.question_type === 'MCQ') {
                     const userSelectedChoice = q.choices.find(c => c.content === userChoiceKey);
                     if (userSelectedChoice && userSelectedChoice.is_correct) isCorrect = true;
@@ -130,13 +129,15 @@ const ExamResultPage = () => {
                             }
                         </Box>
                         
-                        {/* 🔥 3. FIX LỖI HIỂN THỊ CÂU HỎI (Dùng dangerouslySetInnerHTML để hiện Latex & Ảnh) */}
+                        {/* 🔥 3. PHẦN QUAN TRỌNG: Render HTML chuẩn (Cho phép hiện ảnh & Latex) */}
                         <div 
-                            style={{marginBottom: '15px', fontSize: '1.1rem'}}
+                            className="question-content"
+                            style={{marginBottom: '15px', fontSize: '1rem', lineHeight: '1.6'}}
                             dangerouslySetInnerHTML={{__html: q.content}} 
                         />
                         
-                        {q.image && <img src={q.image} alt="Question" style={{maxWidth: '100%', marginBottom: 10, borderRadius: 8}}/>}
+                        {/* Nếu có ảnh đính kèm riêng (trường image của model) */}
+                        {q.image && <img src={q.image} alt="Question" style={{maxWidth: '100%', marginBottom: 15, borderRadius: 8}}/>}
 
                         <Box>
                             {q.choices.map((choice) => {
@@ -157,17 +158,19 @@ const ExamResultPage = () => {
                                         border: isUserSelected ? '1px solid currentColor' : '1px solid #eee',
                                         display: 'flex', alignItems: 'center'
                                     }}>
-                                        <span style={{fontWeight: 'bold', marginRight: '5px'}}>{choice.label}.</span>
-                                        {/* 🔥 Hiển thị đáp án có công thức toán */}
+                                        <span style={{fontWeight: 'bold', marginRight: '8px'}}>{choice.label}.</span>
+                                        
+                                        {/* 🔥 Render nội dung đáp án (có thể chứa Latex) */}
                                         <span dangerouslySetInnerHTML={{__html: choice.content}} />
-                                        {isUserSelected && <span style={{marginLeft: 5, fontSize: '0.8rem'}}>(Bạn chọn)</span>}
-                                        {isTrueAnswer && <span style={{marginLeft: 5}}>✅</span>}
+                                        
+                                        {isUserSelected && <span style={{marginLeft: 8, fontSize: '0.8rem'}}>(Bạn chọn)</span>}
+                                        {isTrueAnswer && <span style={{marginLeft: 8}}>✅</span>}
                                     </Box>
                                 );
                             })}
                         </Box>
                         
-                        {/* 🔥 4. FIX LỖI HIỂN THỊ LỜI GIẢI (Hiện được ảnh trong lời giải) */}
+                        {/* 🔥 Render Lời giải chi tiết (Hiển thị ảnh và Latex) */}
                         {q.solution && (
                             <Box mt={2} p={2} bgcolor="#fffde7" borderRadius={2} border="1px dashed #fbc02d">
                                 <Typography variant="subtitle2" fontWeight="bold" color="#f57f17" mb={1}>💡 Lời giải chi tiết:</Typography>
