@@ -38,9 +38,9 @@ export default function ExamHistoryDialog({ customId }) {
     const [detailQuestions, setDetailQuestions] = useState([]);
     const [detailUserAnswers, setDetailUserAnswers] = useState({});
     const [detailExamTitle, setDetailExamTitle] = useState("");
-    const [currentTotalScore, setCurrentTotalScore] = useState(0); // Lưu tổng điểm để hiển thị
+    const [currentTotalScore, setCurrentTotalScore] = useState(0); 
 
-    // 🔥 STATE ĐIỂM THÀNH PHẦN (MỚI THÊM)
+    // 🔥 STATE ĐIỂM THÀNH PHẦN (ĐÃ KHÔI PHỤC)
     const [scoreDetails, setScoreDetails] = useState({ p1: 0, p2: 0, p3: 0 });
 
     // State cho Feedback & Toast
@@ -78,6 +78,7 @@ export default function ExamHistoryDialog({ customId }) {
         fetchHistory(); 
     };
 
+    // 🔥 HÀM XEM CHI TIẾT + TÍNH LẠI ĐIỂM
     const handleViewDetail = async (resultId, examId, examTitle, totalScore) => {
         setIsLoadingAd(true);
         try {
@@ -104,7 +105,7 @@ export default function ExamHistoryDialog({ customId }) {
             const qData = resQuestions.data;
             setDetailQuestions(qData);
             
-            // 🔥 TÍNH TOÁN LẠI ĐIỂM THÀNH PHẦN (Logic giống ExamResultPage)
+            // --- BẮT ĐẦU TÍNH ĐIỂM THÀNH PHẦN ---
             let p1 = 0, p2 = 0, p3 = 0;
             qData.forEach(q => {
                 const ans = userAns[q.id];
@@ -125,11 +126,12 @@ export default function ExamHistoryDialog({ customId }) {
                 }
             });
             setScoreDetails({ p1, p2, p3 });
+            // --- KẾT THÚC TÍNH ĐIỂM ---
             
             setDetailExamTitle(examTitle);
             setCurrentResultId(resultId);
             setCurrentExamId(examId);
-            setCurrentTotalScore(totalScore); // Lưu tổng điểm từ danh sách truyền vào
+            setCurrentTotalScore(totalScore); 
             setViewMode('detail'); 
         } catch (error) {
             setToast({ open: true, message: 'Không thể tải chi tiết bài làm.', severity: 'error' });
@@ -142,7 +144,6 @@ export default function ExamHistoryDialog({ customId }) {
         setDetailUserAnswers({});
     };
 
-    // Logic gửi Feedback
     const handleSendFeedback = async () => {
         if (!feedbackContent.trim()) return;
         setIsSendingFeedback(true);
@@ -238,7 +239,7 @@ export default function ExamHistoryDialog({ customId }) {
                         <Box sx={{ p: 1 }}>
                             {loading ? <Box textAlign="center" mt={5}><CircularProgress /></Box> : (
                                 <>
-                                    {/* 🔥 BẢNG TỔNG HỢP ĐIỂM (ĐÃ KHÔI PHỤC) 🔥 */}
+                                    {/* 🔥 BẢNG TỔNG HỢP ĐIỂM (ĐÃ XUẤT HIỆN TRỞ LẠI) 🔥 */}
                                     <Paper elevation={3} sx={{ mb: 3, overflow: 'hidden', borderRadius: 2 }}>
                                         <Box sx={{ bgcolor: '#e8f5e9', p: 1.5, textAlign: 'center' }}>
                                             <Typography variant="subtitle1" fontWeight="bold" color="#2e7d32">KẾT QUẢ BÀI LÀM</Typography>
@@ -271,12 +272,10 @@ export default function ExamHistoryDialog({ customId }) {
                                         </TableContainer>
                                     </Paper>
 
-                                    {/* DANH SÁCH CÂU HỎI */}
                                     {detailQuestions.map((q, index) => (
                                         <QuestionCard key={q.id} question={q} index={index} userAnswer={detailUserAnswers[q.id]} onAnswerChange={() => {}} isSubmitted={true} />
                                     ))}
                                     
-                                    {/* PHẦN GÓP Ý ĐỀ THI */}
                                     <Box sx={{ mt: 4, mb: 4, p: 2, textAlign: 'center', bgcolor: '#fff', borderRadius: 2, border: '1px solid #ddd' }}>
                                         <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontWeight: 400 }}>
                                             Bạn phát hiện lỗi trong đề thi này?
@@ -300,7 +299,6 @@ export default function ExamHistoryDialog({ customId }) {
                 </DialogContent>
             </Dialog>
 
-            {/* DIALOG GÓP Ý */}
             <Dialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} fullWidth maxWidth="xs">
                 <DialogTitle sx={{ fontWeight: 'bold' }}>Góp ý nội dung</DialogTitle>
                 <DialogContent>
@@ -314,7 +312,6 @@ export default function ExamHistoryDialog({ customId }) {
                 </DialogActions>
             </Dialog>
 
-            {/* THÔNG BÁO TOAST */}
             <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
                 <Alert onClose={handleCloseToast} severity={toast.severity} sx={{ width: '100%', boxShadow: 3 }}>{toast.message}</Alert>
             </Snackbar>
