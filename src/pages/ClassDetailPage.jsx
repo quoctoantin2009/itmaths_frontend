@@ -8,7 +8,8 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import AssessmentIcon from '@mui/icons-material/Assessment'; 
-import VisibilityIcon from '@mui/icons-material/Visibility'; // ✅ [MỚI] Icon con mắt
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import FileDownloadIcon from '@mui/icons-material/FileDownload'; // ✅ [MỚI] Icon tải xuống
 
 import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
 
@@ -164,10 +165,38 @@ const ClassDetail = () => {
       navigate(`/exams/${examId}`); 
   };
 
-  // ✅ [MỚI] Hàm xem chi tiết kết quả làm bài của học sinh
   const handleViewResult = (resultId) => {
-      // Chuyển hướng đến trang chi tiết kết quả (Ví dụ: /results/123)
       navigate(`/history/${resultId}`);
+  };
+
+  // ✅ [MỚI] Hàm xử lý tải file Excel
+  const handleDownloadExcel = async () => {
+    try {
+        const response = await axiosClient.get(`/classrooms/${id}/export-excel/`, {
+            responseType: 'blob', // Quan trọng: Đặt kiểu phản hồi là blob (file binary)
+        });
+
+        // Tạo URL từ blob
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Đặt tên file (Frontend tự đặt hoặc lấy từ header nếu backend trả về)
+        const fileName = `Bang_Diem_Lop_${classroom.name}.xlsx`;
+        link.setAttribute('download', fileName);
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Dọn dẹp
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        showNotification("✅ Tải xuống thành công!", "success");
+    } catch (error) {
+        console.error("Lỗi tải Excel:", error);
+        showNotification("❌ Không thể tải file Excel. Vui lòng thử lại.", "error");
+    }
   };
 
   if (loading) return <div className="loading-screen">Đang tải dữ liệu lớp học...</div>;
@@ -393,9 +422,30 @@ const ClassDetail = () => {
 
         {activeTab === 'grades' && isTeacher && (
             <div className="grades-layout">
+                {/* ✅ [MỚI] Phần Header được cập nhật để chứa nút Xuất Excel */}
                 <div className="section-header">
-                    <h2 className="section-title">Bảng điểm lớp học</h2>
-                    <p className="grades-subtitle">Kết quả các bài tập đã giao ({reportData.length} học sinh)</p>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                        <div>
+                            <h2 className="section-title">Bảng điểm lớp học</h2>
+                            <p className="grades-subtitle">Kết quả các bài tập đã giao ({reportData.length} học sinh)</p>
+                        </div>
+                        {/* Nút bấm Xuất Excel */}
+                        <button 
+                            className="btn-assign" 
+                            onClick={handleDownloadExcel}
+                            style={{
+                                backgroundColor: '#28a745', // Màu xanh Excel
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                padding: '8px 16px',
+                                fontSize: '0.9rem'
+                            }}
+                        >
+                            <FileDownloadIcon fontSize="small"/>
+                            Xuất Excel
+                        </button>
+                    </div>
                     <div className="divider"></div>
                 </div>
 
@@ -429,7 +479,6 @@ const ClassDetail = () => {
                                         </thead>
                                         <tbody>
                                             {student.results.map((res, idx) => (
-                                                // 🔥 [MỚI] Thêm onClick và class để bấm được
                                                 <tr key={idx} className="grade-row-clickable" onClick={() => handleViewResult(res.id)}>
                                                     <td>{res.exam_title}</td>
                                                     <td>{res.topic_title}</td>
