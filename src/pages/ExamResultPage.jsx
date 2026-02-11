@@ -13,7 +13,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
 
-// --- HÀM XỬ LÝ HIỂN THỊ NỘI DUNG (FIX LỖI IN ĐẬM) ---
+// --- HÀM XỬ LÝ HIỂN THỊ NỘI DUNG (ĐÃ SỬA LỖI IN ĐẬM) ---
 const processContent = (content) => {
     if (!content) return "";
     
@@ -69,7 +69,7 @@ const renderTextPart = (text, keyPrefix) => {
     return <React.Fragment key={keyPrefix}>{elements}</React.Fragment>;
 };
 
-// Hàm xử lý in đậm \textbf{...}
+// Hàm xử lý in đậm \textbf{...} - Chỉ in đậm khi có lệnh rõ ràng
 const formatBold = (text, key) => {
     // Regex bắt \textbf{...} một cách an toàn hơn
     const parts = text.split(/\\textbf\{(.*?)\}/g);
@@ -78,7 +78,7 @@ const formatBold = (text, key) => {
             {parts.map((part, i) => {
                 // Phần lẻ là nội dung trong \textbf{} -> In đậm
                 if (i % 2 === 1) return <strong key={i} style={{ fontWeight: 700 }}>{part}</strong>;
-                return <span key={i}>{part}</span>;
+                return <span key={i} style={{ fontWeight: 400 }}>{part}</span>;
             })}
         </span>
     );
@@ -93,7 +93,7 @@ const ExamResultPage = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Gọi API lấy lịch sử (đã bao gồm exam_details và breakdown từ Backend)
+                // Gọi API lấy lịch sử (Backend đã tính toán sẵn điểm breakdown và chi tiết câu hỏi)
                 const res = await axiosClient.get(`/history/${id}/`);
                 setResult(res.data);
             } catch (error) { 
@@ -110,10 +110,11 @@ const ExamResultPage = () => {
     if (loading) return <Box textAlign="center" mt={10}><CircularProgress /><Typography mt={2}>Đang tải kết quả...</Typography></Box>;
     if (!result) return null;
 
-    // Lấy điểm chi tiết từ Backend (nếu chưa có thì mặc định 0)
-    const breakdown = result.breakdown || { mcq: 0, tf: 0, short: 0 };
+    // 1. Lấy điểm chi tiết từ Backend trả về (không tự tính nữa)
+    const breakdown = result.score_breakdown || { mcq: 0, tf: 0, short: 0 };
     
-    // Lấy danh sách câu hỏi chi tiết từ Backend
+    // 2. Lấy danh sách câu hỏi chi tiết từ Backend (đã kèm user_answer)
+    // Nếu Backend chưa trả về exam_details (do cache), fallback về mảng rỗng để tránh lỗi
     const questions = result.exam_details || [];
 
     return (
@@ -124,7 +125,7 @@ const ExamResultPage = () => {
                 <Button variant="contained" startIcon={<HomeIcon />} onClick={() => navigate('/')}>Trang chủ</Button>
             </Box>
 
-            {/* BẢNG ĐIỂM TỔNG HỢP (FIX LỖI ĐIỂM SAI) */}
+            {/* BẢNG ĐIỂM TỔNG HỢP (Lấy trực tiếp từ Backend) */}
             <Paper elevation={3} sx={{ mb: 4, overflow: 'hidden', borderRadius: 2 }}>
                 <Box sx={{ bgcolor: '#e8f5e9', p: 2, textAlign: 'center', borderBottom: '1px solid #c8e6c9' }}>
                     <Typography variant="h6" fontWeight="bold" color="#2e7d32">KẾT QUẢ CHI TIẾT</Typography>
@@ -170,22 +171,18 @@ const ExamResultPage = () => {
                     {q.question_type === 'MCQ' && (
                         <Grid container spacing={2}>
                             {q.choices.map((c, idx) => {
-                                // Logic màu sắc:
-                                // - Màu xanh lá: Đáp án đúng
-                                // - Màu đỏ: Học sinh chọn sai
-                                // - Màu xanh nhạt: Học sinh chọn đúng
-                                const isUserSelected = q.user_answer === c.content; // q.user_answer lấy từ backend
-                                const isCorrect = c.is_correct;
+                                const isUserSelected = q.user_answer === c.content; 
+                                const isCorrect = c.label === q.correct_label; // Sử dụng label chuẩn từ backend
                                 
                                 let bgColor = 'transparent';
                                 let borderColor = '#e0e0e0';
                                 
                                 if (isCorrect) {
-                                    bgColor = '#e8f5e9'; // Xanh lá nhạt (đáp án đúng)
+                                    bgColor = '#e8f5e9'; // Xanh lá (đáp án đúng)
                                     borderColor = '#2e7d32';
                                 }
                                 if (isUserSelected && !isCorrect) {
-                                    bgColor = '#ffebee'; // Đỏ nhạt (chọn sai)
+                                    bgColor = '#ffebee'; // Đỏ (chọn sai)
                                     borderColor = '#d32f2f';
                                 }
 
@@ -205,7 +202,7 @@ const ExamResultPage = () => {
                         </Grid>
                     )}
 
-                    {/* === PHẦN 2: ĐÚNG / SAI (TF) - HIỂN THỊ BẢNG === */}
+                    {/* === PHẦN 2: ĐÚNG / SAI (TF) - HIỂN THỊ BẢNG (Đã được khôi phục) === */}
                     {q.question_type === 'TF' && (
                         <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
                             <Table size="small">
@@ -220,14 +217,17 @@ const ExamResultPage = () => {
                                 </TableHead>
                                 <TableBody>
                                     {q.choices.map((c) => {
-                                        // Parse câu trả lời từ JSON backend
+                                        // Xử lý lấy đáp án người dùng (Backend trả về dict trong exam_details)
                                         let userChoiceVal = null;
-                                        try {
-                                            // user_answer ở đây là dict: { "id1": "true", "id2": "false" }
-                                            if (q.user_answer && typeof q.user_answer === 'object') {
-                                                userChoiceVal = q.user_answer[c.id];
-                                            }
-                                        } catch (e) {}
+                                        if (q.user_answer && typeof q.user_answer === 'object') {
+                                            userChoiceVal = q.user_answer[c.id];
+                                        } else if (q.user_answer && typeof q.user_answer === 'string') {
+                                            // Fallback nếu trả về chuỗi JSON
+                                            try {
+                                                const parsed = JSON.parse(q.user_answer);
+                                                userChoiceVal = parsed[c.id];
+                                            } catch(e) {}
+                                        }
 
                                         const userBool = String(userChoiceVal).toLowerCase() === 'true';
                                         const correctBool = c.is_correct;
@@ -243,6 +243,7 @@ const ExamResultPage = () => {
                                                             label={userBool ? "Đúng" : "Sai"} 
                                                             size="small" 
                                                             variant="outlined"
+                                                            color={userBool ? "primary" : "default"}
                                                         />
                                                     ) : <span style={{color:'#999'}}>-</span>}
                                                 </TableCell>
@@ -263,13 +264,14 @@ const ExamResultPage = () => {
                         </TableContainer>
                     )}
 
-                    {/* === PHẦN 3: TRẢ LỜI NGẮN (SHORT) === */}
+                    {/* === PHẦN 3: TRẢ LỜI NGẮN (SHORT) - HIỂN THỊ BOX (Đã được khôi phục) === */}
                     {q.question_type === 'SHORT' && (
                         <Box mt={2} p={2} bgcolor="#f8f9fa" borderRadius={2} border="1px dashed #bdbdbd">
                             <Grid container spacing={2} alignItems="center">
                                 <Grid item xs={12} sm={6}>
                                     <Typography variant="body2" color="textSecondary">Câu trả lời của bạn:</Typography>
                                     <Typography variant="h6" color={
+                                        // So sánh sai số nhỏ
                                         Math.abs(parseFloat(String(q.user_answer).replace(',','.')) - parseFloat(q.correct_text)) < 0.001 
                                         ? "green" : "error"
                                     }>
@@ -286,7 +288,7 @@ const ExamResultPage = () => {
                         </Box>
                     )}
 
-                    {/* === PHẦN LỜI GIẢI (HIỂN THỊ CHO MỌI LOẠI CÂU) === */}
+                    {/* === PHẦN LỜI GIẢI CHI TIẾT === */}
                     <Box mt={3}>
                         <Divider textAlign="left"><Chip label="LỜI GIẢI CHI TIẾT" color="primary" size="small" /></Divider>
                         <Box mt={2} p={2} bgcolor="#e3f2fd" borderRadius={2}>
@@ -300,7 +302,7 @@ const ExamResultPage = () => {
     );
 };
 
-// Helper để hiển thị tên loại câu hỏi dễ hiểu hơn
+// Helper hiển thị loại câu hỏi
 const getQuestionTypeName = (type) => {
     switch (type) {
         case 'MCQ': return 'Trắc nghiệm';
