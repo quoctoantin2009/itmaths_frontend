@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+// [QUAN TRỌNG] Thay axios thường bằng axiosClient để tự động xử lý Token & URL
 import axiosClient from "../services/axiosClient";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import QuestionCard from "../components/QuestionCard";
-import ExamHistoryDialog from "../components/ExamHistoryDialog"; // ✅ Import component lịch sử
+import ExamHistoryDialog from "../components/ExamHistoryDialog";
 import {
   Button, Box, CircularProgress, Paper, Backdrop,
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
@@ -112,7 +113,7 @@ const formatTime = (seconds) => {
 function ExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation(); // [MỚI] Để lấy tham số ?topic=...
 
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(id ? parseInt(id) : null);
@@ -128,9 +129,11 @@ function ExamPage() {
   const [isProcessingResult, setIsProcessingResult] = useState(false);
   const timerRef = useRef(null);
 
+  // Lấy topicId từ URL (nếu có)
   const searchParams = new URLSearchParams(location.search);
   const topicId = searchParams.get('topic');
 
+  // 1. KHỞI TẠO ADMOB
   useEffect(() => {
     const initAdMobAndBanner = async () => {
       try {
@@ -151,10 +154,12 @@ function ExamPage() {
     };
   }, []);
 
+  // 2. TẢI DANH SÁCH ĐỀ THI (CÓ LỌC THEO TOPIC)
   useEffect(() => {
     if (!id) {
       setLoading(true);
       let url = '/exams/';
+      // [MỚI] Nếu có topicId thì thêm vào API
       if (topicId) {
           url += `?topic=${topicId}`;
       }
@@ -166,6 +171,7 @@ function ExamPage() {
     }
   }, [id, topicId]);
 
+  // 3. XỬ LÝ KHI CÓ ID (VÀO LÀM BÀI)
   useEffect(() => {
     if (id) {
       handleSelectExam(parseInt(id));
@@ -173,6 +179,7 @@ function ExamPage() {
     // eslint-disable-next-line
   }, [id]);
 
+  // 4. ĐỒNG HỒ ĐẾM NGƯỢC
   useEffect(() => {
     if (!selectedExamId || submitted || loading || !currentExamInfo) return;
 
@@ -191,7 +198,7 @@ function ExamPage() {
           setTimeLeft(0);
           clearInterval(timerRef.current);
           setOpenConfirm(false);
-          submitExam(); 
+          submitExam(); // Tự nộp bài
           alert("⏰ Đã hết thời gian làm bài!");
         } else {
           setTimeLeft(secondsLeft);
@@ -212,6 +219,7 @@ function ExamPage() {
     setUserAnswers({});
 
     try {
+      // Dùng axiosClient để gọi API
       const resQuestions = await axiosClient.get(`/exams/${examId}/questions/`);
       const rawQuestions = resQuestions.data;
 
@@ -248,7 +256,7 @@ function ExamPage() {
     } catch (err) {
       console.error("Lỗi tải đề thi:", err);
       alert("Không thể tải đề thi. Vui lòng kiểm tra lại kết nối!");
-      if(id) navigate('/exams'); 
+      if(id) navigate('/exams'); // Nếu vào thẳng link lỗi thì back về danh sách
       setSelectedExamId(null);
     } finally {
       setLoading(false);
@@ -310,7 +318,7 @@ function ExamPage() {
     const totalScore = scoreP1 + scoreP2 + scoreP3;
     setScoreData({ p1: scoreP1, p2: scoreP2, p3: scoreP3, total: totalScore });
 
-    // --- LƯU ĐIỂM LÊN SERVER ---
+    // --- LƯU ĐIỂM LÊN SERVER (Dùng axiosClient) ---
     axiosClient.post(`/submit-result/`, {
         exam: selectedExamId,
         score: totalScore,
@@ -345,8 +353,19 @@ function ExamPage() {
     setOpenConfirm(true);
   };
 
+  // 🔥🔥🔥 CẬP NHẬT LOGIC NÚT THOÁT / DANH SÁCH TẠI ĐÂY 🔥🔥🔥
   const handleExit = () => {
-    if (id) navigate('/exams'); 
+    // 1. Nếu có topicId (từ trang chuyên đề gửi sang) -> Quay về trang chuyên đề
+    if (topicId) {
+        navigate(`/topics/${topicId}`, {
+            state: { topicTitle: location.state?.topicTitle } 
+        });
+    } 
+    // 2. Nếu không có topicId (đang ở mode làm bài /exams/:id) -> Quay về kho tổng
+    else if (id) {
+        navigate('/exams'); 
+    }
+    // 3. Trường hợp khác
     else {
       setSelectedExamId(null);
       setCurrentExamInfo(null);
@@ -381,21 +400,18 @@ function ExamPage() {
               </Button>
             </Box>
 
-            {/* 🔥🔥🔥 VỊ TRÍ ĐẶT NÚT LỊCH SỬ CHUẨN NHƯ HÌNH 🔥🔥🔥 */}
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} borderBottom="2px solid #d1c4e9" pb={1}>
               <Typography variant="h5" color="primary" fontWeight="bold">
                  {topicId ? 'ĐỀ THI THEO CHUYÊN ĐỀ' : 'KHO ĐỀ THI TỔNG HỢP'}
               </Typography>
-              
-              {/* Component ExamHistoryDialog sẽ hiển thị một nút bấm "Lịch sử" tại đây */}
-              <ExamHistoryDialog />
+              <Box><ExamHistoryDialog /></Box>
             </Box>
 
             {exams.length > 0 ? (
                 exams.map((exam) => (
                 <div 
                     key={exam.id} 
-                    onClick={() => navigate(`/exams/${exam.id}`)} 
+                    onClick={() => navigate(`/exams/${exam.id}`)} // Chuyển trang thay vì set state
                     style={styles.examButton} 
                     onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} 
                     onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
@@ -498,8 +514,7 @@ function ExamPage() {
                   </Button>
 
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    {/* Component lịch sử cũng có thể đặt ở đây để xem lại */}
-                    <Box flex={1}><ExamHistoryDialog /></Box> 
+                    <Box flex={1}><ExamHistoryDialog /></Box>
                     <Button variant="outlined" startIcon={<ListAltIcon />} onClick={handleExit} sx={{ flex: 1, py: 1, borderRadius: '25px' }}>
                       DANH SÁCH
                     </Button>
