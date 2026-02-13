@@ -4,7 +4,7 @@ import axiosClient from "../services/axiosClient";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import QuestionCard from "../components/QuestionCard";
-import ExamHistoryDialog from "../components/ExamHistoryDialog";
+import ExamHistoryDialog from "../components/ExamHistoryDialog"; // ✅ Đã import Component lịch sử
 import {
   Button, Box, CircularProgress, Paper, Backdrop,
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
@@ -113,7 +113,7 @@ const formatTime = (seconds) => {
 function ExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // [MỚI] Để lấy tham số ?topic=...
+  const location = useLocation();
 
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(id ? parseInt(id) : null);
@@ -129,7 +129,7 @@ function ExamPage() {
   const [isProcessingResult, setIsProcessingResult] = useState(false);
   const timerRef = useRef(null);
 
-  // Lấy topicId từ URL (nếu có)
+  // Lấy topicId từ URL (nếu có). Ví dụ: /exams/5?topic=10
   const searchParams = new URLSearchParams(location.search);
   const topicId = searchParams.get('topic');
 
@@ -159,7 +159,7 @@ function ExamPage() {
     if (!id) {
       setLoading(true);
       let url = '/exams/';
-      // [MỚI] Nếu có topicId thì thêm vào API
+      // Nếu có topicId thì thêm vào API để lọc
       if (topicId) {
           url += `?topic=${topicId}`;
       }
@@ -219,7 +219,6 @@ function ExamPage() {
     setUserAnswers({});
 
     try {
-      // Dùng axiosClient để gọi API
       const resQuestions = await axiosClient.get(`/exams/${examId}/questions/`);
       const rawQuestions = resQuestions.data;
 
@@ -256,7 +255,12 @@ function ExamPage() {
     } catch (err) {
       console.error("Lỗi tải đề thi:", err);
       alert("Không thể tải đề thi. Vui lòng kiểm tra lại kết nối!");
-      if(id) navigate('/exams'); // Nếu vào thẳng link lỗi thì back về danh sách
+      
+      // Sửa lỗi điều hướng khi link sai
+      if(id) {
+         if(topicId) navigate(`/topics/${topicId}`);
+         else navigate('/exams');
+      }
       setSelectedExamId(null);
     } finally {
       setLoading(false);
@@ -318,7 +322,7 @@ function ExamPage() {
     const totalScore = scoreP1 + scoreP2 + scoreP3;
     setScoreData({ p1: scoreP1, p2: scoreP2, p3: scoreP3, total: totalScore });
 
-    // --- LƯU ĐIỂM LÊN SERVER (Dùng axiosClient) ---
+    // --- LƯU ĐIỂM LÊN SERVER ---
     axiosClient.post(`/submit-result/`, {
         exam: selectedExamId,
         score: totalScore,
@@ -353,19 +357,21 @@ function ExamPage() {
     setOpenConfirm(true);
   };
 
-  // 🔥🔥🔥 CẬP NHẬT LOGIC NÚT THOÁT / DANH SÁCH TẠI ĐÂY 🔥🔥🔥
+  // 🔥🔥🔥 CẬP NHẬT: LOGIC ĐIỀU HƯỚNG THÔNG MINH 🔥🔥🔥
   const handleExit = () => {
-    // 1. Nếu có topicId (từ trang chuyên đề gửi sang) -> Quay về trang chuyên đề
+    // Trường hợp 1: Nếu URL có chứa topicId (tức là vào từ trang Chuyên đề)
+    // Ví dụ: /exams/5?topic=10 -> Sẽ quay về /topics/10
     if (topicId) {
         navigate(`/topics/${topicId}`, {
-            state: { topicTitle: location.state?.topicTitle } 
+             // Giữ lại title nếu có, giúp trải nghiệm mượt hơn
+             state: { topicTitle: location.state?.topicTitle } 
         });
     } 
-    // 2. Nếu không có topicId (đang ở mode làm bài /exams/:id) -> Quay về kho tổng
+    // Trường hợp 2: Nếu không có topicId (vào từ Kho đề thi tổng hợp) -> Về kho tổng
     else if (id) {
         navigate('/exams'); 
     }
-    // 3. Trường hợp khác
+    // Trường hợp 3: Đang ở trang danh sách đề thi (reset state)
     else {
       setSelectedExamId(null);
       setCurrentExamInfo(null);
@@ -404,6 +410,7 @@ function ExamPage() {
               <Typography variant="h5" color="primary" fontWeight="bold">
                  {topicId ? 'ĐỀ THI THEO CHUYÊN ĐỀ' : 'KHO ĐỀ THI TỔNG HỢP'}
               </Typography>
+              
               <Box><ExamHistoryDialog /></Box>
             </Box>
 
@@ -411,7 +418,7 @@ function ExamPage() {
                 exams.map((exam) => (
                 <div 
                     key={exam.id} 
-                    onClick={() => navigate(`/exams/${exam.id}`)} // Chuyển trang thay vì set state
+                    onClick={() => navigate(`/exams/${exam.id}`)} 
                     style={styles.examButton} 
                     onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} 
                     onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
@@ -514,7 +521,7 @@ function ExamPage() {
                   </Button>
 
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <Box flex={1}><ExamHistoryDialog /></Box>
+                    <Box flex={1}><ExamHistoryDialog /></Box> 
                     <Button variant="outlined" startIcon={<ListAltIcon />} onClick={handleExit} sx={{ flex: 1, py: 1, borderRadius: '25px' }}>
                       DANH SÁCH
                     </Button>
