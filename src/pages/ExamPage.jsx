@@ -129,9 +129,9 @@ function ExamPage() {
   const [isProcessingResult, setIsProcessingResult] = useState(false);
   const timerRef = useRef(null);
 
-  // Lấy topicId từ URL (nếu có). Ví dụ: /exams/5?topic=10
   const searchParams = new URLSearchParams(location.search);
-  const topicId = searchParams.get('topic');
+  // 🔥🔥🔥 CẬP NHẬT: Ưu tiên lấy topicId từ State (an toàn hơn), nếu không có thì lấy từ URL
+  const topicId = location.state?.fromTopicId || searchParams.get('topic');
 
   // 1. KHỞI TẠO ADMOB
   useEffect(() => {
@@ -359,7 +359,7 @@ function ExamPage() {
 
   // 🔥🔥🔥 CẬP NHẬT: LOGIC ĐIỀU HƯỚNG THÔNG MINH 🔥🔥🔥
   const handleExit = () => {
-    // 1. Nếu có topicId (từ trang chuyên đề gửi sang) -> Quay về trang chuyên đề
+    // 1. Nếu có topicId (Dù từ State hay URL) -> Quay về trang chuyên đề
     if (topicId) {
         navigate(`/topics/${topicId}`, {
              state: { topicTitle: location.state?.topicTitle } 

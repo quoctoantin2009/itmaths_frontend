@@ -71,10 +71,13 @@ function TopicDetailPage() {
     // --- 4. HÀM BẤM LÀM BÀI (ĐÃ CẬP NHẬT LOGIC ĐIỀU HƯỚNG) ---
     const handleStartExam = (examId) => {
         handleActionWithAd(() => {
-            // 🔥 CẬP NHẬT: Gửi kèm tham số ?topic=... vào URL
-            // Giúp trang ExamPage biết đường quay lại đây khi làm xong
+            // 🔥 CẬP NHẬT QUAN TRỌNG: Gửi topicId qua cả URL và State
+            // fromTopicId: topicId là chìa khóa để ExamPage nhận diện chắc chắn
             navigate(`/exams/${examId}?topic=${topicId}`, {
-                state: { topicTitle: topicTitle } // Gửi kèm title để hiển thị lại cho đẹp
+                state: { 
+                    topicTitle: topicTitle,
+                    fromTopicId: topicId 
+                } 
             });
         });
     };
