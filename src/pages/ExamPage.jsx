@@ -359,19 +359,17 @@ function ExamPage() {
 
   // 🔥🔥🔥 CẬP NHẬT: LOGIC ĐIỀU HƯỚNG THÔNG MINH 🔥🔥🔥
   const handleExit = () => {
-    // Trường hợp 1: Nếu URL có chứa topicId (tức là vào từ trang Chuyên đề)
-    // Ví dụ: /exams/5?topic=10 -> Sẽ quay về /topics/10
+    // 1. Nếu có topicId (từ trang chuyên đề gửi sang) -> Quay về trang chuyên đề
     if (topicId) {
         navigate(`/topics/${topicId}`, {
-             // Giữ lại title nếu có, giúp trải nghiệm mượt hơn
              state: { topicTitle: location.state?.topicTitle } 
         });
     } 
-    // Trường hợp 2: Nếu không có topicId (vào từ Kho đề thi tổng hợp) -> Về kho tổng
+    // 2. Nếu không có topicId (vào từ Kho đề thi tổng hợp) -> Về kho tổng
     else if (id) {
         navigate('/exams'); 
     }
-    // Trường hợp 3: Đang ở trang danh sách đề thi (reset state)
+    // 3. Trường hợp đang ở màn hình danh sách (reset state)
     else {
       setSelectedExamId(null);
       setCurrentExamInfo(null);
