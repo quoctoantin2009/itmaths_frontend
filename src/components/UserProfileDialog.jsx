@@ -2,18 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
     TextField, Button, Box, Avatar, Alert, Divider, Grid, CircularProgress, Slide,
-    MenuItem // [MỚI] Import thêm MenuItem để làm menu chọn nghề nghiệp
+    MenuItem 
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import SaveIcon from '@mui/icons-material/Save';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import axios from 'axios';
+import axios from 'axios'; // ✅ Giữ nguyên axios thường theo code cũ
 
-// [LƯU Ý] Nếu bạn đã có file axiosClient, nên dùng nó thay vì axios thường + URL cứng
-// Nhưng tôi vẫn giữ nguyên theo file bạn gửi để tránh lỗi phát sinh
-const API_BASE_URL = "https://api.itmaths.vn";
+const API_BASE_URL = "https://api.itmaths.vn"; // ✅ Giữ nguyên URL cũ
+
+// --- DANH SÁCH 63 TỈNH THÀNH (Dữ liệu tĩnh giúp web chạy nhanh) ---
+const VIETNAM_PROVINCES = [
+    "An Giang", "Bà Rịa - Vũng Tàu", "Bắc Giang", "Bắc Kạn", "Bạc Liêu", "Bắc Ninh", 
+    "Bến Tre", "Bình Định", "Bình Dương", "Bình Phước", "Bình Thuận", "Cà Mau", 
+    "Cần Thơ", "Cao Bằng", "Đà Nẵng", "Đắk Lắk", "Đắk Nông", "Điện Biên", "Đồng Nai", 
+    "Đồng Tháp", "Gia Lai", "Hà Giang", "Hà Nam", "Hà Nội", "Hà Tĩnh", "Hải Dương", 
+    "Hải Phòng", "Hậu Giang", "Hòa Bình", "Hưng Yên", "Khánh Hòa", "Kiên Giang", 
+    "Kon Tum", "Lai Châu", "Lâm Đồng", "Lạng Sơn", "Lào Cai", "Long An", "Nam Định", 
+    "Nghệ An", "Ninh Bình", "Ninh Thuận", "Phú Thọ", "Phú Yên", "Quảng Bình", 
+    "Quảng Nam", "Quảng Ngãi", "Quảng Ninh", "Quảng Trị", "Sóc Trăng", "Sơn La", 
+    "Tây Ninh", "Thái Bình", "Thái Nguyên", "Thanh Hóa", "Thừa Thiên Huế", "Tiền Giang", 
+    "TP. Hồ Chí Minh", "Trà Vinh", "Tuyên Quang", "Vĩnh Long", "Vĩnh Phúc", "Yên Bái"
+];
 
 const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
@@ -26,16 +38,17 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
     
     const [openConfirmDelete, setOpenConfirmDelete] = useState(false);
 
-    // [CẬP NHẬT] Thêm các trường mới vào State
+    // [CẬP NHẬT] Thêm trường 'province' vào state
     const [profile, setProfile] = useState({
         username: '',
         email: '',
         first_name: '',
         last_name: '',
         phone: '',
-        occupation: 'student',   // Mặc định là học sinh
+        occupation: 'student',
         school_name: '',
-        actual_class: ''
+        actual_class: '',
+        province: '' // ✅ Thêm trường mới
     });
 
     const getAuthHeader = () => {
@@ -57,9 +70,6 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                 headers: getAuthHeader() 
             });
             
-            // [CẬP NHẬT] Map dữ liệu từ API vào State
-            // Lưu ý: Dựa vào logic cũ (profile_phone), tôi đoán API trả về dạng phẳng (profile_...)
-            // Tôi dùng || để dự phòng cả 2 trường hợp tên biến
             const data = res.data;
             setProfile({
                 username: data.username || '',
@@ -67,11 +77,11 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                 first_name: data.first_name || '',
                 last_name: data.last_name || '',
                 phone: data.profile_phone || data.phone || '', 
-                
-                // Các trường mới
                 occupation: data.profile_occupation || data.occupation || 'student',
                 school_name: data.profile_school_name || data.school_name || '',
-                actual_class: data.profile_actual_class || data.actual_class || ''
+                actual_class: data.profile_actual_class || data.actual_class || '',
+                // ✅ Logic map dữ liệu tỉnh: ưu tiên profile_province
+                province: data.profile_province || data.province || '' 
             });
         } catch (error) {
             console.error("Lỗi tải profile:", error);
@@ -84,17 +94,15 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
         setSaving(true);
         setMessage({ type: '', text: '' });
 
-        // [CẬP NHẬT] Đóng gói dữ liệu gửi đi
         const dataToSend = {
             first_name: profile.first_name,
             last_name: profile.last_name,
             email: profile.email,
-            
-            // Các trường trong UserProfile
             phone: profile.phone,
             occupation: profile.occupation,
             school_name: profile.school_name,
-            actual_class: profile.actual_class
+            actual_class: profile.actual_class,
+            province: profile.province // ✅ Gửi tỉnh lên server
         };
 
         try {
@@ -111,10 +119,9 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
             let errorText = "Lỗi khi lưu. Kiểm tra kết nối.";
             if (error.response && error.response.data) {
                 const serverErrors = error.response.data;
-                if (typeof serverErrors === 'string' && serverErrors.startsWith('<')) {
-                     errorText = "Lỗi Server (500). Vui lòng thử lại sau.";
+                if (typeof serverErrors === 'string') {
+                     errorText = "Lỗi Server. Vui lòng thử lại sau.";
                 } else {
-                    // Hiển thị lỗi chi tiết
                     errorText = Object.keys(serverErrors).map(key => `${key}: ${serverErrors[key]}`).join(', ');
                 }
             }
@@ -180,16 +187,37 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
 
                             <TextField label="Email" name="email" value={profile.email} onChange={handleChange} fullWidth size="small" />
                             
-                            <TextField 
-                                label="Số điện thoại" 
-                                name="phone" 
-                                value={profile.phone} 
-                                onChange={handleChange} 
-                                fullWidth 
-                                size="small" 
-                            />
+                            {/* ✅ [SỬA ĐỔI] Chia cột cho Số điện thoại và Tỉnh */}
+                            <Grid container spacing={2}>
+                                <Grid item xs={6}>
+                                    <TextField 
+                                        label="Số điện thoại" 
+                                        name="phone" 
+                                        value={profile.phone} 
+                                        onChange={handleChange} 
+                                        fullWidth 
+                                        size="small" 
+                                    />
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <TextField
+                                        select
+                                        label="Tỉnh / Thành phố"
+                                        name="province"
+                                        value={profile.province}
+                                        onChange={handleChange}
+                                        fullWidth
+                                        size="small"
+                                        SelectProps={{ MenuProps: { style: { maxHeight: 300 } } }} // Giới hạn chiều cao menu
+                                    >
+                                        <MenuItem value=""><em>-- Chọn --</em></MenuItem>
+                                        {VIETNAM_PROVINCES.map((prov) => (
+                                            <MenuItem key={prov} value={prov}>{prov}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            </Grid>
 
-                            {/* [MỚI] Phần bổ sung thông tin lớp học */}
                             <Divider sx={{ my: 1, color: '#673ab7', fontSize: '0.9rem' }}>THÔNG TIN TRƯỜNG LỚP</Divider>
 
                             <TextField
@@ -208,26 +236,10 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
 
                             <Grid container spacing={2}>
                                 <Grid item xs={8}>
-                                    <TextField 
-                                        label="Trường học" 
-                                        name="school_name" 
-                                        placeholder="VD: THPT Chuyên..." 
-                                        value={profile.school_name} 
-                                        onChange={handleChange} 
-                                        fullWidth 
-                                        size="small" 
-                                    />
+                                    <TextField label="Trường học" name="school_name" placeholder="VD: THPT Chuyên..." value={profile.school_name} onChange={handleChange} fullWidth size="small" />
                                 </Grid>
                                 <Grid item xs={4}>
-                                    <TextField 
-                                        label="Lớp" 
-                                        name="actual_class" 
-                                        placeholder="12A1" 
-                                        value={profile.actual_class} 
-                                        onChange={handleChange} 
-                                        fullWidth 
-                                        size="small" 
-                                    />
+                                    <TextField label="Lớp" name="actual_class" placeholder="12A1" value={profile.actual_class} onChange={handleChange} fullWidth size="small" />
                                 </Grid>
                             </Grid>
                             
@@ -261,27 +273,19 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                 open={openConfirmDelete}
                 onClose={() => setOpenConfirmDelete(false)}
                 TransitionComponent={Transition}
-                PaperProps={{
-                    style: { borderRadius: 15, padding: '10px' }
-                }}
+                PaperProps={{ style: { borderRadius: 15, padding: '10px' } }}
             >
                 <DialogTitle sx={{ color: '#d32f2f', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <WarningAmberIcon fontSize="large" />
-                    Xóa toàn bộ lịch sử?
+                    <WarningAmberIcon fontSize="large" /> Xóa toàn bộ lịch sử?
                 </DialogTitle>
                 <DialogContent>
                     <DialogContentText sx={{ fontSize: '1.1em', color: '#333' }}>
-                        Hành động này sẽ xóa sạch tất cả kết quả làm bài thi của bạn từ trước đến nay.<br/>
-                        <b>Dữ liệu sẽ không thể khôi phục được!</b>
+                        Hành động này sẽ xóa sạch tất cả kết quả làm bài thi của bạn.<br/><b>Dữ liệu sẽ không thể khôi phục được!</b>
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={() => setOpenConfirmDelete(false)} color="inherit" variant="outlined" sx={{ borderRadius: 2 }}>
-                        Hủy bỏ
-                    </Button>
-                    <Button onClick={handleActualDelete} variant="contained" color="error" autoFocus sx={{ borderRadius: 2, px: 3 }}>
-                        Đồng ý Xóa
-                    </Button>
+                    <Button onClick={() => setOpenConfirmDelete(false)} color="inherit" variant="outlined" sx={{ borderRadius: 2 }}>Hủy bỏ</Button>
+                    <Button onClick={handleActualDelete} variant="contained" color="error" autoFocus sx={{ borderRadius: 2, px: 3 }}>Đồng ý Xóa</Button>
                 </DialogActions>
             </Dialog>
         </>
