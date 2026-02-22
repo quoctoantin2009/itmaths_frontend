@@ -30,13 +30,14 @@ function GradePage() {
   const [exams, setExams] = useState([]); 
   const [isLoadingAd, setIsLoadingAd] = useState(false);
 
-  // --- HÀM SẮP XẾP A-Z TIẾNG VIỆT ---
+  // --- HÀM SẮP XẾP A-Z (ĐÃ FIX LỖI SỐ) ---
   const sortAZ = (dataArray) => {
     if (!dataArray) return [];
     return [...dataArray].sort((a, b) => {
         const nameA = a.title || a.name || "";
         const nameB = b.title || b.name || "";
-        return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+        // 🔥 CẬP NHẬT: Thêm numeric: true để "11" xếp trước "101"
+        return nameA.localeCompare(nameB, 'vi', { numeric: true, sensitivity: 'base' });
     });
   };
 
@@ -86,7 +87,7 @@ function GradePage() {
                 sortedTopics = sortedTopics.map(topic => ({
                     ...topic,
                     videos: sortAZ(topic.videos),
-                    documents: sortAZ(topic.documents),
+                    documents: sortAZ(topic.documents), // Documents (PDF) sẽ được gọi sortAZ ở đây
                     exercises: sortAZ(topic.exercises)
                 }));
                 setTopics(sortedTopics);
@@ -149,8 +150,6 @@ function GradePage() {
       
           {isTN ? (
              <>
-                {/* Đã bỏ tiêu đề to cũ ở đây */}
-                
                 {exams.length === 0 && (
                     <Box textAlign="center" mt={5}>
                         <Typography color="textSecondary">Chưa có đề thi nào.</Typography>
@@ -185,8 +184,6 @@ function GradePage() {
              </>
           ) : (
              <>
-                {/* Đã bỏ tiêu đề to cũ ở đây */}
-
                 {topics.length === 0 && (
                     <Box textAlign="center" mt={5}>
                         <CircularProgress size={30} sx={{mb:2}} />
