@@ -57,8 +57,8 @@ function TopicDetailPage() {
         const fetchExams = async () => {
             try {
                 const res = await axiosClient.get(`/topics/${topicId}/exercises/`);
-                // Sắp xếp đề thi theo tên A-Z
-                const sortedExams = res.data.sort((a, b) => a.title.localeCompare(b.title));
+                // 🔥 CẬP NHẬT TẠI ĐÂY: Thêm { numeric: true } để sắp xếp số đúng chuẩn tự nhiên
+                const sortedExams = res.data.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
                 setExams(sortedExams);
             } catch (error) {
                 console.error("Lỗi tải bài tập:", error);
