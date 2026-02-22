@@ -30,14 +30,34 @@ function GradePage() {
   const [exams, setExams] = useState([]); 
   const [isLoadingAd, setIsLoadingAd] = useState(false);
 
-  // --- HÀM SẮP XẾP A-Z (ĐÃ FIX LỖI SỐ) ---
+  // 🔥🔥🔥 THUẬT TOÁN NATURAL SORT SIÊU CHUẨN ĐÃ ĐƯỢC CẬP NHẬT 🔥🔥🔥
   const sortAZ = (dataArray) => {
     if (!dataArray) return [];
     return [...dataArray].sort((a, b) => {
-        const nameA = a.title || a.name || "";
-        const nameB = b.title || b.name || "";
-        // 🔥 CẬP NHẬT: Thêm numeric: true để "11" xếp trước "101"
-        return nameA.localeCompare(nameB, 'vi', { numeric: true, sensitivity: 'base' });
+        const nameA = String(a.title || a.name || "").trim();
+        const nameB = String(b.title || b.name || "").trim();
+        
+        // Hàm phụ để tách chuỗi thành mảng chữ và số. Ví dụ: "Đề 101" -> ["Đề ", "101"]
+        const chunkify = (t) => t.match(/[^0-9]+|[0-9]+/g) || [];
+        const partsA = chunkify(nameA);
+        const partsB = chunkify(nameB);
+        
+        for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+            let partA = partsA[i] || "";
+            let partB = partsB[i] || "";
+            
+            // Nếu cả 2 phần cắt ra đều là số, thì so sánh theo giá trị toán học (11 sẽ < 101)
+            if (!isNaN(partA) && !isNaN(partB)) {
+                const numA = parseInt(partA, 10);
+                const numB = parseInt(partB, 10);
+                if (numA !== numB) return numA - numB;
+            } else {
+                // Nếu là chữ thì so sánh theo từ điển bình thường
+                const cmp = partA.localeCompare(partB, 'vi');
+                if (cmp !== 0) return cmp;
+            }
+        }
+        return 0;
     });
   };
 
@@ -87,7 +107,7 @@ function GradePage() {
                 sortedTopics = sortedTopics.map(topic => ({
                     ...topic,
                     videos: sortAZ(topic.videos),
-                    documents: sortAZ(topic.documents), // Documents (PDF) sẽ được gọi sortAZ ở đây
+                    documents: sortAZ(topic.documents), // Hàm sortAZ mới sẽ xử lý mảng này
                     exercises: sortAZ(topic.exercises)
                 }));
                 setTopics(sortedTopics);
@@ -115,18 +135,16 @@ function GradePage() {
       });
   };
 
-  // 🔥 XÁC ĐỊNH TIÊU ĐỀ VÀ MÀU SẮC HEADER
   const getHeaderInfo = () => {
-      if (isTN) return { title: "Luyện Thi Tốt Nghiệp THPT", color: "#d32f2f" }; // Màu đỏ
-      if (isGifted) return { title: `Bồi Dưỡng HSG Toán ${gradeId}`, color: "#ef6c00" }; // Màu cam
-      return { title: `Chương Trình Toán Lớp ${gradeId}`, color: "#1976d2" }; // Màu xanh
+      if (isTN) return { title: "Luyện Thi Tốt Nghiệp THPT", color: "#d32f2f" }; 
+      if (isGifted) return { title: `Bồi Dưỡng HSG Toán ${gradeId}`, color: "#ef6c00" }; 
+      return { title: `Chương Trình Toán Lớp ${gradeId}`, color: "#1976d2" }; 
   };
 
   const headerInfo = getHeaderInfo();
 
   return (
     <Container maxWidth={isTN ? "md" : "xl"} sx={{ mb: 10, padding: 0 }}> 
-      {/* padding 0 để header dính sát lề trên mobile */}
       
       <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
          <Box textAlign="center">
@@ -135,7 +153,6 @@ function GradePage() {
          </Box>
       </Backdrop>
 
-      {/* 🔥 [MỚI] HEADER CỐ ĐỊNH (STICKY HEADER) GIỐNG APP */}
       <div className="sticky-header" style={{ backgroundColor: headerInfo.color }}>
           <IconButton onClick={() => navigate('/')} className="btn-back-header">
               <ArrowBackIcon />
@@ -145,8 +162,7 @@ function GradePage() {
           </Typography>
       </div>
 
-      {/* Phần Nội Dung Bên Dưới */}
-      <Box sx={{ px: { xs: 2, md: 3 } }}> {/* Thêm padding cho nội dung để không sát lề quá */}
+      <Box sx={{ px: { xs: 2, md: 3 } }}> 
       
           {isTN ? (
              <>
