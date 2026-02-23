@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-// [QUAN TRỌNG] Thêm useLocation để kiểm tra đường dẫn hiện tại
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 // 🟢 IMPORT CAPACITOR APP ĐỂ XỬ LÝ NÚT BACK
@@ -27,7 +26,7 @@ import ClassDetailPage from './pages/ClassDetailPage';
 import TopicDetailPage from './pages/TopicDetailPage'; 
 import ExamResultPage from './pages/ExamResultPage'; 
 
-// 🔥 [MỚI] IMPORT TRANG CHÍNH SÁCH BẢO MẬT
+// 🔥 [MỚI] IMPORT TRANG CHÍNH SÁCH BẢO MẬT (Chỉ định rõ đuôi .jsx)
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx'; 
 
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
@@ -44,18 +43,16 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   const location = useLocation();
-  const navigate = useNavigate(); // Dùng để điều hướng khi bấm Back
+  const navigate = useNavigate();
 
   // 🟢 XỬ LÝ NÚT BACK VẬT LÝ TRÊN ANDROID
   useEffect(() => {
     const setupBackButton = async () => {
         try {
             await CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-                // Nếu đang ở trang chủ hoặc trang đăng nhập -> Thoát App
                 if (location.pathname === '/' || location.pathname === '/login') {
                     CapacitorApp.exitApp();
                 } 
-                // Nếu có thể quay lại -> Quay lại trang trước
                 else {
                     window.history.back();
                 }
@@ -93,7 +90,10 @@ function App() {
       
       <div style={{ flex: 1, width: '100%' }}> 
         <Routes>
-          {/* 🔥 [MỚI] TRANG CÔNG KHAI HOÀN TOÀN (Không cần đăng nhập để Google Bot có thể đọc) */}
+          {/* 🔥 [CẬP NHẬT] THAY ĐỔI ĐƯỜNG DẪN MỚI ĐỂ TRÁNH CACHE */}
+          <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicyPage />} />
+
+          {/* Dự phòng cho link cũ (nếu muốn) */}
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
           {/* --- CÁC TRANG CẦN ĐĂNG NHẬP MỚI ĐƯỢC VÀO --- */}
@@ -167,7 +167,7 @@ function App() {
               </PrivateRoute>
           } />
 
-          {/* --- CÁC TRANG CHỈ DÀNH CHO KHÁCH (Đã login thì không vào được) --- */}
+          {/* --- CÁC TRANG CÔNG KHAI --- */}
           <Route path="/login" element={
               <PublicRoute>
                   <LoginPage />
