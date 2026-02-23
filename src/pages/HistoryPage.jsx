@@ -8,6 +8,8 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { AdMob } from '@capacitor-community/admob';
+// 🔥 THÊM IMPORT CAPACITOR CORE
+import { Capacitor } from '@capacitor/core';
 
 function HistoryPage() {
   const navigate = useNavigate();
@@ -15,9 +17,12 @@ function HistoryPage() {
   const [loading, setLoading] = useState(false); 
   const [isLoadingAd, setIsLoadingAd] = useState(false);
 
+  // 🔥 CẬP NHẬT 1: CHỈ KHỞI TẠO ADMOB TRÊN APP NATIVE
   useEffect(() => {
     const initAdMob = async () => {
-        try { await AdMob.initialize({ requestTrackingAuthorization: true }); } catch (e) {}
+        if (Capacitor.isNativePlatform()) {
+            try { await AdMob.initialize({ requestTrackingAuthorization: true }); } catch (e) { console.error("Lỗi Init AdMob:", e); }
+        }
     };
     initAdMob();
     fetchHistory(); 
@@ -25,7 +30,6 @@ function HistoryPage() {
 
   const fetchHistory = () => {
     setLoading(true);
-    // 🔥 Dùng axiosClient gọi trực tiếp /history/ (đường dẫn đang bị lỗi 404 của bạn)
     axiosClient.get('/history/') 
     .then((res) => {
         setResults(res.data);
@@ -37,14 +41,22 @@ function HistoryPage() {
     .finally(() => setLoading(false));
   };
 
+  // 🔥 CẬP NHẬT 2: TÁCH LOGIC QUẢNG CÁO
   const handleReviewClick = async (resultId) => {
-      setIsLoadingAd(true); 
-      try {
-          await AdMob.prepareInterstitial({ adId: 'ca-app-pub-3940256099942544/1033173712', isTesting: true });
-          await AdMob.showInterstitial();
-      } catch (e) {} 
-      finally {
-          setIsLoadingAd(false); 
+      if (Capacitor.isNativePlatform()) {
+          // Nền tảng App: Bật loading, chờ hiện quảng cáo AdMob rồi mới chuyển trang
+          setIsLoadingAd(true); 
+          try {
+              await AdMob.prepareInterstitial({ adId: 'ca-app-pub-3940256099942544/1033173712', isTesting: true });
+              await AdMob.showInterstitial();
+          } catch (e) {
+              console.error("Lỗi show quảng cáo:", e);
+          } finally {
+              setIsLoadingAd(false); 
+              navigate(`/history/${resultId}`);
+          }
+      } else {
+          // Nền tảng Web: Chuyển thẳng tới trang chi tiết luôn, không bị xoay loading chặn lại
           navigate(`/history/${resultId}`);
       }
   };

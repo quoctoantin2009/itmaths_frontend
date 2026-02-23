@@ -10,6 +10,8 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { AdMob } from '@capacitor-community/admob'; 
+// 🔥 THÊM IMPORT CAPACITOR CORE
+import { Capacitor } from '@capacitor/core';
 
 // Import CSS
 import './TopicDetail.css';
@@ -27,28 +29,37 @@ function TopicDetailPage() {
     const [isLoadingAd, setIsLoadingAd] = useState(false);
 
     // --- 1. CONFIG ADMOB ---
+    // 🔥 CẬP NHẬT: CHỈ KHỞI TẠO NẾU LÀ APP
     useEffect(() => {
         const initAdMob = async () => {
-            try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
-            catch (e) { console.error("Lỗi Init AdMob:", e); }
+            if (Capacitor.isNativePlatform()) {
+                try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
+                catch (e) { console.error("Lỗi Init AdMob:", e); }
+            }
         };
         initAdMob();
     }, []);
 
     // --- 2. HÀM XỬ LÝ QUẢNG CÁO TRƯỚC KHI CHUYỂN TRANG ---
+    // 🔥 CẬP NHẬT: TÁCH LOGIC QUẢNG CÁO GIỮA APP VÀ WEB
     const handleActionWithAd = async (callback) => {
-        setIsLoadingAd(true); 
-        try {
-            await AdMob.prepareInterstitial({
-               adId: 'ca-app-pub-3940256099942544/1033173712', 
-               isTesting: true
-            });
-            await AdMob.showInterstitial();
-        } catch (e) {
-            console.error("Lỗi QC hoặc mạng yếu:", e);
-        } finally {
-            setIsLoadingAd(false); 
-            callback(); 
+        if (Capacitor.isNativePlatform()) {
+            setIsLoadingAd(true); 
+            try {
+                await AdMob.prepareInterstitial({
+                   adId: 'ca-app-pub-3940256099942544/1033173712', 
+                   isTesting: true
+                });
+                await AdMob.showInterstitial();
+            } catch (e) {
+                console.error("Lỗi QC hoặc mạng yếu:", e);
+            } finally {
+                setIsLoadingAd(false); 
+                callback(); 
+            }
+        } else {
+            // Nếu là Web, chạy thẳng callback chuyển trang
+            callback();
         }
     };
 
@@ -57,7 +68,7 @@ function TopicDetailPage() {
         const fetchExams = async () => {
             try {
                 const res = await axiosClient.get(`/topics/${topicId}/exercises/`);
-                // 🔥 CẬP NHẬT TẠI ĐÂY: Thêm { numeric: true } để sắp xếp số đúng chuẩn tự nhiên
+                // Thêm { numeric: true } để sắp xếp số đúng chuẩn tự nhiên
                 const sortedExams = res.data.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
                 setExams(sortedExams);
             } catch (error) {
@@ -68,11 +79,10 @@ function TopicDetailPage() {
         fetchExams();
     }, [topicId]);
 
-    // --- 4. HÀM BẤM LÀM BÀI (ĐÃ CẬP NHẬT LOGIC ĐIỀU HƯỚNG) ---
+    // --- 4. HÀM BẤM LÀM BÀI ---
     const handleStartExam = (examId) => {
         handleActionWithAd(() => {
-            // 🔥 CẬP NHẬT QUAN TRỌNG: Gửi topicId qua cả URL và State
-            // fromTopicId: topicId là chìa khóa để ExamPage nhận diện chắc chắn
+            // Gửi topicId qua cả URL và State
             navigate(`/exams/${examId}?topic=${topicId}`, {
                 state: { 
                     topicTitle: topicTitle,

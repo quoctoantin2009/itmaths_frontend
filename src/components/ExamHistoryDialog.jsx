@@ -14,6 +14,8 @@ import FeedbackIcon from '@mui/icons-material/Feedback';
 import axiosClient from '../services/axiosClient'; 
 import QuestionCard from './QuestionCard'; 
 import { AdMob } from '@capacitor-community/admob';
+// 🔥 THÊM IMPORT CAPACITOR CORE
+import { Capacitor } from '@capacitor/core'; 
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -40,10 +42,9 @@ export default function ExamHistoryDialog({ customId }) {
     const [detailExamTitle, setDetailExamTitle] = useState("");
     const [currentTotalScore, setCurrentTotalScore] = useState(0); 
 
-    // 🔥 STATE ĐIỂM THÀNH PHẦN (QUAN TRỌNG ĐỂ HIỆN BẢNG ĐIỂM)
+    // STATE ĐIỂM THÀNH PHẦN
     const [scoreDetails, setScoreDetails] = useState({ p1: 0, p2: 0, p3: 0 });
 
-    // Ref để cuộn trang lên đầu
     const contentRef = useRef(null);
 
     // State cho Feedback & Toast
@@ -52,10 +53,13 @@ export default function ExamHistoryDialog({ customId }) {
     const [isSendingFeedback, setIsSendingFeedback] = useState(false);
     const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
+    // 🔥 CẬP NHẬT 1: CHỈ INIT ADMOB TRÊN NỀN TẢNG NATIVE
     useEffect(() => {
         const initAdMob = async () => {
-            try { await AdMob.initialize({ requestTrackingAuthorization: true }); } 
-            catch (e) { console.error("Lỗi Init AdMob:", e); }
+            if (Capacitor.isNativePlatform()) {
+                try { await AdMob.initialize({ requestTrackingAuthorization: true }); } 
+                catch (e) { console.error("Lỗi Init AdMob:", e); }
+            }
         };
         initAdMob();
     }, []);
@@ -75,7 +79,6 @@ export default function ExamHistoryDialog({ customId }) {
         return () => window.removeEventListener('ITMATHS_EXAM_SUBMITTED', handleExamSubmitted);
     }, []);
 
-    // Tự động cuộn lên đầu khi vào màn hình chi tiết
     useEffect(() => {
         if (viewMode === 'detail' && contentRef.current) {
             contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -88,18 +91,23 @@ export default function ExamHistoryDialog({ customId }) {
         fetchHistory(); 
     };
 
-    // 🔥 HÀM XEM CHI TIẾT + TÍNH TOÁN LẠI BẢNG ĐIỂM
+    // 🔥 CẬP NHẬT 2: CHỈ SHOW ADMOB KHI BẤM XEM CHI TIẾT NẾU LÀ APP NATIVE
     const handleViewDetail = async (resultId, examId, examTitle, totalScore) => {
-        setIsLoadingAd(true);
-        try {
-            await AdMob.prepareInterstitial({
-                adId: 'ca-app-pub-3940256099942544/1033173712', 
-                isTesting: true
-            });
-            await AdMob.showInterstitial();
-        } catch (e) {}
+        if (Capacitor.isNativePlatform()) {
+            setIsLoadingAd(true);
+            try {
+                await AdMob.prepareInterstitial({
+                    adId: 'ca-app-pub-3940256099942544/1033173712', 
+                    isTesting: true
+                });
+                await AdMob.showInterstitial();
+            } catch (e) {
+                console.error("Lỗi hiển thị quảng cáo: ", e);
+            } finally {
+                setIsLoadingAd(false);
+            }
+        }
 
-        setIsLoadingAd(false);
         setLoading(true);
 
         try {
@@ -115,7 +123,7 @@ export default function ExamHistoryDialog({ customId }) {
             const qData = resQuestions.data;
             setDetailQuestions(qData);
             
-            // 🔥 [LOGIC TÍNH ĐIỂM] - Bắt buộc có đoạn này bảng mới hiện số liệu
+            // [LOGIC TÍNH ĐIỂM] 
             let p1 = 0, p2 = 0, p3 = 0;
             qData.forEach(q => {
                 const ans = userAns[q.id];
@@ -213,7 +221,6 @@ export default function ExamHistoryDialog({ customId }) {
                     </Toolbar>
                 </AppBar>
 
-                {/* Gán ref={contentRef} để điều khiển việc cuộn trang */}
                 <DialogContent ref={contentRef} sx={{ bgcolor: '#f5f5f5', p: viewMode === 'detail' ? 2 : 2 }}>
                     {viewMode === 'list' ? (
                         history.length === 0 ? (
@@ -249,7 +256,6 @@ export default function ExamHistoryDialog({ customId }) {
                         <Box sx={{ maxWidth: '800px', margin: '0 auto' }}>
                             {loading ? <Box textAlign="center" mt={5}><CircularProgress /></Box> : (
                                 <>
-                                    {/* 🔥🔥🔥 BẢNG TỔNG HỢP ĐIỂM (ĐƯỢC ĐẶT Ở VỊ TRÍ ĐẦU TIÊN) 🔥🔥🔥 */}
                                     <Paper elevation={3} sx={{ mb: 3, overflow: 'hidden', borderRadius: 2, border: '1px solid #ddd' }}>
                                         <Box sx={{ bgcolor: '#e8f5e9', p: 1.5, textAlign: 'center', borderBottom: '1px solid #c8e6c9' }}>
                                             <Typography variant="subtitle1" fontWeight="bold" color="#2e7d32">KẾT QUẢ BÀI LÀM</Typography>
@@ -282,12 +288,10 @@ export default function ExamHistoryDialog({ customId }) {
                                         </TableContainer>
                                     </Paper>
 
-                                    {/* DANH SÁCH CÂU HỎI */}
                                     {detailQuestions.map((q, index) => (
                                         <QuestionCard key={q.id} question={q} index={index} userAnswer={detailUserAnswers[q.id]} onAnswerChange={() => {}} isSubmitted={true} />
                                     ))}
                                     
-                                    {/* NÚT GÓP Ý */}
                                     <Box sx={{ mt: 4, mb: 4, p: 2, textAlign: 'center', bgcolor: '#fff', borderRadius: 2, border: '1px solid #ddd' }}>
                                         <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontWeight: 400 }}>
                                             Bạn phát hiện lỗi trong đề thi này?

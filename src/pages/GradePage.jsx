@@ -13,6 +13,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import StarIcon from '@mui/icons-material/Star';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import { AdMob } from '@capacitor-community/admob';
+// 🔥 THÊM IMPORT CAPACITOR CORE
+import { Capacitor } from '@capacitor/core';
 
 // 🔥 Import CSS mới tạo
 import './GradePage.css';
@@ -37,7 +39,6 @@ function GradePage() {
         const nameA = String(a.title || a.name || "").trim();
         const nameB = String(b.title || b.name || "").trim();
         
-        // Hàm phụ để tách chuỗi thành mảng chữ và số. Ví dụ: "Đề 101" -> ["Đề ", "101"]
         const chunkify = (t) => t.match(/[^0-9]+|[0-9]+/g) || [];
         const partsA = chunkify(nameA);
         const partsB = chunkify(nameB);
@@ -46,13 +47,11 @@ function GradePage() {
             let partA = partsA[i] || "";
             let partB = partsB[i] || "";
             
-            // Nếu cả 2 phần cắt ra đều là số, thì so sánh theo giá trị toán học (11 sẽ < 101)
             if (!isNaN(partA) && !isNaN(partB)) {
                 const numA = parseInt(partA, 10);
                 const numB = parseInt(partB, 10);
                 if (numA !== numB) return numA - numB;
             } else {
-                // Nếu là chữ thì so sánh theo từ điển bình thường
                 const cmp = partA.localeCompare(partB, 'vi');
                 if (cmp !== 0) return cmp;
             }
@@ -61,27 +60,37 @@ function GradePage() {
     });
   };
 
+  // 🔥 CẬP NHẬT 1: CHỈ KHỞI TẠO ADMOB NẾU LÀ APP NATIVE
   useEffect(() => {
     const initAdMob = async () => {
-        try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
-        catch (e) { console.error("Lỗi Init:", e); }
+        if (Capacitor.isNativePlatform()) {
+            try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
+            catch (e) { console.error("Lỗi Init:", e); }
+        }
     };
     initAdMob();
   }, []);
 
+  // 🔥 CẬP NHẬT 2: TÁCH LOGIC QUẢNG CÁO THEO NỀN TẢNG
   const handleActionWithAd = async (callback) => {
-      setIsLoadingAd(true); 
-      try {
-          await AdMob.prepareInterstitial({
-             adId: 'ca-app-pub-3940256099942544/1033173712', 
-             isTesting: true
-          });
-          await AdMob.showInterstitial();
-      } catch (e) {
-          console.error("Lỗi QC hoặc mạng yếu:", e);
-      } finally {
-          setIsLoadingAd(false); 
-          callback(); 
+      if (Capacitor.isNativePlatform()) {
+          // Nếu là App (Android/iOS) -> Gọi AdMob Interstitial
+          setIsLoadingAd(true); 
+          try {
+              await AdMob.prepareInterstitial({
+                 adId: 'ca-app-pub-3940256099942544/1033173712', 
+                 isTesting: true
+              });
+              await AdMob.showInterstitial();
+          } catch (e) {
+              console.error("Lỗi QC hoặc mạng yếu:", e);
+          } finally {
+              setIsLoadingAd(false); 
+              callback(); 
+          }
+      } else {
+          // Nếu là Web -> Chuyển trang ngay lập tức, AdSense tự xử lý
+          callback();
       }
   };
 
@@ -107,7 +116,7 @@ function GradePage() {
                 sortedTopics = sortedTopics.map(topic => ({
                     ...topic,
                     videos: sortAZ(topic.videos),
-                    documents: sortAZ(topic.documents), // Hàm sortAZ mới sẽ xử lý mảng này
+                    documents: sortAZ(topic.documents),
                     exercises: sortAZ(topic.exercises)
                 }));
                 setTopics(sortedTopics);

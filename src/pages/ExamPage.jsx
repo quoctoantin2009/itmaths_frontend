@@ -20,6 +20,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 // IMPORT BANNER MOBILE APP
 import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
+// 🔥 THÊM IMPORT CAPACITOR CORE
+import { Capacitor } from '@capacitor/core';
 
 // IMPORT BANNER WEB
 import AdSenseBanner from '../components/AdSenseBanner';
@@ -130,36 +132,39 @@ function ExamPage() {
   const timerRef = useRef(null);
 
   const searchParams = new URLSearchParams(location.search);
-  // 🔥🔥🔥 CẬP NHẬT: Ưu tiên lấy topicId từ State (an toàn hơn), nếu không có thì lấy từ URL
   const topicId = location.state?.fromTopicId || searchParams.get('topic');
 
-  // 1. KHỞI TẠO ADMOB
+  // 🔥 CẬP NHẬT 1: CHỈ INIT VÀ SHOW BANNER ADMOB TRÊN NATIVE APP
   useEffect(() => {
     const initAdMobAndBanner = async () => {
-      try {
-        await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true });
-        await AdMob.showBanner({
-            adId: 'ca-app-pub-3940256099942544/6300978111', 
-            adSize: BannerAdSize.ADAPTIVE_BANNER,
-            position: BannerAdPosition.BOTTOM_CENTER, 
-            margin: 0,
-            isTesting: true 
-        });
-      } catch (e) { console.error("Lỗi Init AdMob/Banner:", e); }
+      if (Capacitor.isNativePlatform()) {
+          try {
+            await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true });
+            await AdMob.showBanner({
+                adId: 'ca-app-pub-3940256099942544/6300978111', 
+                adSize: BannerAdSize.ADAPTIVE_BANNER,
+                position: BannerAdPosition.BOTTOM_CENTER, 
+                margin: 0,
+                isTesting: true 
+            });
+          } catch (e) { console.error("Lỗi Init AdMob/Banner:", e); }
+      }
     };
     initAdMobAndBanner();
+
+    // Cleanup: Ẩn banner khi rời trang (Chỉ gọi nếu là App)
     return () => {
-        AdMob.hideBanner().catch(e => {});
-        AdMob.removeBanner().catch(e => {});
+        if (Capacitor.isNativePlatform()) {
+            AdMob.hideBanner().catch(e => {});
+            AdMob.removeBanner().catch(e => {});
+        }
     };
   }, []);
 
-  // 2. TẢI DANH SÁCH ĐỀ THI (CÓ LỌC THEO TOPIC)
   useEffect(() => {
     if (!id) {
       setLoading(true);
       let url = '/exams/';
-      // Nếu có topicId thì thêm vào API để lọc
       if (topicId) {
           url += `?topic=${topicId}`;
       }
@@ -171,15 +176,12 @@ function ExamPage() {
     }
   }, [id, topicId]);
 
-  // 3. XỬ LÝ KHI CÓ ID (VÀO LÀM BÀI)
   useEffect(() => {
     if (id) {
       handleSelectExam(parseInt(id));
     }
-    // eslint-disable-next-line
   }, [id]);
 
-  // 4. ĐỒNG HỒ ĐẾM NGƯỢC
   useEffect(() => {
     if (!selectedExamId || submitted || loading || !currentExamInfo) return;
 
@@ -198,7 +200,7 @@ function ExamPage() {
           setTimeLeft(0);
           clearInterval(timerRef.current);
           setOpenConfirm(false);
-          submitExam(); // Tự nộp bài
+          submitExam(); 
           alert("⏰ Đã hết thời gian làm bài!");
         } else {
           setTimeLeft(secondsLeft);
@@ -256,7 +258,6 @@ function ExamPage() {
       console.error("Lỗi tải đề thi:", err);
       alert("Không thể tải đề thi. Vui lòng kiểm tra lại kết nối!");
       
-      // Sửa lỗi điều hướng khi link sai
       if(id) {
          if(topicId) navigate(`/topics/${topicId}`);
          else navigate('/exams');
@@ -331,16 +332,18 @@ function ExamPage() {
         detail_answers: userAnswers
     }).catch(error => console.error("Lỗi lưu điểm:", error));
 
-    // --- XỬ LÝ QUẢNG CÁO ---
     setIsProcessingResult(true);
 
+    // 🔥 CẬP NHẬT 2: CHỈ GỌI QUẢNG CÁO INTERSTITIAL NẾU LÀ APP
     try {
-        await AdMob.hideBanner();
-        await AdMob.prepareInterstitial({
-            adId: 'ca-app-pub-3940256099942544/1033173712', 
-            isTesting: true
-        });
-        await AdMob.showInterstitial();
+        if (Capacitor.isNativePlatform()) {
+            await AdMob.hideBanner(); // Ẩn banner nhỏ đi
+            await AdMob.prepareInterstitial({
+                adId: 'ca-app-pub-3940256099942544/1033173712', 
+                isTesting: true
+            });
+            await AdMob.showInterstitial();
+        }
     } catch (e) {
         console.error("Lỗi QC khi nộp bài:", e);
     } finally {
@@ -357,19 +360,15 @@ function ExamPage() {
     setOpenConfirm(true);
   };
 
-  // 🔥🔥🔥 CẬP NHẬT: LOGIC ĐIỀU HƯỚNG THÔNG MINH 🔥🔥🔥
   const handleExit = () => {
-    // 1. Nếu có topicId (Dù từ State hay URL) -> Quay về trang chuyên đề
     if (topicId) {
         navigate(`/topics/${topicId}`, {
              state: { topicTitle: location.state?.topicTitle } 
         });
     } 
-    // 2. Nếu không có topicId (vào từ Kho đề thi tổng hợp) -> Về kho tổng
     else if (id) {
         navigate('/exams'); 
     }
-    // 3. Trường hợp đang ở màn hình danh sách (reset state)
     else {
       setSelectedExamId(null);
       setCurrentExamInfo(null);

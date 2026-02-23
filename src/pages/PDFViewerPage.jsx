@@ -11,6 +11,8 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 // Import Quảng cáo Banner
 import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
+// 🔥 THÊM IMPORT CAPACITOR CORE
+import { Capacitor } from '@capacitor/core';
 
 // Cấu hình Worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -27,24 +29,29 @@ function PDFViewerPage() {
     // 🟢 State để kiểm soát việc cuộn
     const [scale, setScale] = useState(1);
 
-    // 1. HIỆN BANNER QUẢNG CÁO KHI VÀO TRANG
+    // 🔥 CẬP NHẬT: CHỈ HIỆN BANNER QUẢNG CÁO NẾU LÀ APP NATIVE
     useEffect(() => {
         const showBanner = async () => {
-            try {
-                await AdMob.showBanner({
-                    adId: 'ca-app-pub-3940256099942544/6300978111', 
-                    adSize: BannerAdSize.ADAPTIVE_BANNER,
-                    position: BannerAdPosition.BOTTOM_CENTER, 
-                    margin: 0,
-                    isTesting: true 
-                });
-            } catch (e) { console.error("Lỗi Banner PDF:", e); }
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    await AdMob.showBanner({
+                        adId: 'ca-app-pub-3940256099942544/6300978111', 
+                        adSize: BannerAdSize.ADAPTIVE_BANNER,
+                        position: BannerAdPosition.BOTTOM_CENTER, 
+                        margin: 0,
+                        isTesting: true 
+                    });
+                } catch (e) { console.error("Lỗi Banner PDF:", e); }
+            }
         };
         showBanner();
 
+        // Cleanup: Xóa banner khi thoát trang (chỉ gọi nếu là App)
         return () => {
-            AdMob.hideBanner().catch(() => {});
-            AdMob.removeBanner().catch(() => {});
+            if (Capacitor.isNativePlatform()) {
+                AdMob.hideBanner().catch(() => {});
+                AdMob.removeBanner().catch(() => {});
+            }
         };
     }, []);
 
