@@ -20,12 +20,15 @@ import HistoryPage from './pages/HistoryPage';
 import VideoPlayerPage from './pages/VideoPlayerPage';
 import PDFViewerPage from './pages/PDFViewerPage';
 
-// 🟢 [MỚI] IMPORT CÁC TRANG QUẢN LÝ LỚP HỌC & CHI TIẾT
+// 🟢 IMPORT CÁC TRANG QUẢN LÝ LỚP HỌC & CHI TIẾT
 import ProfilePage from './pages/ProfilePage';
 import ClassroomPage from './pages/ClassroomPage';
 import ClassDetailPage from './pages/ClassDetailPage';
-import TopicDetailPage from './pages/TopicDetailPage'; // Nếu bạn có dùng trang này
-import ExamResultPage from './pages/ExamResultPage';   // 🔥 [QUAN TRỌNG] Trang xem chi tiết kết quả
+import TopicDetailPage from './pages/TopicDetailPage'; 
+import ExamResultPage from './pages/ExamResultPage'; 
+
+// 🔥 [MỚI] IMPORT TRANG CHÍNH SÁCH BẢO MẬT
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'; 
 
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
 const PrivateRoute = ({ children }) => {
@@ -90,6 +93,9 @@ function App() {
       
       <div style={{ flex: 1, width: '100%' }}> 
         <Routes>
+          {/* 🔥 [MỚI] TRANG CÔNG KHAI HOÀN TOÀN (Không cần đăng nhập để Google Bot có thể đọc) */}
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+
           {/* --- CÁC TRANG CẦN ĐĂNG NHẬP MỚI ĐƯỢC VÀO --- */}
           <Route path="/" element={
               <PrivateRoute>
@@ -103,35 +109,30 @@ function App() {
               </PrivateRoute>
           } />
 
-          {/* 🔥 [MỚI] ROUTE XEM CHI TIẾT KẾT QUẢ THI (Sửa lỗi bấm vào không được) */}
           <Route path="/history/:id" element={
               <PrivateRoute>
                   <ExamResultPage />
               </PrivateRoute>
           } />
 
-          {/* 🟢 ROUTE HỒ SƠ CÁ NHÂN */}
           <Route path="/profile" element={
               <PrivateRoute>
                   <ProfilePage />
               </PrivateRoute>
           } />
 
-          {/* 🟢 ROUTE DANH SÁCH LỚP HỌC */}
           <Route path="/classrooms" element={
               <PrivateRoute>
                   <ClassroomPage />
               </PrivateRoute>
           } />
 
-          {/* 🟢 ROUTE CHI TIẾT LỚP HỌC */}
           <Route path="/classrooms/:id" element={
               <PrivateRoute>
                   <ClassDetailPage />
               </PrivateRoute>
           } />
 
-          {/* 🟢 ROUTE CHI TIẾT CHUYÊN ĐỀ (Nếu dùng) */}
           <Route path="/topic/:topicId" element={
               <PrivateRoute>
                   <TopicDetailPage />
@@ -144,7 +145,6 @@ function App() {
               </PrivateRoute>
           } />
           
-          {/* Route làm bài thi */}
           <Route path="/exams/:id" element={
               <PrivateRoute>
                   <ExamPage />
@@ -156,7 +156,6 @@ function App() {
               </PrivateRoute>
           } />
 
-          {/* ROUTE XEM VIDEO VÀ PDF */}
           <Route path="/video-player" element={
               <PrivateRoute>
                   <VideoPlayerPage />
@@ -168,7 +167,7 @@ function App() {
               </PrivateRoute>
           } />
 
-          {/* --- CÁC TRANG CÔNG KHAI --- */}
+          {/* --- CÁC TRANG CHỈ DÀNH CHO KHÁCH (Đã login thì không vào được) --- */}
           <Route path="/login" element={
               <PublicRoute>
                   <LoginPage />
