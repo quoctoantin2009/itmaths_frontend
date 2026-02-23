@@ -28,7 +28,7 @@ import TopicDetailPage from './pages/TopicDetailPage';
 import ExamResultPage from './pages/ExamResultPage'; 
 
 // 🔥 [MỚI] IMPORT TRANG CHÍNH SÁCH BẢO MẬT
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage'; 
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx'; 
 
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
 const PrivateRoute = ({ children }) => {
