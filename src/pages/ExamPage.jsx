@@ -139,13 +139,13 @@ function ExamPage() {
     const initAdMobAndBanner = async () => {
       if (Capacitor.isNativePlatform()) {
           try {
-            await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true });
+            await AdMob.initialize({ requestTrackingAuthorization: true });
             await AdMob.showBanner({
-                adId: 'ca-app-pub-3940256099942544/6300978111', 
+                adId: 'ca-app-pub-2431317486483815/5036820439', 
                 adSize: BannerAdSize.ADAPTIVE_BANNER,
                 position: BannerAdPosition.BOTTOM_CENTER, 
                 margin: 0,
-                isTesting: true 
+                isTesting: false 
             });
           } catch (e) { console.error("Lỗi Init AdMob/Banner:", e); }
       }
@@ -339,8 +339,8 @@ function ExamPage() {
         if (Capacitor.isNativePlatform()) {
             await AdMob.hideBanner(); // Ẩn banner nhỏ đi
             await AdMob.prepareInterstitial({
-                adId: 'ca-app-pub-3940256099942544/1033173712', 
-                isTesting: true
+                adId: 'ca-app-pub-2431317486483815/1826436807', 
+                isTesting: false
             });
             await AdMob.showInterstitial();
         }

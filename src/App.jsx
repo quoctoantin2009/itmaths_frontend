@@ -1,8 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-// 🟢 IMPORT CAPACITOR APP ĐỂ XỬ LÝ NÚT BACK
+// 🟢 IMPORT CAPACITOR APP VÀ CORE
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+
+// 🟢 IMPORT AXIOS ĐỂ GỌI API BACKEND VÀ CÁC COMPONENT MUI
+import axiosClient from './services/axiosClient';
+import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button } from '@mui/material';
 
 import Navbar from './components/Navbar'; 
 import AIChatWidget from './components/AIChatWidget';
@@ -44,6 +49,38 @@ const PublicRoute = ({ children }) => {
 function App() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // 🟢 STATE CHO POPUP ÉP CẬP NHẬT
+  const [showForceUpdate, setShowForceUpdate] = useState(false);
+  const [storeUrl, setStoreUrl] = useState('');
+
+  // 🟢 KIỂM TRA PHIÊN BẢN TỪ BACKEND CỦA BẠN (ÉP CẬP NHẬT TỨC THÌ)
+  useEffect(() => {
+      const checkVersionFromServer = async () => {
+          if (Capacitor.isNativePlatform()) {
+              try {
+                  // 1. Lấy thông tin ứng dụng đang chạy trong máy (versionCode)
+                  const appInfo = await CapacitorApp.getInfo();
+                  // build chính là versionCode trên Android
+                  const currentVersionCode = parseInt(appInfo.build, 10); 
+
+                  // 2. Gọi API lên Django hỏi bản mới nhất
+                  const response = await axiosClient.get('/check-app-version/'); 
+                  const { latest_version_code, force_update, store_url } = response.data;
+
+                  // 3. So sánh: Nếu bản trong máy nhỏ hơn bản Server -> Hiện bảng ép cập nhật!
+                  if (latest_version_code > currentVersionCode && force_update) {
+                      setStoreUrl(store_url);
+                      setShowForceUpdate(true); 
+                  }
+              } catch (e) {
+                  console.error("Lỗi kiểm tra phiên bản từ Server:", e);
+              }
+          }
+      };
+
+      checkVersionFromServer();
+  }, []);
 
   // 🟢 XỬ LÝ NÚT BACK VẬT LÝ TRÊN ANDROID
   useEffect(() => {
@@ -191,6 +228,35 @@ function App() {
       </div>
 
       {shouldShowComponents && <AIChatWidget />}
+
+      {/* 🔥 GIAO DIỆN POPUP BẮT BUỘC CẬP NHẬT (NẰM DƯỚI CÙNG CỦA APP) */}
+      <Dialog 
+        open={showForceUpdate} 
+        disableEscapeKeyDown 
+        sx={{ '& .MuiDialog-paper': { borderRadius: '15px', p: 1 } }}
+      >
+          <DialogTitle sx={{ color: '#d32f2f', fontWeight: 'bold', textAlign: 'center', fontSize: '1.5rem' }}>
+              🚀 CẬP NHẬT QUAN TRỌNG
+          </DialogTitle>
+          <DialogContent>
+              <DialogContentText sx={{ textAlign: 'center', color: '#333', fontSize: '1.1rem' }}>
+                  Đã có phiên bản mới của <b>ITMaths</b> với nhiều đề thi và tính năng hấp dẫn hơn. 
+                  Vui lòng cập nhật ngay để không bị gián đoạn việc học nhé!
+              </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+              {/* Nút bấm mở thẳng cửa hàng CH Play */}
+              <Button 
+                  variant="contained" 
+                  color="error" 
+                  size="large"
+                  onClick={() => window.open(storeUrl, '_system')} 
+                  sx={{ borderRadius: '30px', px: 4, py: 1.5, fontWeight: 'bold' }}
+              >
+                  CẬP NHẬT NGAY
+              </Button>
+          </DialogActions>
+      </Dialog>
 
     </div>
   );

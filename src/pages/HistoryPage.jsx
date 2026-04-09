@@ -47,7 +47,7 @@ function HistoryPage() {
           // Nền tảng App: Bật loading, chờ hiện quảng cáo AdMob rồi mới chuyển trang
           setIsLoadingAd(true); 
           try {
-              await AdMob.prepareInterstitial({ adId: 'ca-app-pub-3940256099942544/1033173712', isTesting: true });
+              await AdMob.prepareInterstitial({ adId: 'ca-app-pub-2431317486483815/1826436807', isTesting: false });
               await AdMob.showInterstitial();
           } catch (e) {
               console.error("Lỗi show quảng cáo:", e);

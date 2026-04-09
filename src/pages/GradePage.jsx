@@ -64,7 +64,7 @@ function GradePage() {
   useEffect(() => {
     const initAdMob = async () => {
         if (Capacitor.isNativePlatform()) {
-            try { await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true }); } 
+            try { await AdMob.initialize({ requestTrackingAuthorization: true }); } 
             catch (e) { console.error("Lỗi Init:", e); }
         }
     };
@@ -78,8 +78,8 @@ function GradePage() {
           setIsLoadingAd(true); 
           try {
               await AdMob.prepareInterstitial({
-                 adId: 'ca-app-pub-3940256099942544/1033173712', 
-                 isTesting: true
+                 adId: 'ca-app-pub-2431317486483815/1826436807', 
+                 isTesting: false
               });
               await AdMob.showInterstitial();
           } catch (e) {
@@ -158,7 +158,7 @@ function GradePage() {
       <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isLoadingAd}>
          <Box textAlign="center">
             <CircularProgress color="inherit" />
-            <Typography sx={{mt: 2, fontWeight: 'bold'}}>Đang tải nội dung & quảng cáo...</Typography>
+            <Typography sx={{mt: 2, fontWeight: 'bold'}}>Đang tải nội dung</Typography>
          </Box>
       </Backdrop>
 

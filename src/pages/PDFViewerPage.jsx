@@ -35,11 +35,11 @@ function PDFViewerPage() {
             if (Capacitor.isNativePlatform()) {
                 try {
                     await AdMob.showBanner({
-                        adId: 'ca-app-pub-3940256099942544/6300978111', 
+                        adId: 'ca-app-pub-2431317486483815/5036820439', 
                         adSize: BannerAdSize.ADAPTIVE_BANNER,
                         position: BannerAdPosition.BOTTOM_CENTER, 
                         margin: 0,
-                        isTesting: true 
+                        isTesting: false
                     });
                 } catch (e) { console.error("Lỗi Banner PDF:", e); }
             }
@@ -104,7 +104,10 @@ function PDFViewerPage() {
             {/* KHUNG HIỂN THỊ PDF */}
             <Box sx={{ 
                 flex: 1, 
-                overflowY: scale === 1 ? 'auto' : 'hidden', // 🟢 QUAN TRỌNG: Nếu scale=1 thì cho cuộn tự nhiên (nhanh), nếu scale>1 thì chặn lại để Zoom xử lý
+                // 🟢 Nới lỏng điều kiện khóa cuộn dọc
+                overflowY: scale <= 1.05 ? 'auto' : 'hidden', 
+                // 🟢 Chặn tràn viền ngang tuyệt đối
+                overflowX: 'hidden', 
                 position: 'relative',
                 paddingBottom: '60px', // Chừa chỗ cho Banner
                 bgcolor: '#525659'
@@ -130,10 +133,14 @@ function PDFViewerPage() {
                             minScale={1}
                             maxScale={5} 
                             centerOnInit={true}
-                            // 🟢 CẤU HÌNH QUAN TRỌNG ĐỂ CUỘN NHANH
                             onTransformed={(e) => setScale(e.state.scale)} // Theo dõi mức độ zoom
-                            panning={{ disabled: scale === 1 }} // Nếu chưa phóng to -> Tắt tính năng cầm kéo của thư viện -> Trả về cuộn tự nhiên của trình duyệt
-                            wheel={{ disabled: true }} 
+                            
+                            // 🟢 TỐI ƯU CHO ĐIỆN THOẠI (Chạm đúp để zoom và lăn chuột cho web)
+                            doubleClick={{ disabled: false, step: 0.5 }} 
+                            wheel={{ disabled: false, step: 0.1 }} 
+                            
+                            // 🟢 Nới lỏng thao tác kéo (Pan)
+                            panning={{ disabled: scale <= 1.05 }} 
                         >
                             <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
                                 <Box sx={{ 
@@ -142,20 +149,27 @@ function PDFViewerPage() {
                                     alignItems: 'center',
                                     gap: 2, 
                                     py: 2,
-                                    width: '100vw',
+                                    width: '100%',
+                                    maxWidth: '100vw', 
                                     // Đảm bảo vùng chạm đủ lớn
                                     minHeight: '80vh' 
                                 }}>
                                     {/* Render toàn bộ trang */}
                                     {Array.from(new Array(numPages), (el, index) => (
-                                        <Box key={`page_${index + 1}`} sx={{ boxShadow: 5 }}>
+                                        <Box key={`page_${index + 1}`} sx={{ 
+                                            boxShadow: 5, 
+                                            bgcolor: 'white',
+                                            // 🟢 Bọc thêm giới hạn để ảnh không phình to hơn màn hình
+                                            maxWidth: '96vw', 
+                                            overflow: 'hidden',
+                                            borderRadius: '4px'
+                                        }}>
                                             <Page 
                                                 pageNumber={index + 1} 
                                                 renderTextLayer={false} 
                                                 renderAnnotationLayer={false}
-                                                // Tăng độ nét
-                                                scale={window.devicePixelRatio > 1 ? 1.5 : 1.2} 
-                                                width={pageWidth} 
+                                                // 🟢 QUYẾT ĐỊNH KÍCH THƯỚC CHUẨN
+                                                width={pageWidth > 800 ? 800 : pageWidth - 16} 
                                                 loading=""
                                             />
                                         </Box>

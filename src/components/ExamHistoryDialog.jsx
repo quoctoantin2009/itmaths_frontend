@@ -97,8 +97,8 @@ export default function ExamHistoryDialog({ customId }) {
             setIsLoadingAd(true);
             try {
                 await AdMob.prepareInterstitial({
-                    adId: 'ca-app-pub-3940256099942544/1033173712', 
-                    isTesting: true
+                    adId: 'ca-app-pub-2431317486483815/1826436807', 
+                    isTesting: false
                 });
                 await AdMob.showInterstitial();
             } catch (e) {
