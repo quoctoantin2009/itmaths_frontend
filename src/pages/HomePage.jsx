@@ -6,7 +6,7 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import StarIcon from '@mui/icons-material/Star'; 
 
 // 🟢 [MỚI] Import Component Quảng cáo Web
-import AdSenseBanner from '../components/AdSenseBanner';
+//import AdSenseBanner from '../components/AdSenseBanner';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -99,17 +99,17 @@ function HomePage() {
          </Card>
       </Box>
 
-      {/* 🟢 QUẢNG CÁO WEB 1: Chèn giữa khối Ôn thi và SGK */}
+      {/* 🟢 QUẢNG CÁO WEB 1: Chèn giữa khối Ôn thi và SGK 
       <AdSenseBanner dataAdSlot="3191068568" style={{marginBottom: '30px'}} />
-
+    */}
       {/* 2. CHƯƠNG TRÌNH CHUẨN */}
       <Typography variant="h5" fontWeight="bold" color="#1565c0" sx={{ mb: 3, borderLeft: '5px solid #1565c0', pl: 2 }}>
         CHƯƠNG TRÌNH SGK
       </Typography>
       {renderCards(standardWindows, false)}
 
-      {/* 🟢 QUẢNG CÁO WEB 2: Chèn giữa khối SGK và HSG */}
-      <AdSenseBanner dataAdSlot="0987654321" style={{marginBottom: '30px'}} />
+      {/* 🟢 QUẢNG CÁO WEB 2: Chèn giữa khối SGK và HSG }
+      <AdSenseBanner dataAdSlot="0987654321" style={{marginBottom: '30px'}} />*/}
 
       {/* 3. BỒI DƯỠNG HSG */}
       <Typography variant="h5" fontWeight="bold" color="#e65100" sx={{ mb: 3, borderLeft: '5px solid #e65100', pl: 2 }}>

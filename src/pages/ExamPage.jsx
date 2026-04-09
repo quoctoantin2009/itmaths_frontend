@@ -24,7 +24,7 @@ import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admo
 import { Capacitor } from '@capacitor/core';
 
 // IMPORT BANNER WEB
-import AdSenseBanner from '../components/AdSenseBanner';
+//import AdSenseBanner from '../components/AdSenseBanner';
 
 // --- STYLE & ANIMATION ---
 const pulse = keyframes`
@@ -508,9 +508,9 @@ function ExamPage() {
                   </Table>
                 </TableContainer>
 
-                <Box sx={{ my: 2 }}>
+               {/* <Box sx={{ my: 2 }}>
                     <AdSenseBanner dataAdSlot="9564905223" format="rectangle" />
-                </Box>
+                </Box>*/}
 
                 <Box sx={{ p: 3, textAlign: 'center', bgcolor: '#f5f5f5', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Button variant="contained" color="primary" startIcon={<ReplayIcon />} onClick={() => window.location.reload()} sx={{ py: 1.5, fontWeight: 'bold', width: '100%', borderRadius: '25px' }}>
