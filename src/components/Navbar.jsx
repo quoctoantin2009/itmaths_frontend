@@ -146,6 +146,19 @@ function Navbar() {
              >
                 Kho đề thi
              </Button>
+
+             {/* 🔥 NÚT TÀI NGUYÊN MỚI THÊM VÀO ĐÂY */}
+             <Button
+                component={Link}
+                to="/tai-nguyen"
+                sx={{ 
+                    color: 'white', 
+                    fontWeight: isActive('/tai-nguyen') ? 'bold' : 'normal',
+                    borderBottom: isActive('/tai-nguyen') ? '2px solid yellow' : 'none'
+                }}
+             >
+                Tài nguyên
+             </Button>
           </Box>
 
           {/* 3. MENU USER BÊN PHẢI */}

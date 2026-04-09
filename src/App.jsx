@@ -11,7 +11,7 @@ import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, B
 
 import Navbar from './components/Navbar'; 
 import AIChatWidget from './components/AIChatWidget';
-
+import PublicResourcesPage from './pages/PublicResourcesPage';
 // Import các trang cũ
 import HomePage from './pages/HomePage';
 import GradePage from './pages/GradePage';
@@ -205,6 +205,7 @@ function App() {
           } />
 
           {/* --- CÁC TRANG CÔNG KHAI --- */}
+          <Route path="/tai-nguyen" element={<PublicResourcesPage />} />
           <Route path="/login" element={
               <PublicRoute>
                   <LoginPage />
