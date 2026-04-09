@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Box, Typography, TextField, Button, Paper } from '@mui/material';
+import { Container, Box, Typography, TextField, Button, Paper, Snackbar, Alert } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import axiosClient from '../services/axiosClient'; // Tùy chỉnh đường dẫn nếu cần
+import axiosClient from '../services/axiosClient';
 
 function ArenaEntry() {
     const [pin, setPin] = useState('');
@@ -11,7 +11,17 @@ function ArenaEntry() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    // HỌC SINH NHẬP PIN ĐỂ VÀO PHÒNG
+    // 🟢 THÊM STATE CHO THÔNG BÁO ĐẸP MẮT (SNACKBAR)
+    const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
+
+    const showToast = (message, type = 'error') => {
+        setToast({ open: true, message, type });
+    };
+
+    const handleCloseToast = () => {
+        setToast({ ...toast, open: false });
+    };
+
     const handleJoinArena = async () => {
         if (!pin.trim()) {
             setError('Vui lòng nhập mã PIN!');
@@ -20,9 +30,7 @@ function ArenaEntry() {
         setLoading(true);
         setError('');
         try {
-            // Gọi API kiểm tra mã PIN mà chúng ta đã viết ở Bước 3
             const res = await axiosClient.post('/arena/join/', { pin: pin });
-            // Nếu đúng PIN, chuyển sang màn hình chơi game
             navigate(`/arena/play/${res.data.pin}`, { state: { room_title: res.data.title } });
         } catch (err) {
             setError(err.response?.data?.error || 'Không tìm thấy phòng này!');
@@ -31,19 +39,25 @@ function ArenaEntry() {
         }
     };
 
-    // GIÁO VIÊN TẠO PHÒNG MỚI (Tạm thời là tạo nhanh không cần chọn câu hỏi để test)
     const handleCreateArena = async () => {
         setLoading(true);
         try {
-            // Gọi API tạo phòng ở Bước 3
             const res = await axiosClient.post('/arena/create/', { 
                 title: 'Đấu trường ITMaths Sôi Động',
-                questions: [] // Tạm để rỗng, sau này sẽ làm popup chọn câu hỏi
+                questions: [] 
             });
-            // Chuyển sang màn hình điều khiển của Giáo viên
             navigate(`/arena/host/${res.data.pin}`);
         } catch (err) {
-            alert('Có lỗi xảy ra khi tạo phòng!');
+            console.error("Lỗi tạo phòng:", err.response || err);
+            
+            // 🟢 THAY THẾ ALERT() BẰNG THÔNG BÁO THÔNG MINH BẮT ĐÚNG BỆNH
+            let errorMsg = 'Có lỗi xảy ra khi tạo phòng!';
+            if (err.response?.status === 500) {
+                errorMsg = 'Lỗi máy chủ (500): Database chưa được tạo bảng Đấu trường!';
+            } else if (err.response?.status === 404) {
+                errorMsg = 'Lỗi (404): Sai đường dẫn API!';
+            }
+            showToast(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -52,7 +66,7 @@ function ArenaEntry() {
     return (
         <Box sx={{ 
             minHeight: '100vh', 
-            bgcolor: '#4a148c', // Màu nền tím đặc trưng của Kahoot
+            bgcolor: '#4a148c', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
@@ -101,6 +115,18 @@ function ArenaEntry() {
                     </Button>
                 </Box>
             </Container>
+
+            {/* 🟢 GIAO DIỆN POPUP BÁO LỖI HIỆN ĐẠI TỪ MUI */}
+            <Snackbar 
+                open={toast.open} 
+                autoHideDuration={4000} 
+                onClose={handleCloseToast} 
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseToast} severity={toast.type} variant="filled" sx={{ width: '100%', fontSize: '1.1rem', borderRadius: 3, boxShadow: 3 }}>
+                    {toast.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }
