@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     Container, Typography, Grid, Card, CardContent, Button, 
-    Box, Divider, Chip, Tabs, Tab, Paper 
+    Box, Chip, Tabs, Tab, Paper 
 } from '@mui/material';
 import ArticleIcon from '@mui/icons-material/Article';
 import ComputerIcon from '@mui/icons-material/Computer';
@@ -9,9 +9,14 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import InfoIcon from '@mui/icons-material/Info';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+
 import AdSenseBanner from '../components/AdSenseBanner';
 
-// Component hỗ trợ hiển thị nội dung theo từng Tab với hiệu ứng Fade-in
+// 🔥 IMPORT THƯ VIỆN CAPACITOR VÀ ADMOB
+import { Capacitor } from '@capacitor/core';
+import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
+
+// Component hỗ trợ hiển thị nội dung theo từng Tab
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
@@ -38,16 +43,41 @@ function PublicResourcesPage() {
         setTabValue(newValue);
     };
 
+    // 🟢 KIỂM SOÁT ADMOB CHỈ CHẠY TRÊN APP ĐIỆN THOẠI
+    useEffect(() => {
+        const showAppBanner = async () => {
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    await AdMob.showBanner({
+                        adId: 'ca-app-pub-2431317486483815/5036820439', // Mã AdMob của bạn
+                        adSize: BannerAdSize.ADAPTIVE_BANNER,
+                        position: BannerAdPosition.BOTTOM_CENTER, 
+                        margin: 0,
+                        isTesting: false
+                    });
+                } catch (e) { console.error("Lỗi Banner AdMob:", e); }
+            }
+        };
+        showAppBanner();
+
+        // Tự động xóa AdMob khi người dùng rời khỏi trang Tài nguyên
+        return () => {
+            if (Capacitor.isNativePlatform()) {
+                AdMob.hideBanner().catch(() => {});
+                AdMob.removeBanner().catch(() => {});
+            }
+        };
+    }, []);
+
     return (
         <Box sx={{ 
             background: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)', 
             minHeight: '100vh', 
-            pb: 10, 
+            pb: 12, // Tăng padding bottom để không bị AdMob che mất nội dung
             pt: { xs: 3, md: 6 } 
         }}>
             <Container maxWidth="lg">
                 
-                {/* TIÊU ĐỀ GRADIENT HIỆN ĐẠI */}
                 <Typography 
                     variant="h3" 
                     fontWeight="900" 
@@ -63,7 +93,6 @@ function PublicResourcesPage() {
                     TÀI NGUYÊN HỌC TẬP
                 </Typography>
 
-                {/* KHUNG CHỨA TOÀN BỘ NỘI DUNG (PAPER GIẢ TẠO ĐỘ SÂU) */}
                 <Paper 
                     elevation={0} 
                     sx={{ 
@@ -74,7 +103,6 @@ function PublicResourcesPage() {
                         overflow: 'hidden'
                     }}
                 >
-                    {/* 🟢 THANH MENU TAB DẠNG "PILL" (VIÊN THUỐC) */}
                     <Box sx={{ 
                         borderBottom: '1px solid rgba(0,0,0,0.05)', 
                         bgcolor: '#fafafa', 
@@ -86,7 +114,7 @@ function PublicResourcesPage() {
                             onChange={handleTabChange} 
                             variant="scrollable"
                             scrollButtons="auto"
-                            TabIndicatorProps={{ style: { display: 'none' } }} // Ẩn gạch đít mặc định
+                            TabIndicatorProps={{ style: { display: 'none' } }}
                             sx={{
                                 '& .MuiTab-root': {
                                     minHeight: '48px',
@@ -119,10 +147,8 @@ function PublicResourcesPage() {
 
                     <Box sx={{ px: { xs: 2, md: 5 }, pb: 5 }}>
                         
-                        {/* ==========================================
-                            TAB 0: GIỚI THIỆU
-                        ========================================== */}
                         <CustomTabPanel value={tabValue} index={0}>
+                            {/* ... NỘI DUNG TAB 0 GIỮ NGUYÊN NHƯ CŨ ... */}
                             <Grid container spacing={4} alignItems="center">
                                 <Grid item xs={12} md={8}>
                                     <Typography variant="h5" fontWeight="800" color="#4a148c" mb={2}>
@@ -154,15 +180,16 @@ function PublicResourcesPage() {
                                 </Grid>
                             </Grid>
                             
-                            <Box sx={{ mt: 5, textAlign: 'center' }}>
-                                <AdSenseBanner dataAdSlot="9564905223" format="auto" />
-                            </Box>
+                            {/* 🟢 CHỈ HIỆN ADSENSE NẾU LÀ TRÌNH DUYỆT WEB */}
+                            { !Capacitor.isNativePlatform() && (
+                                <Box sx={{ mt: 5, textAlign: 'center' }}>
+                                    <AdSenseBanner dataAdSlot="9564905223" format="auto" />
+                                </Box>
+                            )}
                         </CustomTabPanel>
 
-                        {/* ==========================================
-                            TAB 1: PHƯƠNG PHÁP HỌC (FLOATING CARDS)
-                        ========================================== */}
                         <CustomTabPanel value={tabValue} index={1}>
+                            {/* ... NỘI DUNG TAB 1 GIỮ NGUYÊN NHƯ CŨ ... */}
                             <Grid container spacing={4}>
                                 {[
                                     { tag: "Kỹ năng", color: "primary", title: "Mẹo giải nhanh trắc nghiệm Toán 12", desc: "Kỹ năng đọc đồ thị nhanh và bấm máy tính Casio fx-580VN X để giải quyết các bài toán tích phân, số phức chỉ trong 10 giây..." },
@@ -172,9 +199,7 @@ function PublicResourcesPage() {
                                     <Grid item xs={12} md={4} key={idx}>
                                         <Card 
                                             sx={{ 
-                                                height: '100%', 
-                                                borderRadius: 3, 
-                                                border: '1px solid #eee',
+                                                height: '100%', borderRadius: 3, border: '1px solid #eee',
                                                 boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
                                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                                 '&:hover': {
@@ -200,10 +225,8 @@ function PublicResourcesPage() {
                             </Grid>
                         </CustomTabPanel>
 
-                        {/* ==========================================
-                            TAB 2: TÀI LIỆU & PHẦN MỀM
-                        ========================================== */}
                         <CustomTabPanel value={tabValue} index={2}>
+                            {/* ... NỘI DUNG TAB 2 GIỮ NGUYÊN NHƯ CŨ ... */}
                             <Grid container spacing={4}>
                                 <Grid item xs={12} md={6}>
                                     <Typography variant="h5" fontWeight="800" color="#f57c00" mb={3} display="flex" alignItems="center" gap={1}>
@@ -243,10 +266,8 @@ function PublicResourcesPage() {
                             </Grid>
                         </CustomTabPanel>
 
-                        {/* ==========================================
-                            TAB 3: TIN TỨC GIÁO DỤC
-                        ========================================== */}
                         <CustomTabPanel value={tabValue} index={3}>
+                            {/* ... NỘI DUNG TAB 3 GIỮ NGUYÊN NHƯ CŨ ... */}
                             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
                                 {[
                                     { date: '10/04/2026', title: 'Bộ GD&ĐT công bố quy chế thi tốt nghiệp THPT 2025', snippet: 'Kỳ thi tốt nghiệp THPT năm 2025 sẽ có nhiều thay đổi đáng chú ý về định dạng câu hỏi trắc nghiệm, đặc biệt là sự xuất hiện của dạng câu hỏi Đúng/Sai...' },
@@ -267,16 +288,18 @@ function PublicResourcesPage() {
                                 ))}
                             </Box>
                             
-                            <Box sx={{ mt: 5, textAlign: 'center' }}>
-                                <AdSenseBanner dataAdSlot="9564905223" format="auto" />
-                            </Box>
+                            {/* 🟢 CHỈ HIỆN ADSENSE NẾU LÀ TRÌNH DUYỆT WEB */}
+                            { !Capacitor.isNativePlatform() && (
+                                <Box sx={{ mt: 5, textAlign: 'center' }}>
+                                    <AdSenseBanner dataAdSlot="9564905223" format="auto" />
+                                </Box>
+                            )}
                         </CustomTabPanel>
 
                     </Box>
                 </Paper>
             </Container>
             
-            {/* CSS CHUẨN CHO HIỆU ỨNG CHUYỂN ĐỘNG */}
             <style>{`
                 @keyframes fadeInUp {
                     0% { opacity: 0; transform: translateY(15px); }
