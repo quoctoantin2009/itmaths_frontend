@@ -34,6 +34,11 @@ import ExamResultPage from './pages/ExamResultPage';
 // 🔥 [MỚI] IMPORT TRANG CHÍNH SÁCH BẢO MẬT (Chỉ định rõ đuôi .jsx)
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx'; 
 
+// 🟢 [MỚI] IMPORT CÁC TRANG ĐẤU TRƯỜNG KAHOOT CLONE
+import ArenaEntry from './pages/ArenaEntry';
+import ArenaHost from './pages/ArenaHost';
+import ArenaPlayer from './pages/ArenaPlayer';
+
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('accessToken');
@@ -112,7 +117,11 @@ function App() {
     '/reset-password'
   ];
 
-  const shouldShowComponents = !hideComponentsPaths.includes(location.pathname) && !location.pathname.startsWith('/reset-password');
+  // 🟢 [CẬP NHẬT] Ẩn Navbar và Chatbot nếu đang ở trong Đấu trường (Để màn hình rộng như Kahoot)
+  const shouldShowComponents = 
+    !hideComponentsPaths.includes(location.pathname) && 
+    !location.pathname.startsWith('/reset-password') &&
+    !location.pathname.startsWith('/arena');
 
   return (
     <div className="App" style={{ 
@@ -127,101 +136,33 @@ function App() {
       
       <div style={{ flex: 1, width: '100%' }}> 
         <Routes>
-          {/* 🔥 [CẬP NHẬT] THAY ĐỔI ĐƯỜNG DẪN MỚI ĐỂ TRÁNH CACHE */}
           <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicyPage />} />
-
-          {/* Dự phòng cho link cũ (nếu muốn) */}
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
           {/* --- CÁC TRANG CẦN ĐĂNG NHẬP MỚI ĐƯỢC VÀO --- */}
-          <Route path="/" element={
-              <PrivateRoute>
-                  <HomePage />
-              </PrivateRoute>
-          } />
-          
-          <Route path="/history" element={
-              <PrivateRoute>
-                  <HistoryPage />
-              </PrivateRoute>
-          } />
+          <Route path="/" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+          <Route path="/history" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
+          <Route path="/history/:id" element={<PrivateRoute><ExamResultPage /></PrivateRoute>} />
+          <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+          <Route path="/classrooms" element={<PrivateRoute><ClassroomPage /></PrivateRoute>} />
+          <Route path="/classrooms/:id" element={<PrivateRoute><ClassDetailPage /></PrivateRoute>} />
+          <Route path="/topic/:topicId" element={<PrivateRoute><TopicDetailPage /></PrivateRoute>} />
+          <Route path="/grade/:gradeId" element={<PrivateRoute><GradePage /></PrivateRoute>} />
+          <Route path="/exams/:id" element={<PrivateRoute><ExamPage /></PrivateRoute>} />
+          <Route path="/exams" element={<PrivateRoute><ExamPage /></PrivateRoute>} />
+          <Route path="/video-player" element={<PrivateRoute><VideoPlayerPage /></PrivateRoute>} />
+          <Route path="/pdf-viewer" element={<PrivateRoute><PDFViewerPage /></PrivateRoute>} />
 
-          <Route path="/history/:id" element={
-              <PrivateRoute>
-                  <ExamResultPage />
-              </PrivateRoute>
-          } />
-
-          <Route path="/profile" element={
-              <PrivateRoute>
-                  <ProfilePage />
-              </PrivateRoute>
-          } />
-
-          <Route path="/classrooms" element={
-              <PrivateRoute>
-                  <ClassroomPage />
-              </PrivateRoute>
-          } />
-
-          <Route path="/classrooms/:id" element={
-              <PrivateRoute>
-                  <ClassDetailPage />
-              </PrivateRoute>
-          } />
-
-          <Route path="/topic/:topicId" element={
-              <PrivateRoute>
-                  <TopicDetailPage />
-              </PrivateRoute>
-          } />
-
-          <Route path="/grade/:gradeId" element={
-              <PrivateRoute>
-                  <GradePage />
-              </PrivateRoute>
-          } />
-          
-          <Route path="/exams/:id" element={
-              <PrivateRoute>
-                  <ExamPage />
-              </PrivateRoute>
-          } />
-          <Route path="/exams" element={
-              <PrivateRoute>
-                  <ExamPage />
-              </PrivateRoute>
-          } />
-
-          <Route path="/video-player" element={
-              <PrivateRoute>
-                  <VideoPlayerPage />
-              </PrivateRoute>
-          } />
-          <Route path="/pdf-viewer" element={
-              <PrivateRoute>
-                  <PDFViewerPage />
-              </PrivateRoute>
-          } />
+          {/* 🟢 NHÓM ROUTE ĐẤU TRƯỜNG (MỚI) */}
+          <Route path="/arena" element={<PrivateRoute><ArenaEntry /></PrivateRoute>} />
+          <Route path="/arena/host/:pin" element={<PrivateRoute><ArenaHost /></PrivateRoute>} />
+          <Route path="/arena/play/:pin" element={<PrivateRoute><ArenaPlayer /></PrivateRoute>} />
 
           {/* --- CÁC TRANG CÔNG KHAI --- */}
           <Route path="/tai-nguyen" element={<PublicResourcesPage />} />
-          <Route path="/login" element={
-              <PublicRoute>
-                  <LoginPage />
-              </PublicRoute>
-          } />
-          <Route path="/register" element={
-              <PublicRoute>
-                  <RegisterPage />
-              </PublicRoute>
-          } />
-          <Route path="/forgot-password" element={
-              <PublicRoute>
-                  <ForgotPasswordPage />
-              </PublicRoute>
-          } />
-          
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
 
           <Route path="*" element={<Navigate to="/" />} />
@@ -230,7 +171,7 @@ function App() {
 
       {shouldShowComponents && <AIChatWidget />}
 
-      {/* 🔥 GIAO DIỆN POPUP BẮT BUỘC CẬP NHẬT (NẰM DƯỚI CÙNG CỦA APP) */}
+      {/* 🔥 GIAO DIỆN POPUP BẮT BUỘC CẬP NHẬT */}
       <Dialog 
         open={showForceUpdate} 
         disableEscapeKeyDown 
@@ -246,7 +187,6 @@ function App() {
               </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
-              {/* Nút bấm mở thẳng cửa hàng CH Play */}
               <Button 
                   variant="contained" 
                   color="error" 
