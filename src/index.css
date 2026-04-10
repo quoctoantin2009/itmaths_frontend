@@ -45,8 +45,10 @@ img {
   height: auto;
   display: block;
 }
-html, body, #root {
-  height: 100%;
+
+/* Sửa lại thành thế này */
+html, body {
   margin: 0;
-  overflow: hidden; /* Chống cuộn trang trên điện thoại */
+  padding: 0;
+  min-height: 100vh;
 }
