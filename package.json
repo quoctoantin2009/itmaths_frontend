@@ -28,6 +28,7 @@
     "react-draggable": "^4.5.0",
     "react-latex-next": "^3.0.0",
     "react-markdown": "^10.1.0",
+    "react-mathjax2": "^0.0.2",
     "react-pdf": "^10.3.0",
     "react-player": "^3.4.0",
     "react-router-dom": "^7.12.0",
