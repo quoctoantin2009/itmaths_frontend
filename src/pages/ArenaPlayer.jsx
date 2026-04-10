@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
-import { Box, Typography, Button, Grid, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Button, Paper, CircularProgress } from '@mui/material';
 
 // 🟢 CẤU HÌNH TỰ ĐỘNG NHẬN DIỆN ĐƯỜNG DẪN WEBSOCKET
 const getWSUrl = () => {
@@ -27,7 +27,7 @@ function ArenaPlayer() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [hasAnswered, setHasAnswered] = useState(false);
     const [score, setScore] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(0); // ⏱️ Quản lý thời gian
+    const [timeLeft, setTimeLeft] = useState(0);
 
     // BÁO DANH KHI VÀO PHÒNG
     useEffect(() => {
@@ -53,7 +53,7 @@ function ArenaPlayer() {
                     setStatus('playing');
                     setCurrentQuestion(question);
                     setHasAnswered(false);
-                    setTimeLeft(time_limit || 15); // Nhận thời gian từ giáo viên
+                    setTimeLeft(time_limit || 15);
                     break;
                 case 'game_ended':
                     setStatus('podium');
@@ -64,7 +64,7 @@ function ArenaPlayer() {
         }
     }, [lastJsonMessage]);
 
-    // ĐỒNG HỒ ĐẾM NGƯỢC TRÊN ĐIỆN THOẠI
+    // ĐỒNG HỒ ĐẾM NGƯỢC
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0 && !hasAnswered) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -77,7 +77,7 @@ function ArenaPlayer() {
         if (hasAnswered) return;
         setHasAnswered(true);
 
-        const isCorrect = true; // Tạm thời mặc định đúng để test điểm
+        const isCorrect = true; // Test
         const earned = Math.floor(Math.random() * 200) + 800; 
         setScore(prev => prev + earned);
 
@@ -96,7 +96,7 @@ function ArenaPlayer() {
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa', p: 2, display: 'flex', flexDirection: 'column' }}>
             
-            {/* THANH TOP BAR: HIỆN ĐIỂM VÀ ĐỒNG HỒ */}
+            {/* THANH TOP BAR */}
             <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: 3, boxShadow: 3 }}>
                 <Typography variant="subtitle1" fontWeight="bold" color="#333">{playerName}</Typography>
                 
@@ -109,7 +109,7 @@ function ArenaPlayer() {
                 <Typography variant="subtitle1" fontWeight="900" color="primary">{score} đ</Typography>
             </Paper>
 
-            {/* TRẠNG THÁI 1: CHỜ GIÁO VIÊN */}
+            {/* TRẠNG THÁI: CHỜ */}
             {status === 'waiting' && (
                 <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
                     <CircularProgress size={60} thickness={5} sx={{ mb: 4, color: '#333' }} />
@@ -119,19 +119,18 @@ function ArenaPlayer() {
                 </Box>
             )}
 
-            {/* TRẠNG THÁI 1.5: CHUẨN BỊ */}
+            {/* TRẠNG THÁI: CHUẨN BỊ */}
             {status === 'get_ready' && (
                 <Box flex={1} display="flex" justifyContent="center" alignItems="center">
-                    <Typography variant="h3" fontWeight="900" color="#333" className="animate-pulse">
+                    <Typography variant="h3" fontWeight="900" color="#333">
                         CHUẨN BỊ...
                     </Typography>
                 </Box>
             )}
 
-            {/* TRẠNG THÁI 2: ĐANG HIỆN NỘI DUNG VÀ NÚT BẤM */}
+            {/* TRẠNG THÁI: ĐANG CHƠI - SẮP XẾP DỌC */}
             {status === 'playing' && currentQuestion && (
                 <Box flex={1} display="flex" flexDirection="column">
-                    {/* Hiển thị câu hỏi nếu có */}
                     <Paper sx={{ p: 2, mb: 2, borderRadius: 2, minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                          <Typography variant="h6" fontWeight="bold" textAlign="center">
                             {currentQuestion.text || "Hãy chọn đáp án đúng!"}
@@ -145,42 +144,67 @@ function ArenaPlayer() {
                             </Typography>
                         </Box>
                     ) : (
-                        <Grid container spacing={1.5} sx={{ flex: 1 }}>
+                        // 🟢 THAY ĐỔI: Dùng Grid với container và item xs={12} để xếp dọc
+                        <Box display="flex" flexDirection="column" gap={1.5} flex={1}>
                             {currentQuestion.options && currentQuestion.options.map((opt, idx) => (
-                                <Grid item xs={6} key={idx} sx={{ display: 'flex' }}>
-                                    <Button
-                                        fullWidth
-                                        variant="contained"
-                                        onClick={() => handleAnswer(idx)}
-                                        sx={{
-                                            bgcolor: colorPalette[idx],
-                                            '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' },
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            borderRadius: 3,
-                                            textTransform: 'none',
-                                            boxShadow: '0 5px 0 rgba(0,0,0,0.2)'
-                                        }}
-                                    >
-                                        <Typography variant="h4" fontWeight="bold" sx={{ mb: 0.5 }}>{shapes[idx]}</Typography>
-                                        <Typography variant="body2" fontWeight="bold">
-                                            {String.fromCharCode(65 + idx)}. {opt}
-                                        </Typography>
-                                    </Button>
-                                </Grid>
+                                <Button
+                                    key={idx}
+                                    fullWidth
+                                    variant="contained"
+                                    onClick={() => handleAnswer(idx)}
+                                    sx={{
+                                        bgcolor: colorPalette[idx],
+                                        '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' },
+                                        display: 'flex',
+                                        flexDirection: 'row', // Xếp ngang hình và chữ trong nút
+                                        justifyContent: 'flex-start', // Căn trái nội dung
+                                        alignItems: 'center',
+                                        borderRadius: 3,
+                                        textTransform: 'none',
+                                        boxShadow: '0 5px 0 rgba(0,0,0,0.2)',
+                                        p: 2, // Tăng padding để nút to hơn
+                                        gap: 2 // Khoảng cách giữa hình và chữ
+                                    }}
+                                >
+                                    <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
+                                    <Typography variant="body1" fontWeight="bold" textAlign="left">
+                                        {String.fromCharCode(65 + idx)}. {opt}
+                                    </Typography>
+                                </Button>
                             ))}
-                        </Grid>
+                        </Box>
                     )}
                 </Box>
             )}
 
-            {/* TRẠNG THÁI 3: KẾT THÚC GAME */}
+            {/* TRẠNG THÁI: KẾT THÚC - CẬP NHẬT NÚT QUAY VỀ */}
             {status === 'podium' && (
-                <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
-                    <Typography variant="h4" fontWeight="900" mb={1} color="#333">KẾT THÚC!</Typography>
-                    <Typography variant="h6" color="#666" textAlign="center" mb={4}>Xem thứ hạng trên Tivi.</Typography>
-                    <Button variant="contained" size="large" sx={{ bgcolor: '#333', borderRadius: 2 }} onClick={() => navigate('/arena')}>
-                        QUAY VỀ
+                <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center" gap={3}>
+                    <Typography variant="h3" fontWeight="900" color="#333">KẾT THÚC!</Typography>
+                    <Typography variant="body1" color="#666" textAlign="center">
+                        Xem thứ hạng của bạn trên màn hình Tivi.
+                    </Typography>
+                    
+                    {/* 🟢 CẬP NHẬT: Nút Quay Về theo giao diện mới */}
+                    <Button 
+                        variant="contained" 
+                        size="large" 
+                        onClick={() => navigate('/arena')}
+                        sx={{ 
+                            bgcolor: '#2d3436', // Màu xám đen đậm
+                            color: '#fff',
+                            fontWeight: 'bold',
+                            textTransform: 'none', // Không viết hoa hết
+                            borderRadius: 2, // Bo góc nhẹ
+                            px: 4, // Tăng chiều rộng nút
+                            py: 1.5,
+                            '&:hover': {
+                                bgcolor: '#1e272e' // Màu tối hơn khi hover
+                            },
+                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)' // Đổ bóng nhẹ
+                        }}
+                    >
+                        Quay về
                     </Button>
                 </Box>
             )}
