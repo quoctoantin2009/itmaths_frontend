@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Box, Typography, TextField, Button, Paper, Snackbar, Alert } from '@mui/material';
+import { 
+    Container, Box, Typography, TextField, Button, Paper, 
+    Snackbar, Alert, Dialog, DialogTitle, DialogContent, 
+    DialogActions, FormControl, InputLabel, Select, MenuItem, CircularProgress
+} from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import axiosClient from '../services/axiosClient';
@@ -11,8 +15,15 @@ function ArenaEntry() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    // 🟢 THÊM STATE CHO THÔNG BÁO ĐẸP MẮT (SNACKBAR)
+    // State cho thông báo Toast
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
+
+    // 🟢 State cho Dialog Tạo Phòng
+    const [openCreateModal, setOpenCreateModal] = useState(false);
+    const [availableExams, setAvailableExams] = useState([]);
+    const [selectedExam, setSelectedExam] = useState('');
+    const [arenaTitle, setArenaTitle] = useState('Đấu trường ITMaths');
+    const [loadingExams, setLoadingExams] = useState(false);
 
     const showToast = (message, type = 'error') => {
         setToast({ open: true, message, type });
@@ -39,27 +50,41 @@ function ArenaEntry() {
         }
     };
 
-    const handleCreateArena = async () => {
+    // 🟢 Mở Modal và tải danh sách đề thi
+    const handleOpenCreateModal = async () => {
+        setOpenCreateModal(true);
+        setLoadingExams(true);
+        try {
+            const res = await axiosClient.get('/arena/available-exams/');
+            setAvailableExams(res.data);
+        } catch (err) {
+            showToast('Lỗi khi tải danh sách đề thi. Vui lòng thử lại sau.', 'error');
+        } finally {
+            setLoadingExams(false);
+        }
+    };
+
+    // 🟢 Gửi API Tạo phòng thực sự
+    const submitCreateArena = async () => {
+        if (!selectedExam) {
+            showToast('Vui lòng chọn một đề thi để tiếp tục!', 'warning');
+            return;
+        }
+
         setLoading(true);
         try {
             const res = await axiosClient.post('/arena/create/', { 
-                title: 'Đấu trường ITMaths Sôi Động',
-                questions: [] 
+                title: arenaTitle,
+                exam_id: selectedExam // Gửi ID đề thi lên Server
             });
             navigate(`/arena/host/${res.data.pin}`);
         } catch (err) {
             console.error("Lỗi tạo phòng:", err.response || err);
-            
-            // 🟢 THAY THẾ ALERT() BẰNG THÔNG BÁO THÔNG MINH BẮT ĐÚNG BỆNH
-            let errorMsg = 'Có lỗi xảy ra khi tạo phòng!';
-            if (err.response?.status === 500) {
-                errorMsg = 'Lỗi máy chủ (500): Database chưa được tạo bảng Đấu trường!';
-            } else if (err.response?.status === 404) {
-                errorMsg = 'Lỗi (404): Sai đường dẫn API!';
-            }
+            let errorMsg = err.response?.data?.error || 'Có lỗi xảy ra khi tạo phòng!';
             showToast(errorMsg);
         } finally {
             setLoading(false);
+            setOpenCreateModal(false);
         }
     };
 
@@ -107,7 +132,7 @@ function ArenaEntry() {
                     <Button 
                         variant="outlined" 
                         startIcon={<AddCircleOutlineIcon />}
-                        onClick={handleCreateArena}
+                        onClick={handleOpenCreateModal} // Gọi hàm mở Modal
                         disabled={loading}
                         sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', borderRadius: 5, '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
                     >
@@ -116,7 +141,54 @@ function ArenaEntry() {
                 </Box>
             </Container>
 
-            {/* 🟢 GIAO DIỆN POPUP BÁO LỖI HIỆN ĐẠI TỪ MUI */}
+            {/* 🟢 DIALOG TẠO PHÒNG */}
+            <Dialog open={openCreateModal} onClose={() => setOpenCreateModal(false)} fullWidth maxWidth="sm">
+                <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold' }}>
+                    Thiết lập Phòng Đấu Trường
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
+                    <TextField
+                        fullWidth
+                        label="Tên Trận Đấu"
+                        value={arenaTitle}
+                        onChange={(e) => setArenaTitle(e.target.value)}
+                        sx={{ mb: 3, mt: 1 }}
+                    />
+
+                    {loadingExams ? (
+                        <Box display="flex" justifyContent="center" p={3}><CircularProgress /></Box>
+                    ) : (
+                        <FormControl fullWidth>
+                            <InputLabel id="exam-select-label">Chọn Đề Thi Nguồn</InputLabel>
+                            <Select
+                                labelId="exam-select-label"
+                                value={selectedExam}
+                                label="Chọn Đề Thi Nguồn"
+                                onChange={(e) => setSelectedExam(e.target.value)}
+                            >
+                                <MenuItem value=""><em>-- Vui lòng chọn một đề thi --</em></MenuItem>
+                                {availableExams.map((exam) => (
+                                    <MenuItem key={exam.id} value={exam.id}>
+                                        {exam.title} {exam.is_public ? "(Công khai)" : "(Của tôi)"}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+                    <Button onClick={() => setOpenCreateModal(false)} color="inherit">Hủy bỏ</Button>
+                    <Button 
+                        onClick={submitCreateArena} 
+                        variant="contained" 
+                        sx={{ bgcolor: '#4a148c', '&:hover': { bgcolor: '#380b6b' } }}
+                        disabled={loading || !selectedExam}
+                    >
+                        {loading ? 'Đang tạo...' : 'Xác Nhận Tạo'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             <Snackbar 
                 open={toast.open} 
                 autoHideDuration={4000} 
