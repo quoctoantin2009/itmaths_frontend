@@ -9,11 +9,10 @@ import SaveIcon from '@mui/icons-material/Save';
 import HistoryIcon from '@mui/icons-material/History';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import axios from 'axios'; // ✅ Giữ nguyên axios thường theo code cũ
+import axios from 'axios'; 
 
-const API_BASE_URL = "https://api.itmaths.vn"; // ✅ Giữ nguyên URL cũ
+const API_BASE_URL = "https://api.itmaths.vn"; 
 
-// --- DANH SÁCH 63 TỈNH THÀNH (Dữ liệu tĩnh giúp web chạy nhanh) ---
 const VIETNAM_PROVINCES = [
     "An Giang", "Bà Rịa - Vũng Tàu", "Bắc Giang", "Bắc Kạn", "Bạc Liêu", "Bắc Ninh", 
     "Bến Tre", "Bình Định", "Bình Dương", "Bình Phước", "Bình Thuận", "Cà Mau", 
@@ -38,7 +37,6 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
     
     const [openConfirmDelete, setOpenConfirmDelete] = useState(false);
 
-    // [CẬP NHẬT] Thêm trường 'province' vào state
     const [profile, setProfile] = useState({
         username: '',
         email: '',
@@ -48,7 +46,7 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
         occupation: 'student',
         school_name: '',
         actual_class: '',
-        province: '' // ✅ Thêm trường mới
+        province: '' 
     });
 
     const getAuthHeader = () => {
@@ -80,7 +78,6 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                 occupation: data.profile_occupation || data.occupation || 'student',
                 school_name: data.profile_school_name || data.school_name || '',
                 actual_class: data.profile_actual_class || data.actual_class || '',
-                // ✅ Logic map dữ liệu tỉnh: ưu tiên profile_province
                 province: data.profile_province || data.province || '' 
             });
         } catch (error) {
@@ -102,7 +99,7 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
             occupation: profile.occupation,
             school_name: profile.school_name,
             actual_class: profile.actual_class,
-            province: profile.province // ✅ Gửi tỉnh lên server
+            province: profile.province 
         };
 
         try {
@@ -111,6 +108,11 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
             });
             setMessage({ type: 'success', text: 'Đã lưu hồ sơ thành công!' });
             
+            // 🟢 [QUAN TRỌNG] Cập nhật bộ nhớ cục bộ để Đấu trường lấy được Họ Tên
+            localStorage.setItem('first_name', profile.first_name || '');
+            localStorage.setItem('last_name', profile.last_name || '');
+
+            // Vẫn giữ lại dòng cập nhật username cũ cho an toàn với các trang khác
             const fullName = (profile.last_name + ' ' + profile.first_name).trim();
             if (fullName) localStorage.setItem('username', fullName);
             
@@ -187,7 +189,6 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
 
                             <TextField label="Email" name="email" value={profile.email} onChange={handleChange} fullWidth size="small" />
                             
-                            {/* ✅ [SỬA ĐỔI] Chia cột cho Số điện thoại và Tỉnh */}
                             <Grid container spacing={2}>
                                 <Grid item xs={6}>
                                     <TextField 
@@ -208,7 +209,7 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                                         onChange={handleChange}
                                         fullWidth
                                         size="small"
-                                        SelectProps={{ MenuProps: { style: { maxHeight: 300 } } }} // Giới hạn chiều cao menu
+                                        SelectProps={{ MenuProps: { style: { maxHeight: 300 } } }} 
                                     >
                                         <MenuItem value=""><em>-- Chọn --</em></MenuItem>
                                         {VIETNAM_PROVINCES.map((prov) => (
