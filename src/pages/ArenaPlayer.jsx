@@ -7,15 +7,17 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 
-// IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
+// 🟢 ĐÃ SỬA LẠI HÀM KẾT NỐI WEBSOCKET
 const getWSUrl = () => {
-    const isLocal = window.location.hostname === 'localhost';
-    const backendHost = isLocal ? '127.0.0.1:8000' : 'api.itmaths.vn';
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${protocol}://${backendHost}/ws/arena/`;
+    // Nếu đang chạy lệnh "npm run dev" trên máy tính
+    if (import.meta.env && import.meta.env.DEV) {
+        return 'ws://127.0.0.1:8000/ws/arena/';
+    }
+    // Khi đã build ra App điện thoại hoặc đưa lên Web itmaths.vn
+    return 'wss://api.itmaths.vn/ws/arena/';
 };
 
 const latexDelimiters = [
@@ -25,22 +27,18 @@ const latexDelimiters = [
     {left: '\\[', right: '\\]', display: true},
 ];
 
-// 🟢 BỘ LỌC XỬ LÝ IN ĐẬM / IN NGHIÊNG THÔNG MINH
 const formatLatexText = (text) => {
     if (text === null || text === undefined) return "Hãy chọn đáp án!";
-    // 1. Tự động sửa lỗi gõ nhầm \textif thành \textit
     let res = String(text).replace(/\\textif{/g, '\\textit{');
     
-    // 2. Tách chuỗi để tránh làm hỏng các công thức Toán đã có sẵn
     const parts = res.split(/(\$\$?|\\\[|\\\]|\\\(|\\\))/); 
     let inMath = false;
     
     for (let i = 0; i < parts.length; i++) {
         const p = parts[i];
         if (['$', '$$', '\\[', '\\]', '\\(', '\\)'].includes(p)) {
-            inMath = !inMath; // Đang ở trong công thức toán
+            inMath = !inMath; 
         } else if (!inMath) {
-            // Nếu là Text bình thường, bọc $ $ cho các lệnh in đậm/in nghiêng
             parts[i] = p.replace(/\\textbf{([^}]+)}/g, '$\\textbf{$1}$');
             parts[i] = parts[i].replace(/\\textit{([^}]+)}/g, '$\\textit{$1}$');
         }
@@ -159,7 +157,6 @@ function ArenaPlayer() {
 
             {status === 'playing' && currentQuestion && (
                 <Box flex={1} display="flex" flexDirection="column" p={2} gap={2}>
-                    {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐỀ BÀI */}
                     <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                         <Typography variant="body1" fontWeight="bold" fontSize="1.2rem" sx={{ lineHeight: 1.5 }}>
                             <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.text)}</Latex>
@@ -175,7 +172,6 @@ function ArenaPlayer() {
                                 >
                                     <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
                                     <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left">
-                                        {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN */}
                                         {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                     </Typography>
                                 </Button>
@@ -186,7 +182,6 @@ function ArenaPlayer() {
                                     {currentQuestion.options.map((opt, idx) => (
                                         <Paper key={idx} sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #3498db' }}>
                                             <Typography variant="body1" mb={1} fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                                                {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN */}
                                                 Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                             </Typography>
                                             <FormControl component="fieldset">
