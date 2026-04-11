@@ -11,6 +11,9 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 
+// 🟢 IMPORT THƯ VIỆN QR CODE
+import QRCode from 'react-qr-code';
+
 // IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
@@ -32,7 +35,7 @@ const latexDelimiters = [
     {left: '\\[', right: '\\]', display: true},
 ];
 
-// 🟢 BỘ LỌC XỬ LÝ IN ĐẬM / IN NGHIÊNG DÀNH CHO HOST
+// BỘ LỌC XỬ LÝ IN ĐẬM / IN NGHIÊNG DÀNH CHO HOST
 const formatLatexText = (text) => {
     if (text === null || text === undefined) return "";
     let res = String(text).replace(/\\textif{/g, '\\textit{');
@@ -161,15 +164,46 @@ function ArenaHost() {
                 </Box>
             </Box>
 
+            {/* 🟢 MÀN HÌNH CHỜ (LOBBY) CÓ TÍCH HỢP QR CODE */}
             {status === 'waiting' && (
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
-                    <Paper sx={{ p: 4, bgcolor: '#f1c40f', borderRadius: 4, mb: 5, minWidth: '300px' }}>
-                        <Typography variant="h6" color="#333" fontWeight="bold">Mã PIN Tham Gia</Typography>
-                        <Typography variant="h1" fontWeight="900" color="black" sx={{ letterSpacing: '10px' }}>{pin}</Typography>
-                    </Paper>
+                    
+                    <Grid container spacing={4} justifyContent="center" alignItems="center" mb={5} maxWidth="800px">
+                        {/* Cột 1: Mã PIN */}
+                        <Grid item xs={12} md={6}>
+                            <Paper sx={{ p: 4, bgcolor: '#f1c40f', borderRadius: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                <Typography variant="h5" color="#333" fontWeight="bold" mb={2}>Mã PIN Tham Gia</Typography>
+                                <Typography variant="h1" fontWeight="900" color="black" sx={{ letterSpacing: '10px', fontSize: { xs: '4rem', md: '5rem' } }}>
+                                    {pin}
+                                </Typography>
+                                <Typography variant="body1" color="#333" mt={2} fontWeight="bold">
+                                    Truy cập: itmaths.vn
+                                </Typography>
+                            </Paper>
+                        </Grid>
+
+                        {/* Cột 2: Mã QR */}
+                        <Grid item xs={12} md={6}>
+                            <Paper sx={{ p: 3, bgcolor: 'white', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
+                                <Typography variant="h6" color="#333" fontWeight="bold" mb={2}>Quét để vào ngay</Typography>
+                                <Box sx={{ bgcolor: 'white', p: 1, borderRadius: 2 }}>
+                                    <QRCode 
+                                        value={`https://itmaths.vn/#/arena/play/${pin}`} 
+                                        size={180} 
+                                        level="H" 
+                                    />
+                                </Box>
+                                <Typography variant="body2" color="gray" mt={2}>
+                                    (Hỗ trợ App & Trình duyệt Web)
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                    </Grid>
+
                     <Button variant="contained" color="success" size="large" startIcon={<PlayCircleFilledWhiteIcon />} onClick={handleStartGame} disabled={players.length === 0} sx={{ fontSize: '1.5rem', py: 2, px: 5, borderRadius: 10, boxShadow: '0 0 20px rgba(46, 204, 113, 0.6)' }}>
                         BẮT ĐẦU TRẬN ĐẤU
                     </Button>
+
                     <Grid container spacing={2} mt={5} justifyContent="center" maxWidth="800px">
                         {players.map((p, idx) => (
                             <Grid item key={idx}><Typography variant="h5" sx={{ bgcolor: 'rgba(255,255,255,0.1)', px: 3, py: 1, borderRadius: 2, fontWeight: 'bold' }}>{p.name}</Typography></Grid>
@@ -189,7 +223,6 @@ function ArenaHost() {
                     
                     <Paper sx={{ p: 4, mb: 4, mt: 2, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                            {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐỀ BÀI TIVI */}
                             <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.text)}</Latex>
                         </Typography>
                     </Paper>
@@ -201,7 +234,6 @@ function ArenaHost() {
                                     <Paper key={idx} sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, minHeight: '100px' }}>
                                         <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
                                         <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word' }}>
-                                            {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN TIVI */}
                                             {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                         </Typography>
                                     </Paper>
@@ -214,7 +246,6 @@ function ArenaHost() {
                                 {currentQuestion.options.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 2, px: 4, borderRadius: 2, borderLeft: '10px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1 }}>
-                                            {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN TIVI */}
                                             Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                         </Typography>
                                         
