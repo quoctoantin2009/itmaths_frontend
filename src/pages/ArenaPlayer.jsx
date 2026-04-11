@@ -7,6 +7,10 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 
+// 🟢 1. IMPORT CÔNG THỨC TOÁN HỌC
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
+
 const getWSUrl = () => {
     const isLocal = window.location.hostname === 'localhost';
     const backendHost = isLocal ? '127.0.0.1:8000' : 'api.itmaths.vn';
@@ -29,7 +33,6 @@ function ArenaPlayer() {
     const playerName = getDisplayName();
 
     const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(`${getWSUrl()}${pin}/`, {
-        onOpen: () => console.log('✅ Kết nối Đấu trường'),
         shouldReconnect: () => true,
     });
 
@@ -120,8 +123,6 @@ function ArenaPlayer() {
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa', display: 'flex', flexDirection: 'column' }}>
-            
-            {/* THANH TRẠNG THÁI */}
             <Box sx={{ bgcolor: 'white', p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
                 <Typography variant="subtitle1" fontWeight="bold" color="#2c3e50">{playerName}</Typography>
                 {status === 'playing' && (
@@ -134,100 +135,70 @@ function ArenaPlayer() {
                 </Box>
             </Box>
 
-            {/* CÁC MÀN HÌNH CHỜ */}
             {status === 'waiting' && (
                 <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
                     <CircularProgress size={60} sx={{ color: '#4a148c', mb: 3 }} />
                     <Typography variant="h5" color="#4a148c" fontWeight="bold">Bạn đã vào phòng!</Typography>
-                    <Typography color="textSecondary">Nhìn lên màn hình của Thầy/Cô nhé...</Typography>
                 </Box>
             )}
+            
             {status === 'get_ready' && (
                 <Box flex={1} display="flex" justifyContent="center" alignItems="center" bgcolor="#3498db">
                     <Typography variant="h3" fontWeight="900" color="white">CHUẨN BỊ...</Typography>
                 </Box>
             )}
 
-            {/* MÀN HÌNH ĐANG CHƠI CHÍNH */}
             {status === 'playing' && currentQuestion && (
                 <Box flex={1} display="flex" flexDirection="column" p={2} gap={2}>
                     
+                    {/* 🟢 HIỂN THỊ ĐỀ BÀI BẰNG CÔNG THỨC */}
                     <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-                        <Typography variant="body1" fontWeight="bold" fontSize="1.2rem">
-                            {currentQuestion.text || "Hãy chọn đáp án!"}
+                        <Typography variant="body1" fontWeight="bold" fontSize="1.2rem" sx={{ lineHeight: 1.5 }}>
+                            <Latex>{currentQuestion.text || "Hãy chọn đáp án!"}</Latex>
                         </Typography>
                     </Paper>
 
                     {!hasAnswered ? (
                         <Box flex={1} display="flex" flexDirection="column" gap={2}>
                             
-                            {/* 🟢 DẠNG 1: TRẮC NGHIỆM 4 ĐÁP ÁN (MCQ) */}
                             {currentQuestion.type === 'MCQ' && currentQuestion.options.map((opt, idx) => (
                                 <Button
-                                    key={idx} fullWidth variant="contained"
-                                    onClick={() => handleMCQAnswer(idx)}
-                                    sx={{
-                                        bgcolor: colorPalette[idx],
-                                        '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' },
-                                        justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none'
-                                    }}
+                                    key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)}
+                                    sx={{ bgcolor: colorPalette[idx], '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' }, justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none' }}
                                 >
                                     <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
                                     <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left">
-                                        {String.fromCharCode(65 + idx)}. {opt}
+                                        {String.fromCharCode(65 + idx)}. <Latex>{opt}</Latex>
                                     </Typography>
                                 </Button>
                             ))}
 
-                            {/* 🟢 DẠNG 2: ĐÚNG / SAI (TF) */}
                             {currentQuestion.type === 'TF' && (
                                 <Box display="flex" flexDirection="column" gap={1.5}>
                                     {currentQuestion.options.map((opt, idx) => (
                                         <Paper key={idx} sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #3498db' }}>
-                                            <Typography variant="body1" mb={1} fontWeight="bold">
-                                                Ý {String.fromCharCode(65 + idx)}: {opt}
+                                            <Typography variant="body1" mb={1} fontWeight="bold" sx={{ lineHeight: 1.5 }}>
+                                                Ý {String.fromCharCode(65 + idx)}: <Latex>{opt}</Latex>
                                             </Typography>
                                             <FormControl component="fieldset">
-                                                <RadioGroup 
-                                                    row 
-                                                    value={tfAnswers[idx] || ''} 
-                                                    onChange={(e) => setTfAnswers({...tfAnswers, [idx]: e.target.value})}
-                                                >
+                                                <RadioGroup row value={tfAnswers[idx] || ''} onChange={(e) => setTfAnswers({...tfAnswers, [idx]: e.target.value})}>
                                                     <FormControlLabel value="T" control={<Radio color="success"/>} label={<Typography color="green" fontWeight="bold">Đúng</Typography>} />
                                                     <FormControlLabel value="F" control={<Radio color="error"/>} label={<Typography color="red" fontWeight="bold">Sai</Typography>} />
                                                 </RadioGroup>
                                             </FormControl>
                                         </Paper>
                                     ))}
-                                    <Button 
-                                        variant="contained" size="large" endIcon={<SendIcon />}
-                                        onClick={handleTFSubmit}
-                                        sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}
-                                    >
+                                    <Button variant="contained" size="large" endIcon={<SendIcon />} onClick={handleTFSubmit} sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}>
                                         CHỐT ĐÁP ÁN ĐÚNG/SAI
                                     </Button>
                                 </Box>
                             )}
 
-                            {/* 🟢 DẠNG 3: TRẢ LỜI NGẮN (SHORT) */}
                             {currentQuestion.type === 'SHORT' && (
                                 <Paper sx={{ p: 4, borderRadius: 3, textAlign: 'center', mt: 2, border: '2px solid #27ae60' }}>
                                     <Typography variant="h6" mb={2} color="textSecondary">Nhập kết quả của bạn:</Typography>
-                                    <TextField 
-                                        fullWidth variant="outlined" placeholder="VD: 12.5 hoặc -5"
-                                        value={shortAnswer}
-                                        onChange={(e) => setShortAnswer(e.target.value)}
-                                        inputProps={{ 
-                                            style: { textAlign: 'center', fontSize: '2rem', fontWeight: 'bold' },
-                                            inputMode: 'numeric' // Bật bàn phím số
-                                        }}
-                                        sx={{ mb: 3 }}
-                                    />
-                                    <Button 
-                                        fullWidth variant="contained" size="large" endIcon={<SendIcon />}
-                                        onClick={handleShortAnswerSubmit}
-                                        sx={{ py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#27ae60' }}
-                                    >
+                                    <TextField fullWidth variant="outlined" placeholder="VD: 12.5 hoặc -5" value={shortAnswer} onChange={(e) => setShortAnswer(e.target.value)} inputProps={{ style: { textAlign: 'center', fontSize: '2rem', fontWeight: 'bold' }, inputMode: 'numeric' }} sx={{ mb: 3 }} />
+                                    <Button fullWidth variant="contained" size="large" endIcon={<SendIcon />} onClick={handleShortAnswerSubmit} sx={{ py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#27ae60' }}>
                                         GỬI KẾT QUẢ
                                     </Button>
                                 </Paper>
@@ -238,13 +209,11 @@ function ArenaPlayer() {
                         <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 3, mt: 5, bgcolor: '#ecf0f1' }}>
                             <Typography variant="h4" mb={2}>⏳</Typography>
                             <Typography variant="h5" color="#7f8c8d" fontWeight="bold">Đã ghi nhận đáp án!</Typography>
-                            <Typography variant="body1" mt={2}>Hãy chờ các bạn khác nhé...</Typography>
                         </Paper>
                     )}
                 </Box>
             )}
 
-            {/* MÀN HÌNH PODIUM KẾT THÚC */}
             {status === 'podium' && (
                 <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center" gap={3} bgcolor="#2c3e50" color="white">
                     <Typography variant="h3" fontWeight="900" color="#f1c40f">KẾT THÚC!</Typography>
