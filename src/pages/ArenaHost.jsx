@@ -32,6 +32,26 @@ const latexDelimiters = [
     {left: '\\[', right: '\\]', display: true},
 ];
 
+// 🟢 BỘ LỌC XỬ LÝ IN ĐẬM / IN NGHIÊNG DÀNH CHO HOST
+const formatLatexText = (text) => {
+    if (text === null || text === undefined) return "";
+    let res = String(text).replace(/\\textif{/g, '\\textit{');
+    
+    const parts = res.split(/(\$\$?|\\\[|\\\]|\\\(|\\\))/); 
+    let inMath = false;
+    
+    for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        if (['$', '$$', '\\[', '\\]', '\\(', '\\)'].includes(p)) {
+            inMath = !inMath;
+        } else if (!inMath) {
+            parts[i] = p.replace(/\\textbf{([^}]+)}/g, '$\\textbf{$1}$');
+            parts[i] = parts[i].replace(/\\textit{([^}]+)}/g, '$\\textit{$1}$');
+        }
+    }
+    return parts.join('');
+};
+
 function ArenaHost() {
     const { pin } = useParams();
     const navigate = useNavigate();
@@ -43,11 +63,9 @@ function ArenaHost() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
     
-    // STATE CHO ĐỒNG HỒ ĐẾM NGƯỢC
     const [timeLeft, setTimeLeft] = useState(0);
     const [hostTfAnswers, setHostTfAnswers] = useState({});
 
-    // HỆ THỐNG ÂM THANH
     const [isMuted, setIsMuted] = useState(true); 
     const audioRef = useRef(new Audio()); 
 
@@ -79,7 +97,6 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // ĐỒNG HỒ ĐẾM NGƯỢC VÀ AUTO-NEXT
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -92,7 +109,6 @@ function ArenaHost() {
         }
     }, [timeLeft, status, currentQuestion, sendJsonMessage]);
 
-    // XỬ LÝ NHẠC NỀN
     useEffect(() => {
         let audioFile = '';
         if (status === 'waiting') audioFile = '/sound/lobby.mp3';
@@ -102,10 +118,7 @@ function ArenaHost() {
         if (audioFile) {
             audioRef.current.src = audioFile;
             audioRef.current.loop = (status !== 'podium');
-            
-            if (!isMuted) {
-                audioRef.current.play().catch(e => console.log("Lỗi phát nhạc:", e));
-            }
+            if (!isMuted) audioRef.current.play().catch(e => console.log(e));
         } else {
             audioRef.current.pause();
         }
@@ -115,39 +128,28 @@ function ArenaHost() {
         const newMutedState = !isMuted;
         setIsMuted(newMutedState);
         audioRef.current.muted = newMutedState;
-        
         if (!newMutedState && audioRef.current.paused && audioRef.current.src) {
-            audioRef.current.play().catch(e => console.log("Lỗi phát nhạc:", e));
+            audioRef.current.play().catch(e => console.log(e));
         }
     };
 
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) audioRef.current.pause();
-        };
-    }, []);
+    useEffect(() => { return () => { if (audioRef.current) audioRef.current.pause(); }; }, []);
 
     const handleStartGame = () => {
         sendJsonMessage({ action: 'broadcast', event: 'game_started' }); 
-        setTimeout(() => {
-            sendJsonMessage({ action: 'host_next_question' });
-        }, 3000);
+        setTimeout(() => { sendJsonMessage({ action: 'host_next_question' }); }, 3000);
     };
 
     const handleNextQuestion = () => sendJsonMessage({ action: 'host_next_question' });
 
-    // 🟢 THUẬT TOÁN ĐO LƯỜNG ĐỘ DÀI ĐÁP ÁN (Ngưỡng 45 ký tự)
     const isLongTextMCQ = currentQuestion?.type === 'MCQ' 
         ? currentQuestion.options.some(opt => opt.length > 45) 
         : false;
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#2c3e50', color: 'white', p: 3, display: 'flex', flexDirection: 'column' }}>
-            
-            {/* THANH TOP BAR */}
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
                 <Typography variant="h5" fontWeight="bold">ITMaths Host</Typography>
-                
                 <Box display="flex" alignItems="center" gap={2}>
                     <Typography variant="body2" color={isMuted ? 'gray' : '#2ecc71'}>
                         {isMuted ? 'Chạm để Bật Nhạc ➔' : 'Đang phát nhạc'}
@@ -159,87 +161,61 @@ function ArenaHost() {
                 </Box>
             </Box>
 
-            {/* MÀN HÌNH CHỜ (LOBBY) */}
             {status === 'waiting' && (
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
                     <Paper sx={{ p: 4, bgcolor: '#f1c40f', borderRadius: 4, mb: 5, minWidth: '300px' }}>
                         <Typography variant="h6" color="#333" fontWeight="bold">Mã PIN Tham Gia</Typography>
                         <Typography variant="h1" fontWeight="900" color="black" sx={{ letterSpacing: '10px' }}>{pin}</Typography>
                     </Paper>
-
-                    <Button 
-                        variant="contained" color="success" size="large" 
-                        startIcon={<PlayCircleFilledWhiteIcon />} 
-                        onClick={handleStartGame}
-                        disabled={players.length === 0}
-                        sx={{ fontSize: '1.5rem', py: 2, px: 5, borderRadius: 10, boxShadow: '0 0 20px rgba(46, 204, 113, 0.6)' }}
-                    >
+                    <Button variant="contained" color="success" size="large" startIcon={<PlayCircleFilledWhiteIcon />} onClick={handleStartGame} disabled={players.length === 0} sx={{ fontSize: '1.5rem', py: 2, px: 5, borderRadius: 10, boxShadow: '0 0 20px rgba(46, 204, 113, 0.6)' }}>
                         BẮT ĐẦU TRẬN ĐẤU
                     </Button>
-
                     <Grid container spacing={2} mt={5} justifyContent="center" maxWidth="800px">
                         {players.map((p, idx) => (
-                            <Grid item key={idx}>
-                                <Typography variant="h5" sx={{ bgcolor: 'rgba(255,255,255,0.1)', px: 3, py: 1, borderRadius: 2, fontWeight: 'bold' }}>
-                                    {p.name}
-                                </Typography>
-                            </Grid>
+                            <Grid item key={idx}><Typography variant="h5" sx={{ bgcolor: 'rgba(255,255,255,0.1)', px: 3, py: 1, borderRadius: 2, fontWeight: 'bold' }}>{p.name}</Typography></Grid>
                         ))}
                     </Grid>
                 </Box>
             )}
 
-            {/* MÀN HÌNH ĐANG THI CỦA GIÁO VIÊN */}
             {status === 'playing' && currentQuestion && (
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column">
                     <Box display="flex" justifyContent="center" alignItems="center" position="relative" mb={2}>
                         <Typography variant="h4" color="#bdc3c7">Câu hỏi số {currentQIdx + 1}</Typography>
-                        
-                        <Box sx={{ 
-                            position: 'absolute', right: 0, width: 80, height: 80, borderRadius: '50%', 
-                            bgcolor: timeLeft <= 5 ? '#e74c3c' : '#3498db', 
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                            boxShadow: '0 0 15px rgba(0,0,0,0.3)', transition: 'background-color 0.3s' 
-                        }}>
+                        <Box sx={{ position: 'absolute', right: 0, width: 80, height: 80, borderRadius: '50%', bgcolor: timeLeft <= 5 ? '#e74c3c' : '#3498db', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 15px rgba(0,0,0,0.3)', transition: 'background-color 0.3s' }}>
                             <Typography variant="h3" fontWeight="bold" color="white">{timeLeft}</Typography>
                         </Box>
                     </Box>
                     
-                    {/* KHUNG ĐỀ BÀI */}
                     <Paper sx={{ p: 4, mb: 4, mt: 2, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                            <Latex delimiters={latexDelimiters}>{currentQuestion.text}</Latex>
+                            {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐỀ BÀI TIVI */}
+                            <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.text)}</Latex>
                         </Typography>
                     </Paper>
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
-                        
-                        {/* 🟢 1. DẠNG TRẮC NGHIỆM: ÁP DỤNG LƯỚI GRID CSS THÔNG MINH */}
                         {currentQuestion.type === 'MCQ' && (
-                            <Box sx={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', 
-                                gap: 2, 
-                                mb: 4 
-                            }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', gap: 2, mb: 4 }}>
                                 {currentQuestion.options.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, minHeight: '100px' }}>
                                         <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
                                         <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word' }}>
-                                            {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{opt}</Latex>
+                                            {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN TIVI */}
+                                            {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                         </Typography>
                                     </Paper>
                                 ))}
                             </Box>
                         )}
 
-                        {/* 2. HIỂN THỊ DẠNG ĐÚNG / SAI KÈM RADIO LÀM MẪU */}
                         {currentQuestion.type === 'TF' && (
                             <Box display="flex" flexDirection="column" gap={2} mb={4}>
                                 {currentQuestion.options.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 2, px: 4, borderRadius: 2, borderLeft: '10px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1 }}>
-                                            Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{opt}</Latex>
+                                            {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN TIVI */}
+                                            Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                         </Typography>
                                         
                                         <FormControl component="fieldset">
@@ -252,19 +228,14 @@ function ArenaHost() {
                                 ))}
                             </Box>
                         )}
-
                     </Box>
 
                     <Box mt="auto" pb={4}>
                         {timeLeft === 0 && (
-                            <Button 
-                                variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />}
-                                onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5, mb: 4 }}
-                            >
+                            <Button variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />} onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5, mb: 4 }}>
                                 ĐANG CHUYỂN CÂU... (Bấm để qua ngay)
                             </Button>
                         )}
-
                         <Box maxWidth="600px" mx="auto" textAlign="left" bgcolor="rgba(0,0,0,0.3)" p={3} borderRadius={3}>
                             <Typography variant="h6" color="#f1c40f" mb={2}>Bảng điểm trực tiếp:</Typography>
                             {players.sort((a,b) => b.score - a.score).map((p, i) => (
@@ -278,7 +249,6 @@ function ArenaHost() {
                 </Box>
             )}
 
-            {/* MÀN HÌNH VINH DANH (PODIUM) */}
             {status === 'podium' && (
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
                     <EmojiEventsIcon sx={{ fontSize: '10rem', color: '#f1c40f', mb: 2 }} />
@@ -290,10 +260,7 @@ function ArenaHost() {
                             <Typography variant="h4" color="black">{p.score}</Typography>
                         </Paper>
                     ))}
-
-                    <Button variant="outlined" color="inherit" sx={{ mt: 5 }} onClick={() => navigate('/arena')}>
-                        Thoát Đấu Trường
-                    </Button>
+                    <Button variant="outlined" color="inherit" sx={{ mt: 5 }} onClick={() => navigate('/arena')}>Thoát Đấu Trường</Button>
                 </Box>
             )}
         </Box>

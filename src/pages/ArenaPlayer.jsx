@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 
-// 🟢 1. IMPORT CÔNG THỨC TOÁN HỌC
+// IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
@@ -16,6 +16,36 @@ const getWSUrl = () => {
     const backendHost = isLocal ? '127.0.0.1:8000' : 'api.itmaths.vn';
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     return `${protocol}://${backendHost}/ws/arena/`;
+};
+
+const latexDelimiters = [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false},
+    {left: '\\(', right: '\\)', display: false},
+    {left: '\\[', right: '\\]', display: true},
+];
+
+// 🟢 BỘ LỌC XỬ LÝ IN ĐẬM / IN NGHIÊNG THÔNG MINH
+const formatLatexText = (text) => {
+    if (text === null || text === undefined) return "Hãy chọn đáp án!";
+    // 1. Tự động sửa lỗi gõ nhầm \textif thành \textit
+    let res = String(text).replace(/\\textif{/g, '\\textit{');
+    
+    // 2. Tách chuỗi để tránh làm hỏng các công thức Toán đã có sẵn
+    const parts = res.split(/(\$\$?|\\\[|\\\]|\\\(|\\\))/); 
+    let inMath = false;
+    
+    for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        if (['$', '$$', '\\[', '\\]', '\\(', '\\)'].includes(p)) {
+            inMath = !inMath; // Đang ở trong công thức toán
+        } else if (!inMath) {
+            // Nếu là Text bình thường, bọc $ $ cho các lệnh in đậm/in nghiêng
+            parts[i] = p.replace(/\\textbf{([^}]+)}/g, '$\\textbf{$1}$');
+            parts[i] = parts[i].replace(/\\textit{([^}]+)}/g, '$\\textit{$1}$');
+        }
+    }
+    return parts.join('');
 };
 
 function ArenaPlayer() {
@@ -57,21 +87,17 @@ function ArenaPlayer() {
         if (lastJsonMessage) {
             const { event, question, time_limit } = lastJsonMessage;
             switch (event) {
-                case 'game_started': 
-                    setStatus('get_ready'); 
-                    break;
+                case 'game_started': setStatus('get_ready'); break;
                 case 'show_question':
                     setStatus('playing');
                     setCurrentQuestion(question);
                     setHasAnswered(false);
-                    setTimeLeft(time_limit || 15);
-                    setTotalTime(time_limit || 15);
+                    setTimeLeft(time_limit || 20);
+                    setTotalTime(time_limit || 20);
                     setShortAnswer('');
                     setTfAnswers({});
                     break;
-                case 'game_ended': 
-                    setStatus('podium'); 
-                    break;
+                case 'game_ended': setStatus('podium'); break;
             }
         }
     }, [lastJsonMessage]);
@@ -87,34 +113,19 @@ function ArenaPlayer() {
 
     const submitFinalAnswer = (answerData, baseScore = 500) => {
         setHasAnswered(true);
-        
         let earned = 0;
         if (answerData !== 'TIMEOUT') {
             const speedBonus = Math.floor((timeLeft / totalTime) * 500);
             earned = baseScore + speedBonus;
             setScore(prev => prev + earned);
         }
-
-        sendJsonMessage({
-            action: 'submit_answer',
-            player_name: playerName,
-            answer_data: answerData, 
-            score_earned: earned
-        });
+        sendJsonMessage({ action: 'submit_answer', player_name: playerName, answer_data: answerData, score_earned: earned });
     };
 
     const handleMCQAnswer = (idx) => submitFinalAnswer(`OPTION_${idx}`, 500);
-    
-    const handleShortAnswerSubmit = () => {
-        if (!shortAnswer.trim()) return;
-        submitFinalAnswer(shortAnswer, 1000); 
-    };
-
+    const handleShortAnswerSubmit = () => { if (shortAnswer.trim()) submitFinalAnswer(shortAnswer, 1000); };
     const handleTFSubmit = () => {
-        if (Object.keys(tfAnswers).length < (currentQuestion.options?.length || 4)) {
-            alert('Vui lòng chọn Đúng/Sai cho tất cả các ý!');
-            return;
-        }
+        if (Object.keys(tfAnswers).length < (currentQuestion.options?.length || 4)) return alert('Vui lòng chọn Đúng/Sai cho tất cả các ý!');
         submitFinalAnswer(tfAnswers, 1000); 
     };
 
@@ -126,9 +137,7 @@ function ArenaPlayer() {
             <Box sx={{ bgcolor: 'white', p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
                 <Typography variant="subtitle1" fontWeight="bold" color="#2c3e50">{playerName}</Typography>
                 {status === 'playing' && (
-                    <Box sx={{ bgcolor: timeLeft <= 5 ? '#e74c3c' : '#34495e', color: '#fff', px: 2, py: 0.5, borderRadius: 5, fontWeight: 'bold' }}>
-                        ⏱ {timeLeft}s
-                    </Box>
+                    <Box sx={{ bgcolor: timeLeft <= 5 ? '#e74c3c' : '#34495e', color: '#fff', px: 2, py: 0.5, borderRadius: 5, fontWeight: 'bold' }}>⏱ {timeLeft}s</Box>
                 )}
                 <Box sx={{ bgcolor: '#f1c40f', px: 2, py: 0.5, borderRadius: 2 }}>
                     <Typography variant="subtitle1" fontWeight="900" color="black">{score} đ</Typography>
@@ -150,11 +159,10 @@ function ArenaPlayer() {
 
             {status === 'playing' && currentQuestion && (
                 <Box flex={1} display="flex" flexDirection="column" p={2} gap={2}>
-                    
-                    {/* 🟢 HIỂN THỊ ĐỀ BÀI BẰNG CÔNG THỨC */}
+                    {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐỀ BÀI */}
                     <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                         <Typography variant="body1" fontWeight="bold" fontSize="1.2rem" sx={{ lineHeight: 1.5 }}>
-                            <Latex>{currentQuestion.text || "Hãy chọn đáp án!"}</Latex>
+                            <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.text)}</Latex>
                         </Typography>
                     </Paper>
 
@@ -162,13 +170,13 @@ function ArenaPlayer() {
                         <Box flex={1} display="flex" flexDirection="column" gap={2}>
                             
                             {currentQuestion.type === 'MCQ' && currentQuestion.options.map((opt, idx) => (
-                                <Button
-                                    key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)}
+                                <Button key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)}
                                     sx={{ bgcolor: colorPalette[idx], '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' }, justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none' }}
                                 >
                                     <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
                                     <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left">
-                                        {String.fromCharCode(65 + idx)}. <Latex>{opt}</Latex>
+                                        {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN */}
+                                        {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                     </Typography>
                                 </Button>
                             ))}
@@ -178,7 +186,8 @@ function ArenaPlayer() {
                                     {currentQuestion.options.map((opt, idx) => (
                                         <Paper key={idx} sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #3498db' }}>
                                             <Typography variant="body1" mb={1} fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                                                Ý {String.fromCharCode(65 + idx)}: <Latex>{opt}</Latex>
+                                                {/* 🟢 ÁP DỤNG BỘ LỌC CHO ĐÁP ÁN */}
+                                                Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                             </Typography>
                                             <FormControl component="fieldset">
                                                 <RadioGroup row value={tfAnswers[idx] || ''} onChange={(e) => setTfAnswers({...tfAnswers, [idx]: e.target.value})}>
@@ -189,7 +198,7 @@ function ArenaPlayer() {
                                         </Paper>
                                     ))}
                                     <Button variant="contained" size="large" endIcon={<SendIcon />} onClick={handleTFSubmit} sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}>
-                                        CHỐT ĐÁP ÁN ĐÚNG/SAI
+                                        CHỐT ĐÁP ÁN
                                     </Button>
                                 </Box>
                             )}
@@ -198,12 +207,9 @@ function ArenaPlayer() {
                                 <Paper sx={{ p: 4, borderRadius: 3, textAlign: 'center', mt: 2, border: '2px solid #27ae60' }}>
                                     <Typography variant="h6" mb={2} color="textSecondary">Nhập kết quả của bạn:</Typography>
                                     <TextField fullWidth variant="outlined" placeholder="VD: 12.5 hoặc -5" value={shortAnswer} onChange={(e) => setShortAnswer(e.target.value)} inputProps={{ style: { textAlign: 'center', fontSize: '2rem', fontWeight: 'bold' }, inputMode: 'numeric' }} sx={{ mb: 3 }} />
-                                    <Button fullWidth variant="contained" size="large" endIcon={<SendIcon />} onClick={handleShortAnswerSubmit} sx={{ py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#27ae60' }}>
-                                        GỬI KẾT QUẢ
-                                    </Button>
+                                    <Button fullWidth variant="contained" size="large" endIcon={<SendIcon />} onClick={handleShortAnswerSubmit} sx={{ py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#27ae60' }}>GỬI KẾT QUẢ</Button>
                                 </Paper>
                             )}
-
                         </Box>
                     ) : (
                         <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 3, mt: 5, bgcolor: '#ecf0f1' }}>
@@ -219,9 +225,7 @@ function ArenaPlayer() {
                     <Typography variant="h3" fontWeight="900" color="#f1c40f">KẾT THÚC!</Typography>
                     <Typography variant="h5">Tổng điểm của bạn:</Typography>
                     <Typography variant="h1" fontWeight="900" color="#2ecc71">{score}</Typography>
-                    <Button variant="outlined" sx={{ color: 'white', borderColor: 'white', mt: 4 }} onClick={() => navigate('/arena')}>
-                        Rời phòng
-                    </Button>
+                    <Button variant="outlined" sx={{ color: 'white', borderColor: 'white', mt: 4 }} onClick={() => navigate('/arena')}>Rời phòng</Button>
                 </Box>
             )}
         </Box>
