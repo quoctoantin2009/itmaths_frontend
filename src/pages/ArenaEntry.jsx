@@ -27,7 +27,7 @@ function ArenaEntry() {
     const [questions, setQuestions] = useState([]);
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     
-    // 🟢 Cấu trúc lưu trữ mới: { [id]: { selected: bool, time: number } }
+    // Cấu trúc lưu trữ: { [id]: { selected: bool, time: string/number } }
     const [qSettings, setQSettings] = useState({});
 
     const showToast = (message, type = 'error') => setToast({ open: true, message, type });
@@ -60,6 +60,7 @@ function ArenaEntry() {
         }
     }, [selectedTopic]);
 
+    // Bật tắt checkbox chọn câu hỏi
     const handleToggleSelect = (id) => {
         setQSettings(prev => ({
             ...prev,
@@ -67,21 +68,26 @@ function ArenaEntry() {
         }));
     };
 
+    // 🟢 SỬA LỖI Ở ĐÂY: Cho phép nhận chuỗi trống trong lúc đang gõ
     const handleTimeChange = (id, val) => {
         setQSettings(prev => ({
             ...prev,
-            [id]: { ...prev[id], time: parseInt(val) || 0 }
+            [id]: { ...prev[id], time: val } 
         }));
     };
 
     const submitCreateArena = async () => {
-        // Lọc ra danh sách các câu đã chọn để gửi đi
+        // 🟢 Chốt số liệu khi gửi: Lọc ra danh sách và ép kiểu thời gian về số
         const questions_data = Object.keys(qSettings)
             .filter(id => qSettings[id].selected)
-            .map(id => ({
-                id: parseInt(id),
-                time_limit: qSettings[id].time || 20
-            }));
+            .map(id => {
+                // Nếu giáo viên để trống hoặc nhập tào lao, mặc định trả về 20 giây
+                const finalTime = parseInt(qSettings[id].time);
+                return {
+                    id: parseInt(id),
+                    time_limit: isNaN(finalTime) || finalTime <= 0 ? 20 : finalTime
+                };
+            });
 
         if (questions_data.length === 0) {
             showToast('Vui lòng chọn ít nhất 1 câu hỏi!', 'warning');
@@ -92,7 +98,7 @@ function ArenaEntry() {
         try {
             const res = await axiosClient.post('/arena/create/', { 
                 title: arenaTitle,
-                questions_data: questions_data // 🟢 Gửi mảng chi tiết
+                questions_data: questions_data // Gửi mảng chi tiết
             });
             navigate(`/arena/host/${res.data.pin}`);
         } catch (err) {
@@ -160,17 +166,17 @@ function ArenaEntry() {
                                         />
                                     </ListItemIcon>
                                     <ListItemText 
-                                        primary={<Typography noWrap variant="body1">{q.content}</Typography>} 
+                                        primary={<Typography noWrap variant="body1" sx={{ maxWidth: '400px' }}>{q.content}</Typography>} 
                                         secondary={getTypeLabel(q.question_type)}
                                         sx={{ mr: 2 }}
                                     />
-                                    {/* 🟢 Ô NHẬP THỜI GIAN */}
+                                    {/* 🟢 HIỂN THỊ Ô NHẬP LIỆU */}
                                     <TextField
                                         size="small"
                                         type="number"
                                         label="Số giây"
                                         disabled={!qSettings[q.id]?.selected}
-                                        value={qSettings[q.id]?.time || 20}
+                                        value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : 20}
                                         onChange={(e) => handleTimeChange(q.id, e.target.value)}
                                         sx={{ width: 100 }}
                                         InputProps={{
