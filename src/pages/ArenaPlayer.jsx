@@ -6,7 +6,7 @@ import {
     TextField, Radio, RadioGroup, FormControlLabel, FormControl, Divider 
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import MathJax from 'react-mathjax2'; // 🟢 Hiển thị Toán học
+import MathJax from 'react-mathjax2';
 
 const getWSUrl = () => {
     const isLocal = window.location.hostname === 'localhost';
@@ -38,7 +38,6 @@ function ArenaPlayer() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [hasAnswered, setHasAnswered] = useState(false);
     
-    // Hệ thống điểm và thời gian
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [totalTime, setTotalTime] = useState(15);
@@ -66,7 +65,6 @@ function ArenaPlayer() {
                     setHasAnswered(false);
                     setTimeLeft(time_limit || 15);
                     setTotalTime(time_limit || 15);
-                    // Reset đáp án cũ
                     setShortAnswer('');
                     setTfAnswers({});
                     break;
@@ -77,13 +75,11 @@ function ArenaPlayer() {
         }
     }, [lastJsonMessage]);
 
-    // Đếm ngược thời gian
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0 && !hasAnswered) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timer);
         } else if (timeLeft === 0 && !hasAnswered && status === 'playing') {
-            // Hết giờ tự động nộp bài (0 điểm)
             submitFinalAnswer('TIMEOUT', 0);
         }
     }, [timeLeft, status, hasAnswered]);
@@ -94,7 +90,6 @@ function ArenaPlayer() {
         
         let earned = 0;
         if (answerData !== 'TIMEOUT') {
-            // Điểm thưởng tốc độ (Max 500đ)
             const speedBonus = Math.floor((timeLeft / totalTime) * 500);
             earned = baseScore + speedBonus;
             setScore(prev => prev + earned);
@@ -103,31 +98,26 @@ function ArenaPlayer() {
         sendJsonMessage({
             action: 'submit_answer',
             player_name: playerName,
-            answer_data: answerData, // Gửi chi tiết đáp án lên Server
+            answer_data: answerData, 
             score_earned: earned
         });
     };
 
-    // Xử lý nộp bài cho từng dạng
-    const handleMCQAnswer = (idx) => {
-        submitFinalAnswer(`OPTION_${idx}`, 500); // MCQ: 500đ cơ bản
-    };
-
+    const handleMCQAnswer = (idx) => submitFinalAnswer(`OPTION_${idx}`, 500);
+    
     const handleShortAnswerSubmit = () => {
         if (!shortAnswer.trim()) return;
-        submitFinalAnswer(shortAnswer, 1000); // SHORT: 1000đ cơ bản
+        submitFinalAnswer(shortAnswer, 1000); 
     };
 
     const handleTFSubmit = () => {
-        // Kiểm tra xem đã chọn đủ 4 ý chưa
         if (Object.keys(tfAnswers).length < (currentQuestion.options?.length || 4)) {
             alert('Vui lòng chọn Đúng/Sai cho tất cả các ý!');
             return;
         }
-        submitFinalAnswer(tfAnswers, 1000); // TF: 1000đ cơ bản (Giả định đúng hết)
+        submitFinalAnswer(tfAnswers, 1000); 
     };
 
-    // UI Mảng màu và hình khối cho MCQ
     const colorPalette = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
     const shapes = ['▲', '◆', '●', '■'];
 
@@ -135,22 +125,20 @@ function ArenaPlayer() {
         <MathJax.Context input='tex'>
             <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa', display: 'flex', flexDirection: 'column' }}>
                 
-                {/* THANH TRẠNG THÁI TOP BAR */}
+                {/* THANH TRẠNG THÁI */}
                 <Box sx={{ bgcolor: 'white', p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
                     <Typography variant="subtitle1" fontWeight="bold" color="#2c3e50">{playerName}</Typography>
-                    
                     {status === 'playing' && (
                         <Box sx={{ bgcolor: timeLeft <= 5 ? '#e74c3c' : '#34495e', color: '#fff', px: 2, py: 0.5, borderRadius: 5, fontWeight: 'bold' }}>
                             ⏱ {timeLeft}s
                         </Box>
                     )}
-                    
                     <Box sx={{ bgcolor: '#f1c40f', px: 2, py: 0.5, borderRadius: 2 }}>
                         <Typography variant="subtitle1" fontWeight="900" color="black">{score} đ</Typography>
                     </Box>
                 </Box>
 
-                {/* MÀN HÌNH CHỜ */}
+                {/* CÁC MÀN HÌNH CHỜ */}
                 {status === 'waiting' && (
                     <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
                         <CircularProgress size={60} sx={{ color: '#4a148c', mb: 3 }} />
@@ -164,18 +152,16 @@ function ArenaPlayer() {
                     </Box>
                 )}
 
-                {/* MÀN HÌNH ĐANG CHƠI */}
+                {/* MÀN HÌNH ĐANG CHƠI CHÍNH */}
                 {status === 'playing' && currentQuestion && (
                     <Box flex={1} display="flex" flexDirection="column" p={2} gap={2}>
                         
-                        {/* Hiển thị đề bài */}
                         <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                             <Typography variant="body1" fontWeight="bold" fontSize="1.2rem">
                                 <MathJax.Text text={currentQuestion.text || "Hãy chọn đáp án!"} />
                             </Typography>
                         </Paper>
 
-                        {/* NẾU CHƯA TRẢ LỜI */}
                         {!hasAnswered ? (
                             <Box flex={1} display="flex" flexDirection="column" gap={2}>
                                 
@@ -187,7 +173,7 @@ function ArenaPlayer() {
                                         sx={{
                                             bgcolor: colorPalette[idx],
                                             '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' },
-                                            justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none', boxShadow: '0 4px 0 rgba(0,0,0,0.2)'
+                                            justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none'
                                         }}
                                     >
                                         <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
@@ -222,20 +208,23 @@ function ArenaPlayer() {
                                             onClick={handleTFSubmit}
                                             sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}
                                         >
-                                            CHỐT ĐÁP ÁN
+                                            CHỐT ĐÁP ÁN ĐÚNG/SAI
                                         </Button>
                                     </Box>
                                 )}
 
                                 {/* 🟢 DẠNG 3: TRẢ LỜI NGẮN (SHORT) */}
                                 {currentQuestion.type === 'SHORT' && (
-                                    <Paper sx={{ p: 4, borderRadius: 3, textAlign: 'center', mt: 2 }}>
+                                    <Paper sx={{ p: 4, borderRadius: 3, textAlign: 'center', mt: 2, border: '2px solid #27ae60' }}>
                                         <Typography variant="h6" mb={2} color="textSecondary">Nhập kết quả của bạn:</Typography>
                                         <TextField 
                                             fullWidth variant="outlined" placeholder="VD: 12.5 hoặc -5"
                                             value={shortAnswer}
                                             onChange={(e) => setShortAnswer(e.target.value)}
-                                            inputProps={{ style: { textAlign: 'center', fontSize: '2rem', fontWeight: 'bold' } }}
+                                            inputProps={{ 
+                                                style: { textAlign: 'center', fontSize: '2rem', fontWeight: 'bold' },
+                                                inputMode: 'numeric' // 🟢 Bật bàn phím số trên điện thoại
+                                            }}
                                             sx={{ mb: 3 }}
                                         />
                                         <Button 
