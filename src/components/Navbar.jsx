@@ -60,10 +60,11 @@ function Navbar() {
         paddingTop: 'env(safe-area-inset-top)', 
         zIndex: 1100
     }}>
-      <Container maxWidth="xl">
-        <Toolbar disableGutters sx={{ minHeight: '64px' }}> 
+      {/* Giảm padding hai bên trên mobile để có thêm không gian */}
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 } }}>
+        <Toolbar disableGutters sx={{ minHeight: '64px', display: 'flex', flexWrap: 'nowrap' }}> 
           
-          {/* 1. LOGO VÀ TÊN */}
+          {/* 1. LOGO VÀ TÊN (Đã khóa cứng chống bóp méo) */}
           <Box 
             component={Link} 
             to="/"
@@ -72,8 +73,8 @@ function Navbar() {
                 alignItems: 'center', 
                 textDecoration: 'none', 
                 color: 'inherit',
-                flexGrow: 0, 
-                mr: 4,
+                flexShrink: 0, // 🟢 CHỐNG CO RÚT
+                mr: { xs: 1, md: 4 },
                 cursor: 'pointer'
             }}
           >
@@ -83,10 +84,13 @@ function Navbar() {
                 alt="ITMaths Logo"
                 sx={{ 
                     height: 45,       
-                    width: 'auto', 
+                    width: 45, // 🟢 ÉP BUỘC RỘNG = CAO
+                    minWidth: 45, 
+                    objectFit: 'cover', // 🟢 GIỮ TỶ LỆ ẢNH TỐT NHẤT
+                    flexShrink: 0, // 🟢 CHỐNG BÓP MÉO LOGO
                     borderRadius: '50%', 
                     border: '2px solid rgba(255,255,255,0.3)',
-                    mr: 1.5,          
+                    mr: { xs: 0, sm: 1.5 },          
                     transition: '0.3s', 
                     '&:hover': { transform: 'scale(1.1)' }
                 }} 
@@ -106,13 +110,26 @@ function Navbar() {
               </Typography>
           </Box>
 
-          {/* 2. MENU CHÍNH Ở GIỮA */}
-          <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+          {/* 2. MENU CHÍNH Ở GIỮA (Hỗ trợ vuốt ngang trên điện thoại) */}
+          <Box sx={{ 
+              flexGrow: 1, 
+              display: 'flex', 
+              gap: { xs: 0.5, md: 1 }, 
+              overflowX: 'auto', // 🟢 BẬT THANH CUỘN NGANG
+              flexWrap: 'nowrap', // 🟢 ÉP NẰM TRÊN 1 HÀNG
+              WebkitOverflowScrolling: 'touch', // 🟢 CUỘN MƯỢT TRÊN ĐIỆN THOẠI
+              msOverflowStyle: 'none',  
+              scrollbarWidth: 'none',  
+              '&::-webkit-scrollbar': { display: 'none' }, // 🟢 ẨN THANH CUỘN CHO ĐẸP
+              px: 1
+          }}>
              <Button
                 component={Link}
                 to="/"
                 sx={{ 
                     color: 'white', 
+                    flexShrink: 0, // 🟢 CHỐNG ÉP CHỮ
+                    whiteSpace: 'nowrap',
                     fontWeight: isActive('/') ? 'bold' : 'normal',
                     borderBottom: isActive('/') ? '2px solid yellow' : 'none'
                 }}
@@ -125,6 +142,8 @@ function Navbar() {
                 to="/classrooms"
                 sx={{ 
                     color: 'white', 
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                     fontWeight: isActive('/classrooms') ? 'bold' : 'normal',
                     borderBottom: isActive('/classrooms') ? '2px solid yellow' : 'none',
                     display: 'flex', gap: 1
@@ -138,6 +157,8 @@ function Navbar() {
                 to="/exams"
                 sx={{ 
                     color: 'white', 
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                     fontWeight: isActive('/exams') ? 'bold' : 'normal',
                     borderBottom: isActive('/exams') ? '2px solid yellow' : 'none'
                 }}
@@ -150,6 +171,8 @@ function Navbar() {
                 to="/tai-nguyen"
                 sx={{ 
                     color: 'white', 
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                     fontWeight: isActive('/tai-nguyen') ? 'bold' : 'normal',
                     borderBottom: isActive('/tai-nguyen') ? '2px solid yellow' : 'none'
                 }}
@@ -157,12 +180,13 @@ function Navbar() {
                 Tài nguyên
              </Button>
 
-             {/* 🔥 NÚT ĐẤU TRƯỜNG */}
              <Button
                 component={Link}
                 to="/arena"
                 sx={{ 
                     color: '#ffeb3b', 
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                     fontWeight: 'bold',
                     borderBottom: isActive('/arena') ? '2px solid #ffca28' : 'none',
                     bgcolor: 'rgba(255, 202, 40, 0.15)',
@@ -176,8 +200,8 @@ function Navbar() {
              </Button>
           </Box>
 
-          {/* 3. MENU USER BÊN PHẢI */}
-          <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* 3. MENU USER BÊN PHẢI (Khóa cứng chống đẩy) */}
+          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
             
             {username ? (
               <>
