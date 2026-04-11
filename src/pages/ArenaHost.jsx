@@ -43,9 +43,8 @@ function ArenaHost() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
     
-    // 🟢 THÊM STATE CHO ĐỒNG HỒ ĐẾM NGƯỢC CỦA HOST
+    // STATE CHO ĐỒNG HỒ ĐẾM NGƯỢC
     const [timeLeft, setTimeLeft] = useState(0);
-
     const [hostTfAnswers, setHostTfAnswers] = useState({});
 
     // HỆ THỐNG ÂM THANH
@@ -70,7 +69,7 @@ function ArenaHost() {
             else if (event === 'show_question') {
                 setCurrentQuestion(question);
                 setCurrentQIdx(current_index);
-                setTimeLeft(time_limit || 20); // 🟢 Nạp số giây riêng của từng câu từ Server
+                setTimeLeft(time_limit || 20); 
                 setStatus('playing');
                 setHostTfAnswers({}); 
             }
@@ -80,20 +79,18 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // 🟢 XỬ LÝ ĐỒNG HỒ ĐẾM NGƯỢC VÀ AUTO-NEXT
+    // ĐỒNG HỒ ĐẾM NGƯỢC VÀ AUTO-NEXT
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timer);
         } else if (status === 'playing' && timeLeft === 0 && currentQuestion) {
-            // Khi hết giờ, chờ 3 giây rồi TỰ ĐỘNG CHUYỂN CÂU
             const autoNext = setTimeout(() => {
                 sendJsonMessage({ action: 'host_next_question' });
             }, 3000);
             return () => clearTimeout(autoNext);
         }
     }, [timeLeft, status, currentQuestion, sendJsonMessage]);
-
 
     // XỬ LÝ NHẠC NỀN
     useEffect(() => {
@@ -138,6 +135,11 @@ function ArenaHost() {
     };
 
     const handleNextQuestion = () => sendJsonMessage({ action: 'host_next_question' });
+
+    // 🟢 THUẬT TOÁN ĐO LƯỜNG ĐỘ DÀI ĐÁP ÁN (Ngưỡng 45 ký tự)
+    const isLongTextMCQ = currentQuestion?.type === 'MCQ' 
+        ? currentQuestion.options.some(opt => opt.length > 45) 
+        : false;
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#2c3e50', color: 'white', p: 3, display: 'flex', flexDirection: 'column' }}>
@@ -193,7 +195,6 @@ function ArenaHost() {
                     <Box display="flex" justifyContent="center" alignItems="center" position="relative" mb={2}>
                         <Typography variant="h4" color="#bdc3c7">Câu hỏi số {currentQIdx + 1}</Typography>
                         
-                        {/* 🟢 ĐỒNG HỒ ĐẾM NGƯỢC */}
                         <Box sx={{ 
                             position: 'absolute', right: 0, width: 80, height: 80, borderRadius: '50%', 
                             bgcolor: timeLeft <= 5 ? '#e74c3c' : '#3498db', 
@@ -213,20 +214,23 @@ function ArenaHost() {
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
                         
-                        {/* 🟢 1. DẠNG TRẮC NGHIỆM (LƯỚI 2x2: A B TRÊN, C D DƯỚI) */}
+                        {/* 🟢 1. DẠNG TRẮC NGHIỆM: ÁP DỤNG LƯỚI GRID CSS THÔNG MINH */}
                         {currentQuestion.type === 'MCQ' && (
-                            <Grid container spacing={2} mb={4}>
+                            <Box sx={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', 
+                                gap: 2, 
+                                mb: 4 
+                            }}>
                                 {currentQuestion.options.map((opt, idx) => (
-                                    <Grid item xs={12} sm={6} key={idx}>
-                                        <Paper sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, height: '100%', minHeight: '100px' }}>
-                                            <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
-                                            <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word' }}>
-                                                {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{opt}</Latex>
-                                            </Typography>
-                                        </Paper>
-                                    </Grid>
+                                    <Paper key={idx} sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, minHeight: '100px' }}>
+                                        <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
+                                        <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word' }}>
+                                            {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{opt}</Latex>
+                                        </Typography>
+                                    </Paper>
                                 ))}
-                            </Grid>
+                            </Box>
                         )}
 
                         {/* 2. HIỂN THỊ DẠNG ĐÚNG / SAI KÈM RADIO LÀM MẪU */}
@@ -252,7 +256,6 @@ function ArenaHost() {
                     </Box>
 
                     <Box mt="auto" pb={4}>
-                        {/* 🟢 NÚT CHUYỂN CÂU ẨN KHI ĐANG ĐẾM NGƯỢC */}
                         {timeLeft === 0 && (
                             <Button 
                                 variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />}
