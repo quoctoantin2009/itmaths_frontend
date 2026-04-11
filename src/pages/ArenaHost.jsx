@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
-import { Box, Typography, Button, Grid, Paper, Chip, IconButton } from '@mui/material';
+import { 
+    Box, Typography, Button, Grid, Paper, Chip, IconButton,
+    Radio, RadioGroup, FormControlLabel, FormControl 
+} from '@mui/material';
 import PlayCircleFilledWhiteIcon from '@mui/icons-material/PlayCircleFilledWhite';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -19,11 +22,9 @@ const getWSUrl = () => {
     return `${protocol}://${backendHost}/ws/arena/`;
 };
 
-// 🟢 Bộ màu và hình khối chuẩn Kahoot cho màn hình Tivi
 const colorPalette = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 const shapes = ['▲', '◆', '●', '■'];
 
-// Cấu hình nhận diện ngoặc Toán học cho KaTeX
 const latexDelimiters = [
     {left: '$$', right: '$$', display: true},
     {left: '$', right: '$', display: false},
@@ -42,11 +43,13 @@ function ArenaHost() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
     
-    // STATE ĐIỀU KHIỂN ÂM THANH
-    const [isMuted, setIsMuted] = useState(true); // 🟢 Đổi mặc định thành Muted để chờ Giáo viên chủ động bật
-    const audioRef = useRef(null);
+    // State ảo để giáo viên click làm mẫu trên Tivi
+    const [hostTfAnswers, setHostTfAnswers] = useState({});
 
-    // Xử lý dữ liệu từ WebSocket
+    // 🟢 HỆ THỐNG ÂM THANH ĐƯỢC VIẾT LẠI
+    const [isMuted, setIsMuted] = useState(true); // Mặc định tắt để chờ GV bật
+    const audioRef = useRef(new Audio()); // Khởi tạo Audio một lần duy nhất
+
     useEffect(() => {
         if (lastJsonMessage) {
             const { event, player_name, score_earned, question, current_index } = lastJsonMessage;
@@ -66,6 +69,7 @@ function ArenaHost() {
                 setCurrentQuestion(question);
                 setCurrentQIdx(current_index);
                 setStatus('playing');
+                setHostTfAnswers({}); // Reset đáp án làm mẫu
             }
             else if (event === 'game_ended') {
                 setStatus('podium');
@@ -73,45 +77,44 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // EFFECT ĐIỀU PHỐI NHẠC NỀN
+    // 🟢 LUỒNG 1: XỬ LÝ ĐỔI BÀI HÁT KHI CHUYỂN MÀN HÌNH
     useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-
         let audioFile = '';
-        // 🟢 Đảm bảo đường dẫn tuyệt đối bắt đầu bằng /
         if (status === 'waiting') audioFile = '/sounds/lobby.mp3';
         else if (status === 'playing') audioFile = '/sounds/countdown.mp3';
         else if (status === 'podium') audioFile = '/sounds/podium.mp3';
 
         if (audioFile) {
-            audioRef.current = new Audio(audioFile);
-            audioRef.current.loop = (status !== 'podium'); 
-            audioRef.current.muted = isMuted;
+            audioRef.current.src = audioFile;
+            audioRef.current.loop = (status !== 'podium');
             
+            // Chỉ phát nếu giáo viên đã mở loa
             if (!isMuted) {
-                audioRef.current.play().catch(e => console.log('Trình duyệt chặn Autoplay.'));
+                audioRef.current.play().catch(e => console.log("Lỗi phát nhạc:", e));
             }
+        } else {
+            audioRef.current.pause();
         }
+    }, [status]); // Chỉ chạy lại khi status thay đổi
 
+    // 🟢 LUỒNG 2: XỬ LÝ BẬT/TẮT LOA BẰNG TAY
+    const toggleMute = () => {
+        const newMutedState = !isMuted;
+        setIsMuted(newMutedState);
+        audioRef.current.muted = newMutedState;
+        
+        // Đánh thức nhạc nếu trước đó bị trình duyệt ngủ đông
+        if (!newMutedState && audioRef.current.paused && audioRef.current.src) {
+            audioRef.current.play().catch(e => console.log("Lỗi phát nhạc:", e));
+        }
+    };
+
+    // Dọn dẹp nhạc khi thoát khỏi Đấu trường
+    useEffect(() => {
         return () => {
             if (audioRef.current) audioRef.current.pause();
         };
-    }, [status, isMuted]);
-
-    // Hàm Bật/Tắt âm thanh bằng tay (Ép trình duyệt nhả quyền)
-    const toggleMute = () => {
-        const newState = !isMuted;
-        setIsMuted(newState);
-        if (audioRef.current) {
-            audioRef.current.muted = newState;
-            if (!newState) {
-                audioRef.current.play().catch(e => console.error("Lỗi phát nhạc:", e));
-            }
-        }
-    };
+    }, []);
 
     const handleStartGame = () => {
         sendJsonMessage({ action: 'broadcast', event: 'game_started' }); 
@@ -175,17 +178,14 @@ function ArenaHost() {
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column">
                     <Typography variant="h4" color="#bdc3c7" mb={2}>Câu hỏi số {currentQIdx + 1}</Typography>
                     
-                    {/* KHUNG ĐỀ BÀI */}
                     <Paper sx={{ p: 4, mb: 4, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
                             <Latex delimiters={latexDelimiters}>{currentQuestion.text}</Latex>
                         </Typography>
                     </Paper>
                     
-                    {/* 🟢 KHUNG ĐÁP ÁN (GIỐNG HỌC SINH) */}
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
                         
-                        {/* 1. HIỂN THỊ DẠNG TRẮC NGHIỆM */}
                         {currentQuestion.type === 'MCQ' && (
                             <Grid container spacing={2} mb={4}>
                                 {currentQuestion.options.map((opt, idx) => (
@@ -201,23 +201,33 @@ function ArenaHost() {
                             </Grid>
                         )}
 
-                        {/* 2. HIỂN THỊ DẠNG ĐÚNG / SAI */}
+                        {/* 🟢 HIỂN THỊ DẠNG ĐÚNG / SAI KÈM RADIO LÀM MẪU */}
                         {currentQuestion.type === 'TF' && (
                             <Box display="flex" flexDirection="column" gap={2} mb={4}>
                                 {currentQuestion.options.map((opt, idx) => (
-                                    <Paper key={idx} sx={{ p: 3, borderRadius: 2, borderLeft: '10px solid #3498db', textAlign: 'left' }}>
-                                        <Typography variant="h5" fontWeight="bold" color="black">
+                                    <Paper key={idx} sx={{ p: 2, px: 4, borderRadius: 2, borderLeft: '10px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1 }}>
                                             Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{opt}</Latex>
                                         </Typography>
+                                        
+                                        {/* Bộ Radio để giáo viên thao tác làm mẫu trên bảng */}
+                                        <FormControl component="fieldset">
+                                            <RadioGroup 
+                                                row 
+                                                value={hostTfAnswers[idx] || ''} 
+                                                onChange={(e) => setHostTfAnswers({...hostTfAnswers, [idx]: e.target.value})}
+                                            >
+                                                <FormControlLabel value="T" control={<Radio color="success" size="medium"/>} label={<Typography color="green" fontWeight="bold" fontSize="1.2rem">Đúng</Typography>} />
+                                                <FormControlLabel value="F" control={<Radio color="error" size="medium"/>} label={<Typography color="red" fontWeight="bold" fontSize="1.2rem">Sai</Typography>} />
+                                            </RadioGroup>
+                                        </FormControl>
                                     </Paper>
                                 ))}
                             </Box>
                         )}
 
-                        {/* Dạng Trả lời ngắn không cần hiện gì thêm ngoài đề bài */}
                     </Box>
 
-                    {/* KHU VỰC NÚT ĐIỀU KHIỂN & BẢNG ĐIỂM */}
                     <Box mt="auto" pb={4}>
                         <Button 
                             variant="contained" color="primary" size="large" endIcon={<SkipNextIcon />}
