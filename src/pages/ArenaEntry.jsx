@@ -18,7 +18,6 @@ function ArenaEntry() {
     const navigate = useNavigate();
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
 
-    // STATE CHO 5 BƯỚC TẠO PHÒNG
     const [openCreateModal, setOpenCreateModal] = useState(false);
     const [arenaTitle, setArenaTitle] = useState('Đấu trường ITMaths');
     const [selectedGrade, setSelectedGrade] = useState('');
@@ -27,31 +26,28 @@ function ArenaEntry() {
     const [questions, setQuestions] = useState([]);
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     
-    // Cấu trúc lưu trữ: { [id]: { selected: bool, time: string/number } }
+    // Cấu trúc lưu trữ: { [id]: { selected: bool, time: string } }
     const [qSettings, setQSettings] = useState({});
 
     const showToast = (message, type = 'error') => setToast({ open: true, message, type });
     const handleCloseToast = () => setToast({ ...toast, open: false });
 
-    // Lấy chủ đề
     useEffect(() => {
         if (selectedGrade) {
             axiosClient.get(`/topics/?grade=${selectedGrade}`).then(res => setTopics(res.data));
         }
     }, [selectedGrade]);
 
-    // Lấy câu hỏi
     useEffect(() => {
         if (selectedTopic) {
             setLoadingQuestions(true);
             axiosClient.get(`/arena/topic-questions/?topic_id=${selectedTopic}`)
                 .then(res => {
                     setQuestions(res.data);
-                    // Khởi tạo cài đặt mặc định cho các câu hỏi mới tải về
                     const newSettings = { ...qSettings };
                     res.data.forEach(q => {
                         if (!newSettings[q.id]) {
-                            newSettings[q.id] = { selected: false, time: 20 };
+                            newSettings[q.id] = { selected: false, time: "20" }; // Lưu thời gian dưới dạng chuỗi
                         }
                     });
                     setQSettings(newSettings);
@@ -60,7 +56,7 @@ function ArenaEntry() {
         }
     }, [selectedTopic]);
 
-    // Bật tắt checkbox chọn câu hỏi
+    // Xử lý Tick chọn bình thường
     const handleToggleSelect = (id) => {
         setQSettings(prev => ({
             ...prev,
@@ -68,24 +64,30 @@ function ArenaEntry() {
         }));
     };
 
-    // 🟢 SỬA LỖI Ở ĐÂY: Cho phép nhận chuỗi trống trong lúc đang gõ
+    // 🟢 XỬ LÝ NHẬP THỜI GIAN THÔNG MINH
     const handleTimeChange = (id, val) => {
+        // Chỉ cho phép nhập số (loại bỏ mọi ký tự chữ cái/đặc biệt)
+        const numericVal = val.replace(/[^0-9]/g, ''); 
+        
         setQSettings(prev => ({
             ...prev,
-            [id]: { ...prev[id], time: val } 
+            [id]: { 
+                ...prev[id], 
+                time: numericVal, 
+                selected: true // 🟢 TỰ ĐỘNG TICK CHỌN khi giáo viên gõ thời gian
+            } 
         }));
     };
 
     const submitCreateArena = async () => {
-        // 🟢 Chốt số liệu khi gửi: Lọc ra danh sách và ép kiểu thời gian về số
+        // Chốt dữ liệu
         const questions_data = Object.keys(qSettings)
             .filter(id => qSettings[id].selected)
             .map(id => {
-                // Nếu giáo viên để trống hoặc nhập tào lao, mặc định trả về 20 giây
                 const finalTime = parseInt(qSettings[id].time);
                 return {
                     id: parseInt(id),
-                    time_limit: isNaN(finalTime) || finalTime <= 0 ? 20 : finalTime
+                    time_limit: isNaN(finalTime) || finalTime <= 0 ? 20 : finalTime // Nếu lỡ xóa trắng thì về mặc định 20s
                 };
             });
 
@@ -98,7 +100,7 @@ function ArenaEntry() {
         try {
             const res = await axiosClient.post('/arena/create/', { 
                 title: arenaTitle,
-                questions_data: questions_data // Gửi mảng chi tiết
+                questions_data: questions_data 
             });
             navigate(`/arena/host/${res.data.pin}`);
         } catch (err) {
@@ -170,19 +172,20 @@ function ArenaEntry() {
                                         secondary={getTypeLabel(q.question_type)}
                                         sx={{ mr: 2 }}
                                     />
-                                    {/* 🟢 HIỂN THỊ Ô NHẬP LIỆU */}
+                                    
+                                    {/* 🟢 KHUNG NHẬP THỜI GIAN ĐÃ ĐƯỢC CHUẨN HÓA */}
                                     <TextField
                                         size="small"
-                                        type="number"
                                         label="Số giây"
-                                        disabled={!qSettings[q.id]?.selected}
-                                        value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : 20}
+                                        // Bỏ disabled để GV có thể click vào gõ số và nó tự tick chọn luôn
+                                        value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : "20"}
                                         onChange={(e) => handleTimeChange(q.id, e.target.value)}
                                         sx={{ width: 100 }}
+                                        inputProps={{ inputMode: 'numeric' }} // Hỗ trợ bàn phím số trên điện thoại
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <TimerIcon fontSize="small" />
+                                                    <TimerIcon fontSize="small" color={qSettings[q.id]?.selected ? "primary" : "inherit"} />
                                                 </InputAdornment>
                                             ),
                                         }}
