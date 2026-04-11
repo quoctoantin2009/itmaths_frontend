@@ -9,7 +9,6 @@ import {
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import MathJax from 'react-mathjax2';
 import axiosClient from '../services/axiosClient';
 
 function ArenaEntry() {
@@ -19,7 +18,7 @@ function ArenaEntry() {
     const navigate = useNavigate();
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
 
-    // 🟢 STATE CHO 5 BƯỚC TẠO PHÒNG
+    // STATE CHO 5 BƯỚC TẠO PHÒNG
     const [openCreateModal, setOpenCreateModal] = useState(false);
     const [arenaTitle, setArenaTitle] = useState('Đấu trường ITMaths');
     
@@ -98,7 +97,7 @@ function ArenaEntry() {
         try {
             const res = await axiosClient.post('/arena/create/', { 
                 title: arenaTitle,
-                question_ids: selectedQIds // 🟢 Gửi mảng câu hỏi lên
+                question_ids: selectedQIds // Gửi mảng câu hỏi lên
             });
             navigate(`/arena/host/${res.data.pin}`);
         } catch (err) {
@@ -143,7 +142,7 @@ function ArenaEntry() {
                 </Box>
             </Container>
 
-            {/* 🟢 DIALOG 5 BƯỚC CHỌN CÂU HỎI */}
+            {/* DIALOG 5 BƯỚC CHỌN CÂU HỎI */}
             <Dialog open={openCreateModal} onClose={() => setOpenCreateModal(false)} fullWidth maxWidth="md">
                 <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold' }}>
                     Thiết lập Trận Đấu ({selectedQIds.length} câu đã chọn)
@@ -172,31 +171,29 @@ function ArenaEntry() {
 
                     <Divider sx={{ mb: 2 }}>Bước 3 & 4: Danh sách câu hỏi</Divider>
 
-                    {/* BƯỚC 3 & 4: Tick chọn câu hỏi có tích hợp MathJax */}
+                    {/* BƯỚC 3 & 4: Tick chọn câu hỏi (Đã gỡ bỏ MathJax) */}
                     {loadingQuestions ? (
                         <Box display="flex" justifyContent="center" p={3}><CircularProgress /></Box>
                     ) : (
-                        <MathJax.Context input='tex'>
-                            <List sx={{ width: '100%', bgcolor: 'background.paper', maxHeight: 400, overflow: 'auto', border: '1px solid #ddd', borderRadius: 2 }}>
-                                {questions.length === 0 ? (
-                                    <Typography textAlign="center" color="textSecondary" py={3}>Chưa có câu hỏi nào trong chủ đề này.</Typography>
-                                ) : (
-                                    questions.map((q) => (
-                                        <ListItem key={q.id} disablePadding>
-                                            <ListItemButton role={undefined} onClick={() => handleToggleQuestion(q.id)} dense>
-                                                <ListItemIcon>
-                                                    <Checkbox edge="start" checked={selectedQIds.indexOf(q.id) !== -1} tabIndex={-1} disableRipple />
-                                                </ListItemIcon>
-                                                <ListItemText 
-                                                    primary={<MathJax.Text text={q.content} />} 
-                                                    secondary={getTypeLabel(q.question_type)}
-                                                />
-                                            </ListItemButton>
-                                        </ListItem>
-                                    ))
-                                )}
-                            </List>
-                        </MathJax.Context>
+                        <List sx={{ width: '100%', bgcolor: 'background.paper', maxHeight: 400, overflow: 'auto', border: '1px solid #ddd', borderRadius: 2 }}>
+                            {questions.length === 0 ? (
+                                <Typography textAlign="center" color="textSecondary" py={3}>Chưa có câu hỏi nào trong chủ đề này.</Typography>
+                            ) : (
+                                questions.map((q) => (
+                                    <ListItem key={q.id} disablePadding>
+                                        <ListItemButton role={undefined} onClick={() => handleToggleQuestion(q.id)} dense>
+                                            <ListItemIcon>
+                                                <Checkbox edge="start" checked={selectedQIds.indexOf(q.id) !== -1} tabIndex={-1} disableRipple />
+                                            </ListItemIcon>
+                                            <ListItemText 
+                                                primary={q.content} 
+                                                secondary={getTypeLabel(q.question_type)}
+                                            />
+                                        </ListItemButton>
+                                    </ListItem>
+                                ))
+                            )}
+                        </List>
                     )}
                 </DialogContent>
 
