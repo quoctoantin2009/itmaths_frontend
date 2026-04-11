@@ -14,7 +14,7 @@ import ExamHistoryDialog from './ExamHistoryDialog';
 
 function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation(); // Để biết đang ở trang nào mà tô màu menu
+  const location = useLocation(); 
   const [username, setUsername] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null); 
   const [openProfile, setOpenProfile] = useState(false);
@@ -49,12 +49,10 @@ function Navbar() {
       if (historyBtn) historyBtn.click();
   };
 
-  // Hàm kiểm tra đường dẫn active
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <>
-    {/* 🟢 [QUAN TRỌNG] THÊM PADDING-TOP ĐỂ TRÁNH TAI THỎ */}
     <AppBar position="sticky" sx={{ 
         background: 'linear-gradient(to right, #4a148c, #7b1fa2)', 
         color: 'white', 
@@ -74,7 +72,7 @@ function Navbar() {
                 alignItems: 'center', 
                 textDecoration: 'none', 
                 color: 'inherit',
-                flexGrow: 0, // [SỬA] Để không đẩy menu ra xa quá
+                flexGrow: 0, 
                 mr: 4,
                 cursor: 'pointer'
             }}
@@ -101,15 +99,15 @@ function Navbar() {
                   fontWeight: 800, 
                   letterSpacing: '.1rem',
                   color: '#fff',
-                  display: { xs: 'none', sm: 'flex' } // Ẩn chữ trên mobile cho gọn
+                  display: { xs: 'none', sm: 'flex' } 
                 }}
               >
                 ITMATHS
               </Typography>
           </Box>
 
-          {/* 2. [MỚI] MENU CHÍNH Ở GIỮA */}
-          <Box sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
+          {/* 2. MENU CHÍNH Ở GIỮA */}
+          <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
              <Button
                 component={Link}
                 to="/"
@@ -147,7 +145,6 @@ function Navbar() {
                 Kho đề thi
              </Button>
 
-             {/* 🔥 NÚT TÀI NGUYÊN MỚI THÊM VÀO ĐÂY */}
              <Button
                 component={Link}
                 to="/tai-nguyen"
@@ -158,6 +155,24 @@ function Navbar() {
                 }}
              >
                 Tài nguyên
+             </Button>
+
+             {/* 🔥 NÚT ĐẤU TRƯỜNG */}
+             <Button
+                component={Link}
+                to="/arena"
+                sx={{ 
+                    color: '#ffeb3b', 
+                    fontWeight: 'bold',
+                    borderBottom: isActive('/arena') ? '2px solid #ffca28' : 'none',
+                    bgcolor: 'rgba(255, 202, 40, 0.15)',
+                    borderRadius: 2,
+                    px: 2,
+                    display: 'flex', gap: 1,
+                    '&:hover': { bgcolor: 'rgba(255, 202, 40, 0.25)' }
+                }}
+             >
+                ⚔️ Đấu trường
              </Button>
           </Box>
 
@@ -199,7 +214,7 @@ function Navbar() {
               </>
             ) : (
               <>
-                <Button component={Link} to="/login" variant="outlined" sx={{ textTransform: 'none', fontWeight: 'bold', color: 'white', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                <Button component={Link} to="/login" variant="outlined" sx={{ textTransform: 'none', fontWeight: 'bold', color: 'white', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' }, display: { xs: 'none', sm: 'inline-flex' } }}>
                   Đăng nhập
                 </Button>
                 <Button component={Link} to="/register" variant="contained" sx={{ textTransform: 'none', fontWeight: 'bold', bgcolor: '#ffca28', color: '#4a148c', '&:hover': { bgcolor: '#ffd54f' } }}>
