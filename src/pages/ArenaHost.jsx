@@ -43,16 +43,18 @@ function ArenaHost() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
     
-    // State ảo để giáo viên click làm mẫu trên Tivi
+    // 🟢 THÊM STATE CHO ĐỒNG HỒ ĐẾM NGƯỢC CỦA HOST
+    const [timeLeft, setTimeLeft] = useState(0);
+
     const [hostTfAnswers, setHostTfAnswers] = useState({});
 
-    // 🟢 HỆ THỐNG ÂM THANH ĐƯỢC VIẾT LẠI
-    const [isMuted, setIsMuted] = useState(true); // Mặc định tắt để chờ GV bật
-    const audioRef = useRef(new Audio()); // Khởi tạo Audio một lần duy nhất
+    // HỆ THỐNG ÂM THANH
+    const [isMuted, setIsMuted] = useState(true); 
+    const audioRef = useRef(new Audio()); 
 
     useEffect(() => {
         if (lastJsonMessage) {
-            const { event, player_name, score_earned, question, current_index } = lastJsonMessage;
+            const { event, player_name, score_earned, question, current_index, time_limit } = lastJsonMessage;
 
             if (event === 'player_joined') {
                 setPlayers(prev => {
@@ -68,8 +70,9 @@ function ArenaHost() {
             else if (event === 'show_question') {
                 setCurrentQuestion(question);
                 setCurrentQIdx(current_index);
+                setTimeLeft(time_limit || 20); // 🟢 Nạp số giây riêng của từng câu từ Server
                 setStatus('playing');
-                setHostTfAnswers({}); // Reset đáp án làm mẫu
+                setHostTfAnswers({}); 
             }
             else if (event === 'game_ended') {
                 setStatus('podium');
@@ -77,39 +80,50 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // 🟢 LUỒNG 1: XỬ LÝ ĐỔI BÀI HÁT KHI CHUYỂN MÀN HÌNH
+    // 🟢 XỬ LÝ ĐỒNG HỒ ĐẾM NGƯỢC VÀ AUTO-NEXT
+    useEffect(() => {
+        if (status === 'playing' && timeLeft > 0) {
+            const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+            return () => clearTimeout(timer);
+        } else if (status === 'playing' && timeLeft === 0 && currentQuestion) {
+            // Khi hết giờ, chờ 3 giây rồi TỰ ĐỘNG CHUYỂN CÂU
+            const autoNext = setTimeout(() => {
+                sendJsonMessage({ action: 'host_next_question' });
+            }, 3000);
+            return () => clearTimeout(autoNext);
+        }
+    }, [timeLeft, status, currentQuestion, sendJsonMessage]);
+
+
+    // XỬ LÝ NHẠC NỀN
     useEffect(() => {
         let audioFile = '';
-        if (status === 'waiting') audioFile = '/sounds/lobby.mp3';
-        else if (status === 'playing') audioFile = '/sounds/countdown.mp3';
-        else if (status === 'podium') audioFile = '/sounds/podium.mp3';
+        if (status === 'waiting') audioFile = '/sound/lobby.mp3';
+        else if (status === 'playing') audioFile = '/sound/countdown.mp3';
+        else if (status === 'podium') audioFile = '/sound/podium.mp3';
 
         if (audioFile) {
             audioRef.current.src = audioFile;
             audioRef.current.loop = (status !== 'podium');
             
-            // Chỉ phát nếu giáo viên đã mở loa
             if (!isMuted) {
                 audioRef.current.play().catch(e => console.log("Lỗi phát nhạc:", e));
             }
         } else {
             audioRef.current.pause();
         }
-    }, [status]); // Chỉ chạy lại khi status thay đổi
+    }, [status, isMuted]); 
 
-    // 🟢 LUỒNG 2: XỬ LÝ BẬT/TẮT LOA BẰNG TAY
     const toggleMute = () => {
         const newMutedState = !isMuted;
         setIsMuted(newMutedState);
         audioRef.current.muted = newMutedState;
         
-        // Đánh thức nhạc nếu trước đó bị trình duyệt ngủ đông
         if (!newMutedState && audioRef.current.paused && audioRef.current.src) {
             audioRef.current.play().catch(e => console.log("Lỗi phát nhạc:", e));
         }
     };
 
-    // Dọn dẹp nhạc khi thoát khỏi Đấu trường
     useEffect(() => {
         return () => {
             if (audioRef.current) audioRef.current.pause();
@@ -176,9 +190,22 @@ function ArenaHost() {
             {/* MÀN HÌNH ĐANG THI CỦA GIÁO VIÊN */}
             {status === 'playing' && currentQuestion && (
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column">
-                    <Typography variant="h4" color="#bdc3c7" mb={2}>Câu hỏi số {currentQIdx + 1}</Typography>
+                    <Box display="flex" justifyContent="center" alignItems="center" position="relative" mb={2}>
+                        <Typography variant="h4" color="#bdc3c7">Câu hỏi số {currentQIdx + 1}</Typography>
+                        
+                        {/* 🟢 ĐỒNG HỒ ĐẾM NGƯỢC */}
+                        <Box sx={{ 
+                            position: 'absolute', right: 0, width: 80, height: 80, borderRadius: '50%', 
+                            bgcolor: timeLeft <= 5 ? '#e74c3c' : '#3498db', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            boxShadow: '0 0 15px rgba(0,0,0,0.3)', transition: 'background-color 0.3s' 
+                        }}>
+                            <Typography variant="h3" fontWeight="bold" color="white">{timeLeft}</Typography>
+                        </Box>
+                    </Box>
                     
-                    <Paper sx={{ p: 4, mb: 4, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* KHUNG ĐỀ BÀI */}
+                    <Paper sx={{ p: 4, mb: 4, mt: 2, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
                             <Latex delimiters={latexDelimiters}>{currentQuestion.text}</Latex>
                         </Typography>
@@ -186,13 +213,14 @@ function ArenaHost() {
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
                         
+                        {/* 🟢 1. DẠNG TRẮC NGHIỆM (LƯỚI 2x2: A B TRÊN, C D DƯỚI) */}
                         {currentQuestion.type === 'MCQ' && (
                             <Grid container spacing={2} mb={4}>
                                 {currentQuestion.options.map((opt, idx) => (
-                                    <Grid item xs={6} key={idx}>
-                                        <Paper sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, height: '100%' }}>
-                                            <Typography variant="h3" fontWeight="bold">{shapes[idx]}</Typography>
-                                            <Typography variant="h5" fontWeight="bold" textAlign="left">
+                                    <Grid item xs={12} sm={6} key={idx}>
+                                        <Paper sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, height: '100%', minHeight: '100px' }}>
+                                            <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
+                                            <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word' }}>
                                                 {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{opt}</Latex>
                                             </Typography>
                                         </Paper>
@@ -201,7 +229,7 @@ function ArenaHost() {
                             </Grid>
                         )}
 
-                        {/* 🟢 HIỂN THỊ DẠNG ĐÚNG / SAI KÈM RADIO LÀM MẪU */}
+                        {/* 2. HIỂN THỊ DẠNG ĐÚNG / SAI KÈM RADIO LÀM MẪU */}
                         {currentQuestion.type === 'TF' && (
                             <Box display="flex" flexDirection="column" gap={2} mb={4}>
                                 {currentQuestion.options.map((opt, idx) => (
@@ -210,13 +238,8 @@ function ArenaHost() {
                                             Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{opt}</Latex>
                                         </Typography>
                                         
-                                        {/* Bộ Radio để giáo viên thao tác làm mẫu trên bảng */}
                                         <FormControl component="fieldset">
-                                            <RadioGroup 
-                                                row 
-                                                value={hostTfAnswers[idx] || ''} 
-                                                onChange={(e) => setHostTfAnswers({...hostTfAnswers, [idx]: e.target.value})}
-                                            >
+                                            <RadioGroup row value={hostTfAnswers[idx] || ''} onChange={(e) => setHostTfAnswers({...hostTfAnswers, [idx]: e.target.value})}>
                                                 <FormControlLabel value="T" control={<Radio color="success" size="medium"/>} label={<Typography color="green" fontWeight="bold" fontSize="1.2rem">Đúng</Typography>} />
                                                 <FormControlLabel value="F" control={<Radio color="error" size="medium"/>} label={<Typography color="red" fontWeight="bold" fontSize="1.2rem">Sai</Typography>} />
                                             </RadioGroup>
@@ -229,12 +252,15 @@ function ArenaHost() {
                     </Box>
 
                     <Box mt="auto" pb={4}>
-                        <Button 
-                            variant="contained" color="primary" size="large" endIcon={<SkipNextIcon />}
-                            onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5, mb: 4 }}
-                        >
-                            CÂU TIẾP THEO / XEM KẾT QUẢ
-                        </Button>
+                        {/* 🟢 NÚT CHUYỂN CÂU ẨN KHI ĐANG ĐẾM NGƯỢC */}
+                        {timeLeft === 0 && (
+                            <Button 
+                                variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />}
+                                onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5, mb: 4 }}
+                            >
+                                ĐANG CHUYỂN CÂU... (Bấm để qua ngay)
+                            </Button>
+                        )}
 
                         <Box maxWidth="600px" mx="auto" textAlign="left" bgcolor="rgba(0,0,0,0.3)" p={3} borderRadius={3}>
                             <Typography variant="h6" color="#f1c40f" mb={2}>Bảng điểm trực tiếp:</Typography>
