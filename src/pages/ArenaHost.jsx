@@ -8,7 +8,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 
-// 🟢 IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
+// IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
@@ -18,6 +18,18 @@ const getWSUrl = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     return `${protocol}://${backendHost}/ws/arena/`;
 };
+
+// 🟢 Bộ màu và hình khối chuẩn Kahoot cho màn hình Tivi
+const colorPalette = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
+const shapes = ['▲', '◆', '●', '■'];
+
+// Cấu hình nhận diện ngoặc Toán học cho KaTeX
+const latexDelimiters = [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false},
+    {left: '\\(', right: '\\)', display: false},
+    {left: '\\[', right: '\\]', display: true},
+];
 
 function ArenaHost() {
     const { pin } = useParams();
@@ -30,8 +42,8 @@ function ArenaHost() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
     
-    // 🟢 STATE VÀ REF ĐIỀU KHIỂN ÂM THANH
-    const [isMuted, setIsMuted] = useState(false);
+    // STATE ĐIỀU KHIỂN ÂM THANH
+    const [isMuted, setIsMuted] = useState(true); // 🟢 Đổi mặc định thành Muted để chờ Giáo viên chủ động bật
     const audioRef = useRef(null);
 
     // Xử lý dữ liệu từ WebSocket
@@ -61,26 +73,27 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // 🟢 EFFECT ĐIỀU PHỐI NHẠC NỀN THEO TỪNG MÀN HÌNH
+    // EFFECT ĐIỀU PHỐI NHẠC NỀN
     useEffect(() => {
-        // Dừng bài nhạc cũ nếu đang phát
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
         }
 
         let audioFile = '';
+        // 🟢 Đảm bảo đường dẫn tuyệt đối bắt đầu bằng /
         if (status === 'waiting') audioFile = '/sounds/lobby.mp3';
         else if (status === 'playing') audioFile = '/sounds/countdown.mp3';
         else if (status === 'podium') audioFile = '/sounds/podium.mp3';
 
         if (audioFile) {
             audioRef.current = new Audio(audioFile);
-            audioRef.current.loop = (status !== 'podium'); // Nhạc chờ và làm bài thì lặp lại
+            audioRef.current.loop = (status !== 'podium'); 
             audioRef.current.muted = isMuted;
             
-            // Trình duyệt (nhất là Chrome) hay chặn Autoplay nếu người dùng chưa click chuột
-            audioRef.current.play().catch(e => console.log('Chưa tương tác với web, tạm chặn nhạc. Nhấn icon loa để mở.'));
+            if (!isMuted) {
+                audioRef.current.play().catch(e => console.log('Trình duyệt chặn Autoplay.'));
+            }
         }
 
         return () => {
@@ -88,13 +101,15 @@ function ArenaHost() {
         };
     }, [status, isMuted]);
 
-    // Hàm Bật/Tắt âm thanh bằng tay
+    // Hàm Bật/Tắt âm thanh bằng tay (Ép trình duyệt nhả quyền)
     const toggleMute = () => {
-        setIsMuted(!isMuted);
-        if (audioRef.current) audioRef.current.muted = !isMuted;
-        // Kích hoạt lại việc phát nhạc nếu trình duyệt lỡ chặn ban đầu
-        if (audioRef.current && audioRef.current.paused) {
-            audioRef.current.play().catch(e => console.log(e));
+        const newState = !isMuted;
+        setIsMuted(newState);
+        if (audioRef.current) {
+            audioRef.current.muted = newState;
+            if (!newState) {
+                audioRef.current.play().catch(e => console.error("Lỗi phát nhạc:", e));
+            }
         }
     };
 
@@ -114,10 +129,12 @@ function ArenaHost() {
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
                 <Typography variant="h5" fontWeight="bold">ITMaths Host</Typography>
                 
-                {/* 🟢 NÚT ĐIỀU KHIỂN ÂM THANH */}
                 <Box display="flex" alignItems="center" gap={2}>
-                    <IconButton onClick={toggleMute} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}>
-                        {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+                    <Typography variant="body2" color={isMuted ? 'gray' : '#2ecc71'}>
+                        {isMuted ? 'Chạm để Bật Nhạc ➔' : 'Đang phát nhạc'}
+                    </Typography>
+                    <IconButton onClick={toggleMute} sx={{ color: 'white', bgcolor: isMuted ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)', '&:hover': { filter: 'brightness(1.2)' }, width: 50, height: 50 }}>
+                        {isMuted ? <VolumeOffIcon fontSize="large" /> : <VolumeUpIcon fontSize="large" />}
                     </IconButton>
                     <Chip label={`Sĩ số: ${players.length}`} color="warning" sx={{ fontSize: '1.2rem', fontWeight: 'bold', p: 2 }} />
                 </Box>
@@ -153,35 +170,71 @@ function ArenaHost() {
                 </Box>
             )}
 
-            {/* MÀN HÌNH ĐANG THI */}
+            {/* MÀN HÌNH ĐANG THI CỦA GIÁO VIÊN */}
             {status === 'playing' && currentQuestion && (
-                <Box textAlign="center" flex={1}>
+                <Box textAlign="center" flex={1} display="flex" flexDirection="column">
                     <Typography variant="h4" color="#bdc3c7" mb={2}>Câu hỏi số {currentQIdx + 1}</Typography>
                     
-                    <Paper sx={{ p: 5, mb: 4, borderRadius: 3, minHeight: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography variant="h3" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                            {/* 🟢 HIỂN THỊ TOÁN HỌC BẰNG LATEX */}
-                            <Latex delimiters={[{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]}>
-                                {currentQuestion.text}
-                            </Latex>
+                    {/* KHUNG ĐỀ BÀI */}
+                    <Paper sx={{ p: 4, mb: 4, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
+                            <Latex delimiters={latexDelimiters}>{currentQuestion.text}</Latex>
                         </Typography>
                     </Paper>
                     
-                    <Button 
-                        variant="contained" color="primary" size="large" endIcon={<SkipNextIcon />}
-                        onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5 }}
-                    >
-                        CÂU TIẾP THEO / XEM KẾT QUẢ
-                    </Button>
+                    {/* 🟢 KHUNG ĐÁP ÁN (GIỐNG HỌC SINH) */}
+                    <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
+                        
+                        {/* 1. HIỂN THỊ DẠNG TRẮC NGHIỆM */}
+                        {currentQuestion.type === 'MCQ' && (
+                            <Grid container spacing={2} mb={4}>
+                                {currentQuestion.options.map((opt, idx) => (
+                                    <Grid item xs={6} key={idx}>
+                                        <Paper sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, height: '100%' }}>
+                                            <Typography variant="h3" fontWeight="bold">{shapes[idx]}</Typography>
+                                            <Typography variant="h5" fontWeight="bold" textAlign="left">
+                                                {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{opt}</Latex>
+                                            </Typography>
+                                        </Paper>
+                                    </Grid>
+                                ))}
+                            </Grid>
+                        )}
 
-                    <Box mt={5} maxWidth="600px" mx="auto" textAlign="left" bgcolor="rgba(0,0,0,0.3)" p={3} borderRadius={3}>
-                        <Typography variant="h6" color="#f1c40f" mb={2}>Bảng điểm trực tiếp:</Typography>
-                        {players.sort((a,b) => b.score - a.score).map((p, i) => (
-                            <Box key={i} display="flex" justifyContent="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" py={1}>
-                                <Typography variant="h6">#{i+1} {p.name}</Typography>
-                                <Typography variant="h6" fontWeight="bold">{p.score} điểm</Typography>
+                        {/* 2. HIỂN THỊ DẠNG ĐÚNG / SAI */}
+                        {currentQuestion.type === 'TF' && (
+                            <Box display="flex" flexDirection="column" gap={2} mb={4}>
+                                {currentQuestion.options.map((opt, idx) => (
+                                    <Paper key={idx} sx={{ p: 3, borderRadius: 2, borderLeft: '10px solid #3498db', textAlign: 'left' }}>
+                                        <Typography variant="h5" fontWeight="bold" color="black">
+                                            Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{opt}</Latex>
+                                        </Typography>
+                                    </Paper>
+                                ))}
                             </Box>
-                        ))}
+                        )}
+
+                        {/* Dạng Trả lời ngắn không cần hiện gì thêm ngoài đề bài */}
+                    </Box>
+
+                    {/* KHU VỰC NÚT ĐIỀU KHIỂN & BẢNG ĐIỂM */}
+                    <Box mt="auto" pb={4}>
+                        <Button 
+                            variant="contained" color="primary" size="large" endIcon={<SkipNextIcon />}
+                            onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5, mb: 4 }}
+                        >
+                            CÂU TIẾP THEO / XEM KẾT QUẢ
+                        </Button>
+
+                        <Box maxWidth="600px" mx="auto" textAlign="left" bgcolor="rgba(0,0,0,0.3)" p={3} borderRadius={3}>
+                            <Typography variant="h6" color="#f1c40f" mb={2}>Bảng điểm trực tiếp:</Typography>
+                            {players.sort((a,b) => b.score - a.score).map((p, i) => (
+                                <Box key={i} display="flex" justifyContent="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" py={1}>
+                                    <Typography variant="h6">#{i+1} {p.name}</Typography>
+                                    <Typography variant="h6" fontWeight="bold">{p.score} điểm</Typography>
+                                </Box>
+                            ))}
+                        </Box>
                     </Box>
                 </Box>
             )}
