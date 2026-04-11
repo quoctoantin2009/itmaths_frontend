@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
-import { Box, Typography, Button, Paper, CircularProgress } from '@mui/material';
+import { 
+    Box, Typography, Button, Paper, CircularProgress, 
+    TextField, Radio, RadioGroup, FormControlLabel, FormControl, Divider 
+} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import MathJax from 'react-mathjax2'; // 🟢 Hiển thị Toán học
 
 const getWSUrl = () => {
     const isLocal = window.location.hostname === 'localhost';
@@ -32,8 +37,15 @@ function ArenaPlayer() {
     const [status, setStatus] = useState('waiting');
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [hasAnswered, setHasAnswered] = useState(false);
+    
+    // Hệ thống điểm và thời gian
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
+    const [totalTime, setTotalTime] = useState(15);
+
+    // State lưu đáp án của học sinh
+    const [shortAnswer, setShortAnswer] = useState('');
+    const [tfAnswers, setTfAnswers] = useState({});
 
     useEffect(() => {
         if (readyState === 1) {
@@ -45,105 +57,221 @@ function ArenaPlayer() {
         if (lastJsonMessage) {
             const { event, question, time_limit } = lastJsonMessage;
             switch (event) {
-                case 'game_started': setStatus('get_ready'); break;
+                case 'game_started': 
+                    setStatus('get_ready'); 
+                    break;
                 case 'show_question':
                     setStatus('playing');
                     setCurrentQuestion(question);
                     setHasAnswered(false);
                     setTimeLeft(time_limit || 15);
+                    setTotalTime(time_limit || 15);
+                    // Reset đáp án cũ
+                    setShortAnswer('');
+                    setTfAnswers({});
                     break;
-                case 'game_ended': setStatus('podium'); break;
+                case 'game_ended': 
+                    setStatus('podium'); 
+                    break;
             }
         }
     }, [lastJsonMessage]);
 
+    // Đếm ngược thời gian
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0 && !hasAnswered) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timer);
+        } else if (timeLeft === 0 && !hasAnswered && status === 'playing') {
+            // Hết giờ tự động nộp bài (0 điểm)
+            submitFinalAnswer('TIMEOUT', 0);
         }
     }, [timeLeft, status, hasAnswered]);
 
-    const handleAnswer = (idx) => {
-        if (hasAnswered) return;
+    // 🟢 THUẬT TOÁN TÍNH ĐIỂM
+    const submitFinalAnswer = (answerData, baseScore = 500) => {
         setHasAnswered(true);
-        const earned = Math.floor(Math.random() * 200) + 800; 
-        setScore(prev => prev + earned);
+        
+        let earned = 0;
+        if (answerData !== 'TIMEOUT') {
+            // Điểm thưởng tốc độ (Max 500đ)
+            const speedBonus = Math.floor((timeLeft / totalTime) * 500);
+            earned = baseScore + speedBonus;
+            setScore(prev => prev + earned);
+        }
+
         sendJsonMessage({
             action: 'submit_answer',
             player_name: playerName,
-            is_correct: true,
-            score_earned: earned,
-            answer_index: idx
+            answer_data: answerData, // Gửi chi tiết đáp án lên Server
+            score_earned: earned
         });
     };
 
+    // Xử lý nộp bài cho từng dạng
+    const handleMCQAnswer = (idx) => {
+        submitFinalAnswer(`OPTION_${idx}`, 500); // MCQ: 500đ cơ bản
+    };
+
+    const handleShortAnswerSubmit = () => {
+        if (!shortAnswer.trim()) return;
+        submitFinalAnswer(shortAnswer, 1000); // SHORT: 1000đ cơ bản
+    };
+
+    const handleTFSubmit = () => {
+        // Kiểm tra xem đã chọn đủ 4 ý chưa
+        if (Object.keys(tfAnswers).length < (currentQuestion.options?.length || 4)) {
+            alert('Vui lòng chọn Đúng/Sai cho tất cả các ý!');
+            return;
+        }
+        submitFinalAnswer(tfAnswers, 1000); // TF: 1000đ cơ bản (Giả định đúng hết)
+    };
+
+    // UI Mảng màu và hình khối cho MCQ
     const colorPalette = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
     const shapes = ['▲', '◆', '●', '■'];
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa', p: 2, display: 'flex', flexDirection: 'column' }}>
-            
-            {/* TOP BAR */}
-            <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: 3 }}>
-                <Typography variant="subtitle1" fontWeight="bold">{playerName}</Typography>
-                {status === 'playing' && <Box sx={{ bgcolor: '#333', color: '#fff', px: 2, py: 0.5, borderRadius: 5 }}>⏱ {timeLeft}s</Box>}
-                <Typography variant="subtitle1" fontWeight="900" color="primary">{score} đ</Typography>
-            </Paper>
-
-            {status === 'waiting' && <Box flex={1} display="flex" justifyContent="center" alignItems="center"><CircularProgress/></Box>}
-
-            {/* GIAO DIỆN CHƠI - GỠ MATHJAX */}
-            {status === 'playing' && currentQuestion && (
-                <Box flex={1} display="flex" flexDirection="column" gap={2}>
-                    <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
-                        <Typography variant="h6" fontWeight="bold">{currentQuestion.text || "Hãy chọn đáp án!"}</Typography>
-                    </Paper>
-
-                    {!hasAnswered ? (
-                        <Box display="flex" flexDirection="column" gap={1.5}>
-                            {currentQuestion.options.map((opt, idx) => (
-                                <Button
-                                    key={idx}
-                                    fullWidth
-                                    variant="contained"
-                                    onClick={() => handleAnswer(idx)}
-                                    sx={{
-                                        bgcolor: colorPalette[idx],
-                                        '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' },
-                                        justifyContent: 'flex-start',
-                                        borderRadius: 3,
-                                        p: 2,
-                                        gap: 2,
-                                        textTransform: 'none'
-                                    }}
-                                >
-                                    <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
-                                    <Typography variant="body1" fontWeight="bold">
-                                        {String.fromCharCode(65 + idx)}. {opt}
-                                    </Typography>
-                                </Button>
-                            ))}
+        <MathJax.Context input='tex'>
+            <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa', display: 'flex', flexDirection: 'column' }}>
+                
+                {/* THANH TRẠNG THÁI TOP BAR */}
+                <Box sx={{ bgcolor: 'white', p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                    <Typography variant="subtitle1" fontWeight="bold" color="#2c3e50">{playerName}</Typography>
+                    
+                    {status === 'playing' && (
+                        <Box sx={{ bgcolor: timeLeft <= 5 ? '#e74c3c' : '#34495e', color: '#fff', px: 2, py: 0.5, borderRadius: 5, fontWeight: 'bold' }}>
+                            ⏱ {timeLeft}s
                         </Box>
-                    ) : (
-                        <Typography variant="h5" textAlign="center" color="textSecondary" mt={5}>Đã ghi nhận đáp án!</Typography>
                     )}
+                    
+                    <Box sx={{ bgcolor: '#f1c40f', px: 2, py: 0.5, borderRadius: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="900" color="black">{score} đ</Typography>
+                    </Box>
                 </Box>
-            )}
 
-            {status === 'podium' && (
-                <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center" gap={3}>
-                    <Typography variant="h3" fontWeight="900">KẾT THÚC!</Typography>
-                    <Button 
-                        variant="contained" 
-                        onClick={() => navigate('/arena')}
-                        sx={{ bgcolor: '#2d3436', color: '#fff', px: 5, py: 1.5, borderRadius: 2, fontWeight: 'bold' }}
-                    >
-                        Quay về
-                    </Button>
-                </Box>
-            )}
-        </Box>
+                {/* MÀN HÌNH CHỜ */}
+                {status === 'waiting' && (
+                    <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
+                        <CircularProgress size={60} sx={{ color: '#4a148c', mb: 3 }} />
+                        <Typography variant="h5" color="#4a148c" fontWeight="bold">Bạn đã vào phòng!</Typography>
+                        <Typography color="textSecondary">Nhìn lên màn hình của Thầy/Cô nhé...</Typography>
+                    </Box>
+                )}
+                {status === 'get_ready' && (
+                    <Box flex={1} display="flex" justifyContent="center" alignItems="center" bgcolor="#3498db">
+                        <Typography variant="h3" fontWeight="900" color="white">CHUẨN BỊ...</Typography>
+                    </Box>
+                )}
+
+                {/* MÀN HÌNH ĐANG CHƠI */}
+                {status === 'playing' && currentQuestion && (
+                    <Box flex={1} display="flex" flexDirection="column" p={2} gap={2}>
+                        
+                        {/* Hiển thị đề bài */}
+                        <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                            <Typography variant="body1" fontWeight="bold" fontSize="1.2rem">
+                                <MathJax.Text text={currentQuestion.text || "Hãy chọn đáp án!"} />
+                            </Typography>
+                        </Paper>
+
+                        {/* NẾU CHƯA TRẢ LỜI */}
+                        {!hasAnswered ? (
+                            <Box flex={1} display="flex" flexDirection="column" gap={2}>
+                                
+                                {/* 🟢 DẠNG 1: TRẮC NGHIỆM 4 ĐÁP ÁN (MCQ) */}
+                                {currentQuestion.type === 'MCQ' && currentQuestion.options.map((opt, idx) => (
+                                    <Button
+                                        key={idx} fullWidth variant="contained"
+                                        onClick={() => handleMCQAnswer(idx)}
+                                        sx={{
+                                            bgcolor: colorPalette[idx],
+                                            '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' },
+                                            justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none', boxShadow: '0 4px 0 rgba(0,0,0,0.2)'
+                                        }}
+                                    >
+                                        <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
+                                        <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left">
+                                            {String.fromCharCode(65 + idx)}. <MathJax.Text text={opt} />
+                                        </Typography>
+                                    </Button>
+                                ))}
+
+                                {/* 🟢 DẠNG 2: ĐÚNG / SAI (TF) */}
+                                {currentQuestion.type === 'TF' && (
+                                    <Box display="flex" flexDirection="column" gap={1.5}>
+                                        {currentQuestion.options.map((opt, idx) => (
+                                            <Paper key={idx} sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #3498db' }}>
+                                                <Typography variant="body1" mb={1} fontWeight="bold">
+                                                    Ý {String.fromCharCode(65 + idx)}: <MathJax.Text text={opt} />
+                                                </Typography>
+                                                <FormControl component="fieldset">
+                                                    <RadioGroup 
+                                                        row 
+                                                        value={tfAnswers[idx] || ''} 
+                                                        onChange={(e) => setTfAnswers({...tfAnswers, [idx]: e.target.value})}
+                                                    >
+                                                        <FormControlLabel value="T" control={<Radio color="success"/>} label={<Typography color="green" fontWeight="bold">Đúng</Typography>} />
+                                                        <FormControlLabel value="F" control={<Radio color="error"/>} label={<Typography color="red" fontWeight="bold">Sai</Typography>} />
+                                                    </RadioGroup>
+                                                </FormControl>
+                                            </Paper>
+                                        ))}
+                                        <Button 
+                                            variant="contained" size="large" endIcon={<SendIcon />}
+                                            onClick={handleTFSubmit}
+                                            sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}
+                                        >
+                                            CHỐT ĐÁP ÁN
+                                        </Button>
+                                    </Box>
+                                )}
+
+                                {/* 🟢 DẠNG 3: TRẢ LỜI NGẮN (SHORT) */}
+                                {currentQuestion.type === 'SHORT' && (
+                                    <Paper sx={{ p: 4, borderRadius: 3, textAlign: 'center', mt: 2 }}>
+                                        <Typography variant="h6" mb={2} color="textSecondary">Nhập kết quả của bạn:</Typography>
+                                        <TextField 
+                                            fullWidth variant="outlined" placeholder="VD: 12.5 hoặc -5"
+                                            value={shortAnswer}
+                                            onChange={(e) => setShortAnswer(e.target.value)}
+                                            inputProps={{ style: { textAlign: 'center', fontSize: '2rem', fontWeight: 'bold' } }}
+                                            sx={{ mb: 3 }}
+                                        />
+                                        <Button 
+                                            fullWidth variant="contained" size="large" endIcon={<SendIcon />}
+                                            onClick={handleShortAnswerSubmit}
+                                            sx={{ py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#27ae60' }}
+                                        >
+                                            GỬI KẾT QUẢ
+                                        </Button>
+                                    </Paper>
+                                )}
+
+                            </Box>
+                        ) : (
+                            <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 3, mt: 5, bgcolor: '#ecf0f1' }}>
+                                <Typography variant="h4" mb={2}>⏳</Typography>
+                                <Typography variant="h5" color="#7f8c8d" fontWeight="bold">Đã ghi nhận đáp án!</Typography>
+                                <Typography variant="body1" mt={2}>Hãy chờ các bạn khác nhé...</Typography>
+                            </Paper>
+                        )}
+                    </Box>
+                )}
+
+                {/* MÀN HÌNH PODIUM KẾT THÚC */}
+                {status === 'podium' && (
+                    <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center" gap={3} bgcolor="#2c3e50" color="white">
+                        <Typography variant="h3" fontWeight="900" color="#f1c40f">KẾT THÚC!</Typography>
+                        <Typography variant="h5">Tổng điểm của bạn:</Typography>
+                        <Typography variant="h1" fontWeight="900" color="#2ecc71">{score}</Typography>
+                        <Button variant="outlined" sx={{ color: 'white', borderColor: 'white', mt: 4 }} onClick={() => navigate('/arena')}>
+                            Rời phòng
+                        </Button>
+                    </Box>
+                )}
+            </Box>
+        </MathJax.Context>
     );
 }
 
