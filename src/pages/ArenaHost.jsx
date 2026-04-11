@@ -8,7 +8,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 
-// 🟢 1. IMPORT CÔNG THỨC TOÁN HỌC (KaTeX)
+// 🟢 IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
@@ -30,11 +30,11 @@ function ArenaHost() {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
     
-    // 🟢 2. STATE ĐIỀU KHIỂN ÂM THANH
+    // 🟢 STATE VÀ REF ĐIỀU KHIỂN ÂM THANH
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef(null);
 
-    // Xử lý WebSocket
+    // Xử lý dữ liệu từ WebSocket
     useEffect(() => {
         if (lastJsonMessage) {
             const { event, player_name, score_earned, question, current_index } = lastJsonMessage;
@@ -61,9 +61,9 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // 🟢 3. EFFECT ĐIỀU PHỐI NHẠC NỀN
+    // 🟢 EFFECT ĐIỀU PHỐI NHẠC NỀN THEO TỪNG MÀN HÌNH
     useEffect(() => {
-        // Dừng nhạc cũ trước khi chuyển bài
+        // Dừng bài nhạc cũ nếu đang phát
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -76,11 +76,11 @@ function ArenaHost() {
 
         if (audioFile) {
             audioRef.current = new Audio(audioFile);
-            audioRef.current.loop = (status !== 'podium'); // Lặp nhạc chờ và làm bài
+            audioRef.current.loop = (status !== 'podium'); // Nhạc chờ và làm bài thì lặp lại
             audioRef.current.muted = isMuted;
             
-            // Trình duyệt có thể chặn Autoplay, ta cần dùng try-catch
-            audioRef.current.play().catch(e => console.log('Chưa tương tác với web, tạm chặn nhạc.'));
+            // Trình duyệt (nhất là Chrome) hay chặn Autoplay nếu người dùng chưa click chuột
+            audioRef.current.play().catch(e => console.log('Chưa tương tác với web, tạm chặn nhạc. Nhấn icon loa để mở.'));
         }
 
         return () => {
@@ -88,16 +88,18 @@ function ArenaHost() {
         };
     }, [status, isMuted]);
 
-    // Toggle Tắt/Mở loa
+    // Hàm Bật/Tắt âm thanh bằng tay
     const toggleMute = () => {
         setIsMuted(!isMuted);
         if (audioRef.current) audioRef.current.muted = !isMuted;
+        // Kích hoạt lại việc phát nhạc nếu trình duyệt lỡ chặn ban đầu
+        if (audioRef.current && audioRef.current.paused) {
+            audioRef.current.play().catch(e => console.log(e));
+        }
     };
 
     const handleStartGame = () => {
         sendJsonMessage({ action: 'broadcast', event: 'game_started' }); 
-        
-        // Đợi 3 giây rồi mới phát câu hỏi số 1
         setTimeout(() => {
             sendJsonMessage({ action: 'host_next_question' });
         }, 3000);
@@ -111,8 +113,10 @@ function ArenaHost() {
             {/* THANH TOP BAR */}
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
                 <Typography variant="h5" fontWeight="bold">ITMaths Host</Typography>
+                
+                {/* 🟢 NÚT ĐIỀU KHIỂN ÂM THANH */}
                 <Box display="flex" alignItems="center" gap={2}>
-                    <IconButton onClick={toggleMute} sx={{ color: 'white' }}>
+                    <IconButton onClick={toggleMute} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}>
                         {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
                     </IconButton>
                     <Chip label={`Sĩ số: ${players.length}`} color="warning" sx={{ fontSize: '1.2rem', fontWeight: 'bold', p: 2 }} />
@@ -132,7 +136,7 @@ function ArenaHost() {
                         startIcon={<PlayCircleFilledWhiteIcon />} 
                         onClick={handleStartGame}
                         disabled={players.length === 0}
-                        sx={{ fontSize: '1.5rem', py: 2, px: 5, borderRadius: 10 }}
+                        sx={{ fontSize: '1.5rem', py: 2, px: 5, borderRadius: 10, boxShadow: '0 0 20px rgba(46, 204, 113, 0.6)' }}
                     >
                         BẮT ĐẦU TRẬN ĐẤU
                     </Button>
@@ -140,22 +144,26 @@ function ArenaHost() {
                     <Grid container spacing={2} mt={5} justifyContent="center" maxWidth="800px">
                         {players.map((p, idx) => (
                             <Grid item key={idx}>
-                                <Typography variant="h5" sx={{ bgcolor: 'rgba(255,255,255,0.1)', px: 3, py: 1, borderRadius: 2, fontWeight: 'bold' }}>{p.name}</Typography>
+                                <Typography variant="h5" sx={{ bgcolor: 'rgba(255,255,255,0.1)', px: 3, py: 1, borderRadius: 2, fontWeight: 'bold' }}>
+                                    {p.name}
+                                </Typography>
                             </Grid>
                         ))}
                     </Grid>
                 </Box>
             )}
 
-            {/* MÀN HÌNH ĐANG THI - TÍCH HỢP LATEX */}
+            {/* MÀN HÌNH ĐANG THI */}
             {status === 'playing' && currentQuestion && (
                 <Box textAlign="center" flex={1}>
                     <Typography variant="h4" color="#bdc3c7" mb={2}>Câu hỏi số {currentQIdx + 1}</Typography>
                     
                     <Paper sx={{ p: 5, mb: 4, borderRadius: 3, minHeight: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="h3" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                            {/* 🟢 HIỂN THỊ CÔNG THỨC TOÁN */}
-                            <Latex>{currentQuestion.text}</Latex>
+                            {/* 🟢 HIỂN THỊ TOÁN HỌC BẰNG LATEX */}
+                            <Latex delimiters={[{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]}>
+                                {currentQuestion.text}
+                            </Latex>
                         </Typography>
                     </Paper>
                     
