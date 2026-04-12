@@ -5,7 +5,8 @@ import {
     Snackbar, Alert, Dialog, DialogTitle, DialogContent, 
     DialogActions, FormControl, InputLabel, Select, MenuItem, 
     CircularProgress, Checkbox, List, ListItem, ListItemIcon, 
-    ListItemText, Chip, Divider, InputAdornment, IconButton, Tooltip
+    ListItemText, Chip, Divider, InputAdornment, IconButton, Tooltip,
+    Radio, RadioGroup, FormControlLabel
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import TimerIcon from '@mui/icons-material/Timer';
@@ -13,6 +14,7 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'; // 🟢 Icon tải ảnh
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
@@ -22,8 +24,6 @@ function ArenaEntry() {
     const navigate = useNavigate();
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
     const [openScanner, setOpenScanner] = useState(false);
-
-    // 🟢 STATE CHO CẨM NANG HƯỚNG DẪN
     const [openGuide, setOpenGuide] = useState(false);
 
     // STATE CHO TẠO PHÒNG
@@ -36,10 +36,27 @@ function ArenaEntry() {
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     const [qSettings, setQSettings] = useState({});
 
-    // 🟢 STATE CHO TẠO CÂU HỎI CÁ NHÂN
+    // 🟢 STATE CHO TẠO CÂU HỎI CÁ NHÂN (Phiên bản trực quan)
     const [openCustomQModal, setOpenCustomQModal] = useState(false);
     const [customQ, setCustomQ] = useState({
-        content: '', question_type: 'MCQ', options_text: '', explanation: ''
+        content: '',
+        question_type: 'MCQ',
+        explanation: '',
+        image: null,
+        imagePreview: null,
+        shortAnswer: '',
+        optionsMCQ: [
+            { text: '', is_correct: true },
+            { text: '', is_correct: false },
+            { text: '', is_correct: false },
+            { text: '', is_correct: false }
+        ],
+        optionsTF: [
+            { text: '', is_correct: true }, // True = Ý này đúng
+            { text: '', is_correct: true },
+            { text: '', is_correct: false },
+            { text: '', is_correct: false }
+        ]
     });
 
     const showToast = (message, type = 'error') => setToast({ open: true, message, type });
@@ -62,9 +79,7 @@ function ArenaEntry() {
     };
 
     useEffect(() => {
-        if (selectedGrade) {
-            axiosClient.get(`/topics/?grade=${selectedGrade}`).then(res => setTopics(res.data));
-        }
+        if (selectedGrade) axiosClient.get(`/topics/?grade=${selectedGrade}`).then(res => setTopics(res.data));
     }, [selectedGrade]);
 
     useEffect(() => {
@@ -74,40 +89,64 @@ function ArenaEntry() {
                 .then(res => {
                     setQuestions(res.data);
                     const newSettings = { ...qSettings };
-                    res.data.forEach(q => {
-                        if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" };
-                    });
+                    res.data.forEach(q => { if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" }; });
                     setQSettings(newSettings);
                 })
                 .finally(() => setLoadingQuestions(false));
         }
     }, [selectedTopic]);
 
-    const handleToggleSelect = (id) => {
-        setQSettings(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id].selected } }));
-    };
-
+    const handleToggleSelect = (id) => setQSettings(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id].selected } }));
     const handleTimeChange = (id, val) => {
         const numericVal = val.replace(/[^0-9]/g, ''); 
         setQSettings(prev => ({ ...prev, [id]: { ...prev[id], time: numericVal, selected: true } }));
     };
 
-    // 🟢 HÀM LƯU CÂU HỎI CÁ NHÂN
+    // 🟢 HÀM XỬ LÝ CHỌN ẢNH TỪ MÁY TÍNH
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setCustomQ({ ...customQ, image: file, imagePreview: URL.createObjectURL(file) });
+        }
+    };
+
+    // 🟢 HÀM LƯU CÂU HỎI VÀ GỬI LÊN SERVER
     const handleSaveCustomQuestion = async () => {
         if (!customQ.content.trim()) return showToast('Vui lòng nhập đề bài!', 'warning');
         
+        // Dùng FormData để gửi được File Ảnh
+        const formData = new FormData();
+        formData.append('content', customQ.content);
+        formData.append('question_type', customQ.question_type);
+        formData.append('explanation', customQ.explanation);
+        if (customQ.image) formData.append('image', customQ.image);
+
+        if (customQ.question_type === 'MCQ') {
+            formData.append('options', JSON.stringify(customQ.optionsMCQ));
+        } else if (customQ.question_type === 'TF') {
+            formData.append('options', JSON.stringify(customQ.optionsTF));
+        } else {
+            formData.append('short_answer', customQ.shortAnswer);
+        }
+
         try {
-            // CẦN CÓ API NÀY BÊN DJANGO ĐỂ LƯU CÂU HỎI GẮN VỚI TÀI KHOẢN GIÁO VIÊN
-            const res = await axiosClient.post('/arena/custom-questions/create/', customQ);
+            const res = await axiosClient.post('/arena/custom-questions/create/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             const newQuestion = res.data; 
 
-            // Đưa câu hỏi mới vào đầu danh sách và tự động chọn
             setQuestions([newQuestion, ...questions]);
             setQSettings(prev => ({ ...prev, [newQuestion.id]: { selected: true, time: "30" } }));
             
             showToast('Đã lưu câu hỏi vào kho cá nhân!', 'success');
             setOpenCustomQModal(false);
-            setCustomQ({ content: '', question_type: 'MCQ', options_text: '', explanation: '' }); // Reset
+            
+            // Reset Form
+            setCustomQ({
+                content: '', question_type: 'MCQ', explanation: '', image: null, imagePreview: null, shortAnswer: '',
+                optionsMCQ: [{ text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }, { text: '', is_correct: false }],
+                optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }]
+            });
         } catch (err) {
             showToast('Lỗi khi lưu câu hỏi. Vui lòng kiểm tra lại!');
         }
@@ -144,15 +183,12 @@ function ArenaEntry() {
         }
     };
 
+    const labelChars = ['A', 'B', 'C', 'D'];
+
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#4a148c', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, position: 'relative' }}>
-            
-            {/* NÚT CẨM NANG HƯỚNG DẪN (Góc phải trên) */}
             <Tooltip title="Hướng dẫn & Luật chơi">
-                <IconButton 
-                    onClick={() => setOpenGuide(true)} 
-                    sx={{ position: 'absolute', top: 20, right: 20, color: '#f1c40f', bgcolor: 'rgba(255,255,255,0.1)' }}
-                >
+                <IconButton onClick={() => setOpenGuide(true)} sx={{ position: 'absolute', top: 20, right: 20, color: '#f1c40f', bgcolor: 'rgba(255,255,255,0.1)' }}>
                     <HelpOutlineIcon fontSize="large" />
                 </IconButton>
             </Tooltip>
@@ -166,11 +202,7 @@ function ArenaEntry() {
                     <Button fullWidth variant="contained" size="large" onClick={() => navigate(`/arena/play/${pin}`)} sx={{ py: 2, bgcolor: '#333', fontSize: '1.2rem', fontWeight: 'bold' }}>
                         VÀO CHƠI
                     </Button>
-
-                    <Divider sx={{ my: 3, '&::before, &::after': { borderColor: '#e0e0e0' } }}>
-                        <Typography color="textSecondary" fontWeight="bold">HOẶC</Typography>
-                    </Divider>
-                    
+                    <Divider sx={{ my: 3, '&::before, &::after': { borderColor: '#e0e0e0' } }}><Typography color="textSecondary" fontWeight="bold">HOẶC</Typography></Divider>
                     <Button fullWidth variant="outlined" size="large" startIcon={<QrCodeScannerIcon />} onClick={() => setOpenScanner(true)} sx={{ py: 1.5, color: '#4a148c', borderColor: '#4a148c', borderWidth: 2, fontWeight: 'bold' }}>
                         QUÉT MÃ QR ĐỂ VÀO
                     </Button>
@@ -183,30 +215,20 @@ function ArenaEntry() {
                 </Box>
             </Container>
 
-            {/* 🟢 MODAL CẨM NANG HƯỚNG DẪN */}
             <Dialog open={openGuide} onClose={() => setOpenGuide(false)} maxWidth="sm" fullWidth>
-                <DialogTitle sx={{ bgcolor: '#2c3e50', color: '#f1c40f', fontWeight: 'bold', textAlign: 'center' }}>
-                    📖 CẨM NANG ĐẤU TRƯỜNG
-                </DialogTitle>
+                <DialogTitle sx={{ bgcolor: '#2c3e50', color: '#f1c40f', fontWeight: 'bold', textAlign: 'center' }}>📖 CẨM NANG ĐẤU TRƯỜNG</DialogTitle>
                 <DialogContent sx={{ p: 4 }}>
                     <Typography variant="h6" color="primary" fontWeight="bold">1. Cách tính điểm</Typography>
                     <Typography variant="body1" mb={2}>
-                        Điểm số được tính dựa trên <b>sự chính xác</b> và <b>tốc độ</b> của bạn.
+                        Điểm số được tính dựa trên <b>sự chính xác</b> và <b>tốc độ</b>.
                         <br/>- Điểm gốc trả lời đúng: <b>500 điểm</b>.
                         <br/>- Điểm thưởng tốc độ: Lên tới <b>500 điểm</b> (Trả lời càng nhanh, điểm thưởng càng cao).
-                        <br/>- Trả lời sai hoặc hết giờ: <b>0 điểm</b>.
                     </Typography>
-
                     <Typography variant="h6" color="primary" fontWeight="bold">2. Dành cho Học sinh</Typography>
-                    <Typography variant="body1" mb={2}>
-                        - Bạn có thể tham gia bằng cách nhập <b>Mã PIN</b> gồm 6 chữ số do giáo viên cung cấp.
-                        <br/>- Hoặc nhấn nút <b>QUÉT MÃ QR</b> và đưa camera lên quét mã hiển thị trên màn hình Tivi/Máy chiếu của lớp.
-                    </Typography>
-
+                    <Typography variant="body1" mb={2}>Tham gia bằng cách nhập <b>Mã PIN</b> hoặc <b>QUÉT MÃ QR</b> trên Tivi.</Typography>
                     <Typography variant="h6" color="primary" fontWeight="bold">3. Dành cho Giáo viên</Typography>
                     <Typography variant="body1">
-                        - Nhấn <b>Tạo phòng</b> để chọn các câu hỏi từ Kho đề thi hoặc Tự soạn câu hỏi riêng.
-                        <br/>- Khi trận đấu diễn ra, hệ thống sẽ <b>dừng lại khi hết giờ</b> và hiển thị Lời giải chi tiết để Thầy/Cô phân tích cho học sinh.
+                        - Hệ thống sẽ <b>dừng lại khi hết giờ</b> và hiển thị Lời giải để Thầy/Cô phân tích.
                         <br/>- Giáo viên toàn quyền kiểm soát việc bấm nút <b>Chuyển câu tiếp theo</b>.
                     </Typography>
                 </DialogContent>
@@ -215,7 +237,6 @@ function ArenaEntry() {
                 </DialogActions>
             </Dialog>
 
-            {/* SCANNER DIALOG */}
             <Dialog open={openScanner} onClose={() => setOpenScanner(false)} fullWidth maxWidth="xs">
                 <DialogContent sx={{ p: 0, bgcolor: 'black' }}>
                     {openScanner && <Scanner onScan={handleScanSuccess} formats={['qr_code']} />}
@@ -229,54 +250,28 @@ function ArenaEntry() {
             <Dialog open={openCreateModal} onClose={() => setOpenCreateModal(false)} fullWidth maxWidth="md">
                 <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Cài đặt Trận Đấu</span>
-                    {/* 🟢 NÚT TẠO CÂU HỎI CÁ NHÂN */}
                     <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={() => setOpenCustomQModal(true)} sx={{ fontWeight: 'bold' }}>
-                        Tự soạn câu hỏi riêng
+                        Tự soạn câu hỏi
                     </Button>
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2 }}>
                     <TextField fullWidth label="Tên Trận Đấu" value={arenaTitle} onChange={(e) => setArenaTitle(e.target.value)} sx={{ mb: 3, mt: 1 }} />
                     <Box display="flex" gap={2} mb={3}>
-                        <FormControl fullWidth>
-                            <InputLabel>Khối</InputLabel>
-                            <Select value={selectedGrade} label="Khối" onChange={(e) => setSelectedGrade(e.target.value)}>
-                                {[12, 11, 10, 9, 8, 7, 6].map(g => <MenuItem key={g} value={g}>Lớp {g}</MenuItem>)}
-                            </Select>
-                        </FormControl>
-                        <FormControl fullWidth disabled={!selectedGrade}>
-                            <InputLabel>Chủ Đề (Server)</InputLabel>
-                            <Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>
-                                {topics.map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}
-                            </Select>
-                        </FormControl>
+                        <FormControl fullWidth><InputLabel>Khối</InputLabel><Select value={selectedGrade} label="Khối" onChange={(e) => setSelectedGrade(e.target.value)}>{[12, 11, 10, 9, 8, 7, 6].map(g => <MenuItem key={g} value={g}>Lớp {g}</MenuItem>)}</Select></FormControl>
+                        <FormControl fullWidth disabled={!selectedGrade}><InputLabel>Chủ Đề (Server)</InputLabel><Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>{topics.map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}</Select></FormControl>
                     </Box>
-
                     <Divider>Kho câu hỏi (Hệ thống & Cá nhân)</Divider>
-
                     {loadingQuestions ? <Box display="flex" justifyContent="center" p={3}><CircularProgress /></Box> : (
                         <List sx={{ maxHeight: 400, overflow: 'auto', border: '1px solid #ddd', mt: 2, borderRadius: 2 }}>
                             {questions.map((q) => (
                                 <ListItem key={q.id} sx={{ borderBottom: '1px solid #f0f0f0', bgcolor: q.is_private ? 'rgba(241, 196, 15, 0.1)' : 'transparent' }}>
-                                    <ListItemIcon>
-                                        <Checkbox checked={!!qSettings[q.id]?.selected} onChange={() => handleToggleSelect(q.id)} />
-                                    </ListItemIcon>
+                                    <ListItemIcon><Checkbox checked={!!qSettings[q.id]?.selected} onChange={() => handleToggleSelect(q.id)} /></ListItemIcon>
                                     <ListItemText 
                                         primary={<Typography noWrap variant="body1" sx={{ maxWidth: '400px' }}>{q.content}</Typography>} 
-                                        secondary={
-                                            <Box display="flex" gap={1} mt={0.5}>
-                                                {getTypeLabel(q.question_type)}
-                                                {q.is_private && <Chip label="Của tôi" color="secondary" size="small" />}
-                                            </Box>
-                                        } 
+                                        secondary={<Box display="flex" gap={1} mt={0.5}>{getTypeLabel(q.question_type)}{q.is_private && <Chip label="Của tôi" color="secondary" size="small" />}</Box>} 
                                         sx={{ mr: 2 }} 
                                     />
-                                    <TextField
-                                        size="small" label="Số giây"
-                                        value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : "20"}
-                                        onChange={(e) => handleTimeChange(q.id, e.target.value)}
-                                        sx={{ width: 100 }} inputProps={{ inputMode: 'numeric' }}
-                                        InputProps={{ startAdornment: (<InputAdornment position="start"><TimerIcon fontSize="small" color={qSettings[q.id]?.selected ? "primary" : "inherit"} /></InputAdornment>) }}
-                                    />
+                                    <TextField size="small" label="Số giây" value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : "20"} onChange={(e) => handleTimeChange(q.id, e.target.value)} sx={{ width: 100 }} inputProps={{ inputMode: 'numeric' }} InputProps={{ startAdornment: (<InputAdornment position="start"><TimerIcon fontSize="small" color={qSettings[q.id]?.selected ? "primary" : "inherit"} /></InputAdornment>) }} />
                                 </ListItem>
                             ))}
                         </List>
@@ -288,42 +283,90 @@ function ArenaEntry() {
                 </DialogActions>
             </Dialog>
 
-            {/* 🟢 MODAL SOẠN CÂU HỎI CÁ NHÂN */}
+            {/* 🟢 MODAL SOẠN CÂU HỎI TRỰC QUAN */}
             <Dialog open={openCustomQModal} onClose={() => setOpenCustomQModal(false)} fullWidth maxWidth="sm">
-                <DialogTitle sx={{ bgcolor: '#f39c12', color: 'white', fontWeight: 'bold' }}>Tự soạn Câu hỏi của bạn</DialogTitle>
+                <DialogTitle sx={{ bgcolor: '#f39c12', color: 'white', fontWeight: 'bold' }}>Tự soạn Câu hỏi (Có hình ảnh)</DialogTitle>
                 <DialogContent sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <TextField 
-                        fullWidth multiline rows={3} label="Nội dung đề bài (Hỗ trợ mã LaTeX)" 
-                        value={customQ.content} onChange={(e) => setCustomQ({...customQ, content: e.target.value})} 
-                        placeholder="Ví dụ: Tính đạo hàm của hàm số $y = x^2$" mt={1}
-                    />
                     
+                    <TextField fullWidth multiline rows={3} label="Nội dung đề bài (Hỗ trợ mã LaTeX)" value={customQ.content} onChange={(e) => setCustomQ({...customQ, content: e.target.value})} placeholder="Ví dụ: Tính đạo hàm của hàm số $y = x^2$" mt={1} />
+                    
+                    {/* KHU VỰC UPLOAD ẢNH */}
+                    <Box sx={{ border: '1px dashed #ccc', p: 2, borderRadius: 2, textAlign: 'center', bgcolor: '#f9f9f9' }}>
+                        <Button component="label" variant="contained" color="info" startIcon={<CloudUploadIcon />}>
+                            Tải Ảnh Đề Bài Lên (Nếu có)
+                            <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
+                        </Button>
+                        {customQ.imagePreview && <Box component="img" src={customQ.imagePreview} sx={{ mt: 2, maxHeight: 150, maxWidth: '100%', objectFit: 'contain' }} />}
+                    </Box>
+
                     <FormControl fullWidth>
                         <InputLabel>Loại câu hỏi</InputLabel>
                         <Select value={customQ.question_type} label="Loại câu hỏi" onChange={(e) => setCustomQ({...customQ, question_type: e.target.value})}>
-                            <MenuItem value="MCQ">Trắc nghiệm (4 đáp án)</MenuItem>
-                            <MenuItem value="TF">Đúng / Sai</MenuItem>
-                            <MenuItem value="SHORT">Trả lời ngắn (Tự luận điền khuyết)</MenuItem>
+                            <MenuItem value="MCQ">Trắc nghiệm (Chọn 1 đáp án đúng)</MenuItem>
+                            <MenuItem value="TF">Đúng/Sai (Chọn Đ/S cho 4 ý)</MenuItem>
+                            <MenuItem value="SHORT">Trả lời ngắn (Điền số)</MenuItem>
                         </Select>
                     </FormControl>
 
-                    <TextField 
-                        fullWidth multiline rows={2} label="Các phương án (Cách nhau bởi dấu chấm phẩy ;)" 
-                        value={customQ.options_text} onChange={(e) => setCustomQ({...customQ, options_text: e.target.value})}
-                        placeholder="Ví dụ: 2x ; x^2 ; 2 ; 0 (Nhập đáp án đúng đầu tiên)"
-                        helperText="Hệ thống sẽ tự động xáo trộn vị trí khi học sinh thi."
-                    />
+                    <Divider><Typography color="primary" fontWeight="bold">Phần Đáp Án</Typography></Divider>
 
-                    <TextField 
-                        fullWidth multiline rows={2} label="Lời giải chi tiết (Sẽ hiện khi hết giờ)" 
-                        value={customQ.explanation} onChange={(e) => setCustomQ({...customQ, explanation: e.target.value})}
-                    />
+                    {/* Form cho MCQ (Trắc nghiệm) */}
+                    {customQ.question_type === 'MCQ' && (
+                        <RadioGroup 
+                            value={customQ.optionsMCQ.findIndex(o => o.is_correct)} 
+                            onChange={(e) => {
+                                const newOpts = customQ.optionsMCQ.map((o, idx) => ({ ...o, is_correct: idx === parseInt(e.target.value) }));
+                                setCustomQ({...customQ, optionsMCQ: newOpts});
+                            }}
+                        >
+                            {customQ.optionsMCQ.map((opt, idx) => (
+                                <Box key={idx} display="flex" alignItems="center" gap={2} mb={2}>
+                                    <FormControlLabel value={idx} control={<Radio color="success" />} label="" />
+                                    <TextField fullWidth size="small" label={`Đáp án ${labelChars[idx]}`} value={opt.text} onChange={(e) => {
+                                        const newOpts = [...customQ.optionsMCQ];
+                                        newOpts[idx].text = e.target.value;
+                                        setCustomQ({...customQ, optionsMCQ: newOpts});
+                                    }} />
+                                </Box>
+                            ))}
+                            <Typography variant="caption" color="textSecondary">👉 Tích chọn vào ô tròn bên cạnh đáp án ĐÚNG.</Typography>
+                        </RadioGroup>
+                    )}
+
+                    {/* Form cho TF (Đúng / Sai) */}
+                    {customQ.question_type === 'TF' && (
+                        <Box>
+                            {customQ.optionsTF.map((opt, idx) => (
+                                <Box key={idx} display="flex" alignItems="center" gap={2} mb={2}>
+                                    <TextField fullWidth size="small" label={`Ý ${labelChars[idx]}`} value={opt.text} onChange={(e) => {
+                                        const newOpts = [...customQ.optionsTF];
+                                        newOpts[idx].text = e.target.value;
+                                        setCustomQ({...customQ, optionsTF: newOpts});
+                                    }} />
+                                    <Select size="small" value={opt.is_correct} onChange={(e) => {
+                                        const newOpts = [...customQ.optionsTF];
+                                        newOpts[idx].is_correct = e.target.value;
+                                        setCustomQ({...customQ, optionsTF: newOpts});
+                                    }}>
+                                        <MenuItem value={true} sx={{ color: 'green', fontWeight: 'bold' }}>Đúng</MenuItem>
+                                        <MenuItem value={false} sx={{ color: 'red', fontWeight: 'bold' }}>Sai</MenuItem>
+                                    </Select>
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+
+                    {/* Form cho Câu Trả Lời Ngắn */}
+                    {customQ.question_type === 'SHORT' && (
+                        <TextField fullWidth label="Đáp án (Là 1 con số)" type="number" value={customQ.shortAnswer} onChange={(e) => setCustomQ({...customQ, shortAnswer: e.target.value})} placeholder="VD: 5 hoặc -2.5" />
+                    )}
+
+                    <Divider />
+                    <TextField fullWidth multiline rows={2} label="Lời giải chi tiết (Sẽ hiện khi hết giờ trên Tivi)" value={customQ.explanation} onChange={(e) => setCustomQ({...customQ, explanation: e.target.value})} />
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
                     <Button onClick={() => setOpenCustomQModal(false)}>Hủy bỏ</Button>
-                    <Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>
-                        Lưu vào Kho cá nhân
-                    </Button>
+                    <Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>Lưu vào Kho</Button>
                 </DialogActions>
             </Dialog>
 
