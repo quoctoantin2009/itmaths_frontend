@@ -91,13 +91,11 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
-    // 🟢 ĐÃ XÓA TÍNH NĂNG AUTO-NEXT KHI HẾT GIỜ
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timer);
         }
-        // Khi timeLeft === 0, hệ thống sẽ nằm im chờ Giáo viên
     }, [timeLeft, status]);
 
     useEffect(() => {
@@ -199,7 +197,6 @@ function ArenaHost() {
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
                         
-                        {/* 🟢 KHU VỰC HIỂN THỊ ĐÁP ÁN (Ẩn đi lời giải nếu chưa hết giờ) */}
                         {currentQuestion.type === 'MCQ' && (
                             <Box sx={{ display: 'grid', gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', gap: 2, mb: 4 }}>
                                 {currentQuestion.options.map((opt, idx) => (
@@ -231,14 +228,21 @@ function ArenaHost() {
                             </Box>
                         )}
 
-                        {/* 🟢 KHU VỰC LỜI GIẢI CHI TIẾT - CHỈ HIỆN KHI HẾT GIỜ */}
+                        {/* 🟢 KHU VỰC LỜI GIẢI CHI TIẾT - ĐÃ CẬP NHẬT NỀN TRẮNG CHỮ ĐEN */}
                         {timeLeft === 0 && (
-                            <Paper sx={{ p: 3, mb: 4, bgcolor: 'rgba(46, 204, 113, 0.1)', border: '2px solid #2ecc71', borderRadius: 3, textAlign: 'left' }}>
-                                <Typography variant="h5" color="#2ecc71" fontWeight="bold" mb={2}>
+                            <Paper sx={{ 
+                                p: 3, 
+                                mb: 4, 
+                                bgcolor: 'white', 
+                                border: '3px solid #2ecc71', 
+                                borderRadius: 3, 
+                                textAlign: 'left',
+                                boxShadow: '0 0 20px rgba(46, 204, 113, 0.4)' 
+                            }}>
+                                <Typography variant="h5" color="#27ae60" fontWeight="900" mb={2}>
                                     💡 ĐÁP ÁN & LỜI GIẢI CHI TIẾT:
                                 </Typography>
-                                <Typography variant="h5" color="white" sx={{ lineHeight: 1.6 }}>
-                                    {/* Nếu trong Database của bạn có field 'explanation', nó sẽ hiện ở đây. Nếu không, nó sẽ hiện câu mặc định bên dưới */}
+                                <Typography variant="h5" color="black" sx={{ lineHeight: 1.6, fontWeight: '500' }}>
                                     {currentQuestion.explanation ? (
                                         <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.explanation)}</Latex>
                                     ) : (
@@ -250,7 +254,6 @@ function ArenaHost() {
                     </Box>
 
                     <Box mt="auto" pb={4}>
-                        {/* 🟢 NÚT CHUYỂN CÂU ĐỢI LỆNH GIÁO VIÊN */}
                         {timeLeft === 0 && (
                             <Button 
                                 variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />} 
