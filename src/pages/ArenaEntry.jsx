@@ -5,14 +5,15 @@ import {
     Snackbar, Alert, Dialog, DialogTitle, DialogContent, 
     DialogActions, FormControl, InputLabel, Select, MenuItem, 
     CircularProgress, Checkbox, List, ListItem, ListItemIcon, 
-    ListItemText, Chip, Divider, InputAdornment
+    ListItemText, Chip, Divider, InputAdornment, IconButton, Tooltip
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import TimerIcon from '@mui/icons-material/Timer';
-import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'; // 🟢 Icon Máy quét
+import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
 import axiosClient from '../services/axiosClient';
-
-// 🟢 IMPORT MÁY QUÉT QR
 import { Scanner } from '@yudiel/react-qr-scanner';
 
 function ArenaEntry() {
@@ -20,9 +21,10 @@ function ArenaEntry() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
-
-    // STATE CHO QUÉT QR
     const [openScanner, setOpenScanner] = useState(false);
+
+    // 🟢 STATE CHO CẨM NANG HƯỚNG DẪN
+    const [openGuide, setOpenGuide] = useState(false);
 
     // STATE CHO TẠO PHÒNG
     const [openCreateModal, setOpenCreateModal] = useState(false);
@@ -34,25 +36,27 @@ function ArenaEntry() {
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     const [qSettings, setQSettings] = useState({});
 
+    // 🟢 STATE CHO TẠO CÂU HỎI CÁ NHÂN
+    const [openCustomQModal, setOpenCustomQModal] = useState(false);
+    const [customQ, setCustomQ] = useState({
+        content: '', question_type: 'MCQ', options_text: '', explanation: ''
+    });
+
     const showToast = (message, type = 'error') => setToast({ open: true, message, type });
     const handleCloseToast = () => setToast({ ...toast, open: false });
 
-    // 🟢 HÀM XỬ LÝ KHI CAMERA QUÉT THẤY MÃ QR
     const handleScanSuccess = (result) => {
         if (result && result.length > 0) {
-            const scannedText = result[0].rawValue; // VD: https://itmaths.vn/#/arena/play/123456
-            
-            // Dùng thuật toán để bóc tách mã PIN từ đường link
+            const scannedText = result[0].rawValue;
             const match = scannedText.match(/play\/([A-Z0-9]+)/i);
-            
             if (match && match[1]) {
-                setOpenScanner(false); // Tắt camera
-                navigate(`/arena/play/${match[1]}`); // Bay thẳng vào phòng
+                setOpenScanner(false);
+                navigate(`/arena/play/${match[1]}`);
             } else if (scannedText.length <= 6) {
                 setOpenScanner(false);
                 navigate(`/arena/play/${scannedText}`);
             } else {
-                showToast('Mã QR không thuộc Đấu trường ITMaths!', 'warning');
+                showToast('Mã QR không hợp lệ!', 'warning');
             }
         }
     };
@@ -71,9 +75,7 @@ function ArenaEntry() {
                     setQuestions(res.data);
                     const newSettings = { ...qSettings };
                     res.data.forEach(q => {
-                        if (!newSettings[q.id]) {
-                            newSettings[q.id] = { selected: false, time: "20" };
-                        }
+                        if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" };
                     });
                     setQSettings(newSettings);
                 })
@@ -90,6 +92,27 @@ function ArenaEntry() {
         setQSettings(prev => ({ ...prev, [id]: { ...prev[id], time: numericVal, selected: true } }));
     };
 
+    // 🟢 HÀM LƯU CÂU HỎI CÁ NHÂN
+    const handleSaveCustomQuestion = async () => {
+        if (!customQ.content.trim()) return showToast('Vui lòng nhập đề bài!', 'warning');
+        
+        try {
+            // CẦN CÓ API NÀY BÊN DJANGO ĐỂ LƯU CÂU HỎI GẮN VỚI TÀI KHOẢN GIÁO VIÊN
+            const res = await axiosClient.post('/arena/custom-questions/create/', customQ);
+            const newQuestion = res.data; 
+
+            // Đưa câu hỏi mới vào đầu danh sách và tự động chọn
+            setQuestions([newQuestion, ...questions]);
+            setQSettings(prev => ({ ...prev, [newQuestion.id]: { selected: true, time: "30" } }));
+            
+            showToast('Đã lưu câu hỏi vào kho cá nhân!', 'success');
+            setOpenCustomQModal(false);
+            setCustomQ({ content: '', question_type: 'MCQ', options_text: '', explanation: '' }); // Reset
+        } catch (err) {
+            showToast('Lỗi khi lưu câu hỏi. Vui lòng kiểm tra lại!');
+        }
+    };
+
     const submitCreateArena = async () => {
         const questions_data = Object.keys(qSettings)
             .filter(id => qSettings[id].selected)
@@ -98,10 +121,7 @@ function ArenaEntry() {
                 return { id: parseInt(id), time_limit: isNaN(finalTime) || finalTime <= 0 ? 20 : finalTime };
             });
 
-        if (questions_data.length === 0) {
-            showToast('Vui lòng chọn ít nhất 1 câu hỏi!', 'warning');
-            return;
-        }
+        if (questions_data.length === 0) return showToast('Vui lòng chọn ít nhất 1 câu hỏi!', 'warning');
 
         setLoading(true);
         try {
@@ -125,7 +145,18 @@ function ArenaEntry() {
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#4a148c', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+        <Box sx={{ minHeight: '100vh', bgcolor: '#4a148c', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, position: 'relative' }}>
+            
+            {/* NÚT CẨM NANG HƯỚNG DẪN (Góc phải trên) */}
+            <Tooltip title="Hướng dẫn & Luật chơi">
+                <IconButton 
+                    onClick={() => setOpenGuide(true)} 
+                    sx={{ position: 'absolute', top: 20, right: 20, color: '#f1c40f', bgcolor: 'rgba(255,255,255,0.1)' }}
+                >
+                    <HelpOutlineIcon fontSize="large" />
+                </IconButton>
+            </Tooltip>
+
             <Container maxWidth="xs">
                 <Typography variant="h3" fontWeight="900" textAlign="center" color="white" mb={4}>ITMaths ARENA</Typography>
                 
@@ -136,17 +167,11 @@ function ArenaEntry() {
                         VÀO CHƠI
                     </Button>
 
-                    {/* 🟢 KHU VỰC NÚT MỞ MÁY QUÉT QR CODE */}
                     <Divider sx={{ my: 3, '&::before, &::after': { borderColor: '#e0e0e0' } }}>
                         <Typography color="textSecondary" fontWeight="bold">HOẶC</Typography>
                     </Divider>
                     
-                    <Button 
-                        fullWidth variant="outlined" size="large" 
-                        startIcon={<QrCodeScannerIcon />} 
-                        onClick={() => setOpenScanner(true)} 
-                        sx={{ py: 1.5, color: '#4a148c', borderColor: '#4a148c', borderWidth: 2, fontWeight: 'bold', '&:hover': { borderWidth: 2, bgcolor: 'rgba(74, 20, 140, 0.05)' } }}
-                    >
+                    <Button fullWidth variant="outlined" size="large" startIcon={<QrCodeScannerIcon />} onClick={() => setOpenScanner(true)} sx={{ py: 1.5, color: '#4a148c', borderColor: '#4a148c', borderWidth: 2, fontWeight: 'bold' }}>
                         QUÉT MÃ QR ĐỂ VÀO
                     </Button>
                 </Paper>
@@ -158,31 +183,57 @@ function ArenaEntry() {
                 </Box>
             </Container>
 
-            {/* 🟢 CỬA SỔ HIỂN THỊ CAMERA QUÉT QR */}
-            <Dialog open={openScanner} onClose={() => setOpenScanner(false)} fullWidth maxWidth="xs">
-                <DialogTitle sx={{ bgcolor: '#2c3e50', color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
-                    Đưa mã QR vào khung hình
+            {/* 🟢 MODAL CẨM NANG HƯỚNG DẪN */}
+            <Dialog open={openGuide} onClose={() => setOpenGuide(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ bgcolor: '#2c3e50', color: '#f1c40f', fontWeight: 'bold', textAlign: 'center' }}>
+                    📖 CẨM NANG ĐẤU TRƯỜNG
                 </DialogTitle>
-                <DialogContent sx={{ p: 0, bgcolor: 'black' }}>
-                    {openScanner && (
-                        <Scanner 
-                            onScan={handleScanSuccess} 
-                            formats={['qr_code']}
-                            components={{ audio: false, finder: true }} // Bật khung ngắm, tắt tiếng bíp mặc định
-                            styles={{ container: { width: '100%', height: '100%' } }}
-                        />
-                    )}
+                <DialogContent sx={{ p: 4 }}>
+                    <Typography variant="h6" color="primary" fontWeight="bold">1. Cách tính điểm</Typography>
+                    <Typography variant="body1" mb={2}>
+                        Điểm số được tính dựa trên <b>sự chính xác</b> và <b>tốc độ</b> của bạn.
+                        <br/>- Điểm gốc trả lời đúng: <b>500 điểm</b>.
+                        <br/>- Điểm thưởng tốc độ: Lên tới <b>500 điểm</b> (Trả lời càng nhanh, điểm thưởng càng cao).
+                        <br/>- Trả lời sai hoặc hết giờ: <b>0 điểm</b>.
+                    </Typography>
+
+                    <Typography variant="h6" color="primary" fontWeight="bold">2. Dành cho Học sinh</Typography>
+                    <Typography variant="body1" mb={2}>
+                        - Bạn có thể tham gia bằng cách nhập <b>Mã PIN</b> gồm 6 chữ số do giáo viên cung cấp.
+                        <br/>- Hoặc nhấn nút <b>QUÉT MÃ QR</b> và đưa camera lên quét mã hiển thị trên màn hình Tivi/Máy chiếu của lớp.
+                    </Typography>
+
+                    <Typography variant="h6" color="primary" fontWeight="bold">3. Dành cho Giáo viên</Typography>
+                    <Typography variant="body1">
+                        - Nhấn <b>Tạo phòng</b> để chọn các câu hỏi từ Kho đề thi hoặc Tự soạn câu hỏi riêng.
+                        <br/>- Khi trận đấu diễn ra, hệ thống sẽ <b>dừng lại khi hết giờ</b> và hiển thị Lời giải chi tiết để Thầy/Cô phân tích cho học sinh.
+                        <br/>- Giáo viên toàn quyền kiểm soát việc bấm nút <b>Chuyển câu tiếp theo</b>.
+                    </Typography>
                 </DialogContent>
-                <DialogActions sx={{ justifyContent: 'center', bgcolor: '#2c3e50', p: 2 }}>
-                    <Button onClick={() => setOpenScanner(false)} variant="contained" color="error" sx={{ fontWeight: 'bold', borderRadius: 5, px: 4 }}>
-                        Đóng Camera
-                    </Button>
+                <DialogActions sx={{ justifyContent: 'center', p: 2 }}>
+                    <Button onClick={() => setOpenGuide(false)} variant="contained" color="primary" sx={{ borderRadius: 5, px: 4 }}>Đã hiểu</Button>
                 </DialogActions>
             </Dialog>
 
-            {/* CỬA SỔ TẠO PHÒNG CỦA GIÁO VIÊN */}
+            {/* SCANNER DIALOG */}
+            <Dialog open={openScanner} onClose={() => setOpenScanner(false)} fullWidth maxWidth="xs">
+                <DialogContent sx={{ p: 0, bgcolor: 'black' }}>
+                    {openScanner && <Scanner onScan={handleScanSuccess} formats={['qr_code']} />}
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'center', bgcolor: '#2c3e50', p: 2 }}>
+                    <Button onClick={() => setOpenScanner(false)} variant="contained" color="error">Đóng Camera</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* MODAL CÀI ĐẶT TRẬN ĐẤU */}
             <Dialog open={openCreateModal} onClose={() => setOpenCreateModal(false)} fullWidth maxWidth="md">
-                <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold' }}>Cài đặt Trận Đấu</DialogTitle>
+                <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Cài đặt Trận Đấu</span>
+                    {/* 🟢 NÚT TẠO CÂU HỎI CÁ NHÂN */}
+                    <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={() => setOpenCustomQModal(true)} sx={{ fontWeight: 'bold' }}>
+                        Tự soạn câu hỏi riêng
+                    </Button>
+                </DialogTitle>
                 <DialogContent sx={{ mt: 2 }}>
                     <TextField fullWidth label="Tên Trận Đấu" value={arenaTitle} onChange={(e) => setArenaTitle(e.target.value)} sx={{ mb: 3, mt: 1 }} />
                     <Box display="flex" gap={2} mb={3}>
@@ -193,24 +244,32 @@ function ArenaEntry() {
                             </Select>
                         </FormControl>
                         <FormControl fullWidth disabled={!selectedGrade}>
-                            <InputLabel>Chủ Đề</InputLabel>
+                            <InputLabel>Chủ Đề (Server)</InputLabel>
                             <Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>
                                 {topics.map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}
                             </Select>
                         </FormControl>
                     </Box>
 
-                    <Divider>Chọn câu hỏi & Thiết lập thời gian (giây)</Divider>
+                    <Divider>Kho câu hỏi (Hệ thống & Cá nhân)</Divider>
 
                     {loadingQuestions ? <Box display="flex" justifyContent="center" p={3}><CircularProgress /></Box> : (
                         <List sx={{ maxHeight: 400, overflow: 'auto', border: '1px solid #ddd', mt: 2, borderRadius: 2 }}>
                             {questions.map((q) => (
-                                <ListItem key={q.id} sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <ListItem key={q.id} sx={{ borderBottom: '1px solid #f0f0f0', bgcolor: q.is_private ? 'rgba(241, 196, 15, 0.1)' : 'transparent' }}>
                                     <ListItemIcon>
                                         <Checkbox checked={!!qSettings[q.id]?.selected} onChange={() => handleToggleSelect(q.id)} />
                                     </ListItemIcon>
-                                    <ListItemText primary={<Typography noWrap variant="body1" sx={{ maxWidth: '400px' }}>{q.content}</Typography>} secondary={getTypeLabel(q.question_type)} sx={{ mr: 2 }} />
-                                    
+                                    <ListItemText 
+                                        primary={<Typography noWrap variant="body1" sx={{ maxWidth: '400px' }}>{q.content}</Typography>} 
+                                        secondary={
+                                            <Box display="flex" gap={1} mt={0.5}>
+                                                {getTypeLabel(q.question_type)}
+                                                {q.is_private && <Chip label="Của tôi" color="secondary" size="small" />}
+                                            </Box>
+                                        } 
+                                        sx={{ mr: 2 }} 
+                                    />
                                     <TextField
                                         size="small" label="Số giây"
                                         value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : "20"}
@@ -225,7 +284,46 @@ function ArenaEntry() {
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
                     <Button onClick={() => setOpenCreateModal(false)}>Hủy</Button>
-                    <Button onClick={submitCreateArena} variant="contained" sx={{ bgcolor: '#4a148c' }}>Tạo Trận Đấu</Button>
+                    <Button onClick={submitCreateArena} variant="contained" sx={{ bgcolor: '#4a148c' }}>Khởi tạo Đấu Trường</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* 🟢 MODAL SOẠN CÂU HỎI CÁ NHÂN */}
+            <Dialog open={openCustomQModal} onClose={() => setOpenCustomQModal(false)} fullWidth maxWidth="sm">
+                <DialogTitle sx={{ bgcolor: '#f39c12', color: 'white', fontWeight: 'bold' }}>Tự soạn Câu hỏi của bạn</DialogTitle>
+                <DialogContent sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <TextField 
+                        fullWidth multiline rows={3} label="Nội dung đề bài (Hỗ trợ mã LaTeX)" 
+                        value={customQ.content} onChange={(e) => setCustomQ({...customQ, content: e.target.value})} 
+                        placeholder="Ví dụ: Tính đạo hàm của hàm số $y = x^2$" mt={1}
+                    />
+                    
+                    <FormControl fullWidth>
+                        <InputLabel>Loại câu hỏi</InputLabel>
+                        <Select value={customQ.question_type} label="Loại câu hỏi" onChange={(e) => setCustomQ({...customQ, question_type: e.target.value})}>
+                            <MenuItem value="MCQ">Trắc nghiệm (4 đáp án)</MenuItem>
+                            <MenuItem value="TF">Đúng / Sai</MenuItem>
+                            <MenuItem value="SHORT">Trả lời ngắn (Tự luận điền khuyết)</MenuItem>
+                        </Select>
+                    </FormControl>
+
+                    <TextField 
+                        fullWidth multiline rows={2} label="Các phương án (Cách nhau bởi dấu chấm phẩy ;)" 
+                        value={customQ.options_text} onChange={(e) => setCustomQ({...customQ, options_text: e.target.value})}
+                        placeholder="Ví dụ: 2x ; x^2 ; 2 ; 0 (Nhập đáp án đúng đầu tiên)"
+                        helperText="Hệ thống sẽ tự động xáo trộn vị trí khi học sinh thi."
+                    />
+
+                    <TextField 
+                        fullWidth multiline rows={2} label="Lời giải chi tiết (Sẽ hiện khi hết giờ)" 
+                        value={customQ.explanation} onChange={(e) => setCustomQ({...customQ, explanation: e.target.value})}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setOpenCustomQModal(false)}>Hủy bỏ</Button>
+                    <Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>
+                        Lưu vào Kho cá nhân
+                    </Button>
                 </DialogActions>
             </Dialog>
 
