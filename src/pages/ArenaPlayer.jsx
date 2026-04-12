@@ -6,17 +6,13 @@ import {
     TextField, Radio, RadioGroup, FormControlLabel, FormControl 
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
-// 🟢 ĐÃ SỬA LẠI HÀM KẾT NỐI WEBSOCKET
 const getWSUrl = () => {
-    // Nếu đang chạy lệnh "npm run dev" trên máy tính
     if (import.meta.env && import.meta.env.DEV) {
         return 'ws://127.0.0.1:8000/ws/arena/';
     }
-    // Khi đã build ra App điện thoại hoặc đưa lên Web itmaths.vn
     return 'wss://api.itmaths.vn/ws/arena/';
 };
 
@@ -30,10 +26,8 @@ const latexDelimiters = [
 const formatLatexText = (text) => {
     if (text === null || text === undefined) return "Hãy chọn đáp án!";
     let res = String(text).replace(/\\textif{/g, '\\textit{');
-    
     const parts = res.split(/(\$\$?|\\\[|\\\]|\\\(|\\\))/); 
     let inMath = false;
-    
     for (let i = 0; i < parts.length; i++) {
         const p = parts[i];
         if (['$', '$$', '\\[', '\\]', '\\(', '\\)'].includes(p)) {
@@ -163,13 +157,11 @@ function ArenaPlayer() {
                         </Typography>
                     </Paper>
 
-                    {!hasAnswered ? (
+                    {/* 🟢 GIAO DIỆN CHỜ HOẶC HẾT GIỜ CHO HỌC SINH */}
+                    {!hasAnswered && timeLeft > 0 ? (
                         <Box flex={1} display="flex" flexDirection="column" gap={2}>
-                            
                             {currentQuestion.type === 'MCQ' && currentQuestion.options.map((opt, idx) => (
-                                <Button key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)}
-                                    sx={{ bgcolor: colorPalette[idx], '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' }, justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none' }}
-                                >
+                                <Button key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)} sx={{ bgcolor: colorPalette[idx], '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' }, justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none' }}>
                                     <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
                                     <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left">
                                         {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
@@ -192,9 +184,7 @@ function ArenaPlayer() {
                                             </FormControl>
                                         </Paper>
                                     ))}
-                                    <Button variant="contained" size="large" endIcon={<SendIcon />} onClick={handleTFSubmit} sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}>
-                                        CHỐT ĐÁP ÁN
-                                    </Button>
+                                    <Button variant="contained" size="large" endIcon={<SendIcon />} onClick={handleTFSubmit} sx={{ mt: 2, py: 2, fontSize: '1.2rem', fontWeight: 'bold', borderRadius: 3, bgcolor: '#8e44ad' }}>CHỐT ĐÁP ÁN</Button>
                                 </Box>
                             )}
 
@@ -207,9 +197,20 @@ function ArenaPlayer() {
                             )}
                         </Box>
                     ) : (
-                        <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 3, mt: 5, bgcolor: '#ecf0f1' }}>
-                            <Typography variant="h4" mb={2}>⏳</Typography>
-                            <Typography variant="h5" color="#7f8c8d" fontWeight="bold">Đã ghi nhận đáp án!</Typography>
+                        <Paper sx={{ 
+                            p: 5, textAlign: 'center', borderRadius: 3, mt: 5, 
+                            bgcolor: timeLeft === 0 ? '#e74c3c' : '#ecf0f1', 
+                            color: timeLeft === 0 ? 'white' : 'inherit' 
+                        }}>
+                            <Typography variant="h4" mb={2}>{timeLeft === 0 ? '⏰' : '⏳'}</Typography>
+                            <Typography variant="h5" fontWeight="bold">
+                                {timeLeft === 0 ? "HẾT GIỜ!" : "Đã ghi nhận đáp án!"}
+                            </Typography>
+                            {timeLeft === 0 && (
+                                <Typography variant="h6" mt={3} fontWeight="bold" sx={{ animation: 'pulse 2s infinite' }}>
+                                    👀 Hãy nhìn lên màn hình của Giáo viên để xem đáp án nhé!
+                                </Typography>
+                            )}
                         </Paper>
                     )}
                 </Box>

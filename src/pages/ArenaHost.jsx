@@ -3,18 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
 import { 
     Box, Typography, Button, Grid, Paper, Chip, IconButton,
-    Radio, RadioGroup, FormControlLabel, FormControl 
+    Radio, RadioGroup, FormControlLabel, FormControl, Divider 
 } from '@mui/material';
 import PlayCircleFilledWhiteIcon from '@mui/icons-material/PlayCircleFilledWhite';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
-
-// 🟢 IMPORT THƯ VIỆN QR CODE
 import QRCode from 'react-qr-code';
-
-// IMPORT THƯ VIỆN TOÁN HỌC (KaTeX)
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
@@ -35,14 +31,11 @@ const latexDelimiters = [
     {left: '\\[', right: '\\]', display: true},
 ];
 
-// BỘ LỌC XỬ LÝ IN ĐẬM / IN NGHIÊNG DÀNH CHO HOST
 const formatLatexText = (text) => {
     if (text === null || text === undefined) return "";
     let res = String(text).replace(/\\textif{/g, '\\textit{');
-    
     const parts = res.split(/(\$\$?|\\\[|\\\]|\\\(|\\\))/); 
     let inMath = false;
-    
     for (let i = 0; i < parts.length; i++) {
         const p = parts[i];
         if (['$', '$$', '\\[', '\\]', '\\(', '\\)'].includes(p)) {
@@ -58,14 +51,12 @@ const formatLatexText = (text) => {
 function ArenaHost() {
     const { pin } = useParams();
     const navigate = useNavigate();
-
     const { sendJsonMessage, lastJsonMessage } = useWebSocket(`${getWSUrl()}${pin}/`);
 
     const [status, setStatus] = useState('waiting'); 
     const [players, setPlayers] = useState([]);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQIdx, setCurrentQIdx] = useState(-1);
-    
     const [timeLeft, setTimeLeft] = useState(0);
     const [hostTfAnswers, setHostTfAnswers] = useState({});
 
@@ -100,17 +91,14 @@ function ArenaHost() {
         }
     }, [lastJsonMessage]);
 
+    // 🟢 ĐÃ XÓA TÍNH NĂNG AUTO-NEXT KHI HẾT GIỜ
     useEffect(() => {
         if (status === 'playing' && timeLeft > 0) {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timer);
-        } else if (status === 'playing' && timeLeft === 0 && currentQuestion) {
-            const autoNext = setTimeout(() => {
-                sendJsonMessage({ action: 'host_next_question' });
-            }, 3000);
-            return () => clearTimeout(autoNext);
         }
-    }, [timeLeft, status, currentQuestion, sendJsonMessage]);
+        // Khi timeLeft === 0, hệ thống sẽ nằm im chờ Giáo viên
+    }, [timeLeft, status]);
 
     useEffect(() => {
         let audioFile = '';
@@ -146,8 +134,7 @@ function ArenaHost() {
     const handleNextQuestion = () => sendJsonMessage({ action: 'host_next_question' });
 
     const isLongTextMCQ = currentQuestion?.type === 'MCQ' 
-        ? currentQuestion.options.some(opt => opt.length > 45) 
-        : false;
+        ? currentQuestion.options.some(opt => opt.length > 45) : false;
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#2c3e50', color: 'white', p: 3, display: 'flex', flexDirection: 'column' }}>
@@ -164,46 +151,29 @@ function ArenaHost() {
                 </Box>
             </Box>
 
-            {/* 🟢 MÀN HÌNH CHỜ (LOBBY) CÓ TÍCH HỢP QR CODE */}
             {status === 'waiting' && (
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
-                    
                     <Grid container spacing={4} justifyContent="center" alignItems="center" mb={5} maxWidth="800px">
-                        {/* Cột 1: Mã PIN */}
                         <Grid item xs={12} md={6}>
                             <Paper sx={{ p: 4, bgcolor: '#f1c40f', borderRadius: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <Typography variant="h5" color="#333" fontWeight="bold" mb={2}>Mã PIN Tham Gia</Typography>
-                                <Typography variant="h1" fontWeight="900" color="black" sx={{ letterSpacing: '10px', fontSize: { xs: '4rem', md: '5rem' } }}>
-                                    {pin}
-                                </Typography>
-                                <Typography variant="body1" color="#333" mt={2} fontWeight="bold">
-                                    Truy cập: itmaths.vn
-                                </Typography>
+                                <Typography variant="h1" fontWeight="900" color="black" sx={{ letterSpacing: '10px', fontSize: { xs: '4rem', md: '5rem' } }}>{pin}</Typography>
+                                <Typography variant="body1" color="#333" mt={2} fontWeight="bold">Truy cập: itmaths.vn</Typography>
                             </Paper>
                         </Grid>
-
-                        {/* Cột 2: Mã QR */}
                         <Grid item xs={12} md={6}>
                             <Paper sx={{ p: 3, bgcolor: 'white', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
                                 <Typography variant="h6" color="#333" fontWeight="bold" mb={2}>Quét để vào ngay</Typography>
                                 <Box sx={{ bgcolor: 'white', p: 1, borderRadius: 2 }}>
-                                    <QRCode 
-                                        value={`https://itmaths.vn/#/arena/play/${pin}`} 
-                                        size={180} 
-                                        level="H" 
-                                    />
+                                    <QRCode value={`https://itmaths.vn/#/arena/play/${pin}`} size={180} level="H" />
                                 </Box>
-                                <Typography variant="body2" color="gray" mt={2}>
-                                    (Hỗ trợ App & Trình duyệt Web)
-                                </Typography>
+                                <Typography variant="body2" color="gray" mt={2}>(Hỗ trợ App & Trình duyệt Web)</Typography>
                             </Paper>
                         </Grid>
                     </Grid>
-
                     <Button variant="contained" color="success" size="large" startIcon={<PlayCircleFilledWhiteIcon />} onClick={handleStartGame} disabled={players.length === 0} sx={{ fontSize: '1.5rem', py: 2, px: 5, borderRadius: 10, boxShadow: '0 0 20px rgba(46, 204, 113, 0.6)' }}>
                         BẮT ĐẦU TRẬN ĐẤU
                     </Button>
-
                     <Grid container spacing={2} mt={5} justifyContent="center" maxWidth="800px">
                         {players.map((p, idx) => (
                             <Grid item key={idx}><Typography variant="h5" sx={{ bgcolor: 'rgba(255,255,255,0.1)', px: 3, py: 1, borderRadius: 2, fontWeight: 'bold' }}>{p.name}</Typography></Grid>
@@ -228,6 +198,8 @@ function ArenaHost() {
                     </Paper>
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
+                        
+                        {/* 🟢 KHU VỰC HIỂN THỊ ĐÁP ÁN (Ẩn đi lời giải nếu chưa hết giờ) */}
                         {currentQuestion.type === 'MCQ' && (
                             <Box sx={{ display: 'grid', gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', gap: 2, mb: 4 }}>
                                 {currentQuestion.options.map((opt, idx) => (
@@ -248,7 +220,6 @@ function ArenaHost() {
                                         <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1 }}>
                                             Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
                                         </Typography>
-                                        
                                         <FormControl component="fieldset">
                                             <RadioGroup row value={hostTfAnswers[idx] || ''} onChange={(e) => setHostTfAnswers({...hostTfAnswers, [idx]: e.target.value})}>
                                                 <FormControlLabel value="T" control={<Radio color="success" size="medium"/>} label={<Typography color="green" fontWeight="bold" fontSize="1.2rem">Đúng</Typography>} />
@@ -259,12 +230,34 @@ function ArenaHost() {
                                 ))}
                             </Box>
                         )}
+
+                        {/* 🟢 KHU VỰC LỜI GIẢI CHI TIẾT - CHỈ HIỆN KHI HẾT GIỜ */}
+                        {timeLeft === 0 && (
+                            <Paper sx={{ p: 3, mb: 4, bgcolor: 'rgba(46, 204, 113, 0.1)', border: '2px solid #2ecc71', borderRadius: 3, textAlign: 'left' }}>
+                                <Typography variant="h5" color="#2ecc71" fontWeight="bold" mb={2}>
+                                    💡 ĐÁP ÁN & LỜI GIẢI CHI TIẾT:
+                                </Typography>
+                                <Typography variant="h5" color="white" sx={{ lineHeight: 1.6 }}>
+                                    {/* Nếu trong Database của bạn có field 'explanation', nó sẽ hiện ở đây. Nếu không, nó sẽ hiện câu mặc định bên dưới */}
+                                    {currentQuestion.explanation ? (
+                                        <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.explanation)}</Latex>
+                                    ) : (
+                                        "👉 Mời Giáo viên phân tích và giải thích đáp án cho học sinh..."
+                                    )}
+                                </Typography>
+                            </Paper>
+                        )}
                     </Box>
 
                     <Box mt="auto" pb={4}>
+                        {/* 🟢 NÚT CHUYỂN CÂU ĐỢI LỆNH GIÁO VIÊN */}
                         {timeLeft === 0 && (
-                            <Button variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />} onClick={handleNextQuestion} sx={{ fontSize: '1.2rem', py: 1.5, px: 4, borderRadius: 5, mb: 4 }}>
-                                ĐANG CHUYỂN CÂU... (Bấm để qua ngay)
+                            <Button 
+                                variant="contained" color="secondary" size="large" endIcon={<SkipNextIcon />} 
+                                onClick={handleNextQuestion} 
+                                sx={{ fontSize: '1.2rem', py: 2, px: 5, borderRadius: 5, mb: 4, animation: 'pulse 2s infinite' }}
+                            >
+                                CHUYỂN SANG CÂU TIẾP THEO
                             </Button>
                         )}
                         <Box maxWidth="600px" mx="auto" textAlign="left" bgcolor="rgba(0,0,0,0.3)" p={3} borderRadius={3}>
@@ -284,7 +277,6 @@ function ArenaHost() {
                 <Box textAlign="center" flex={1} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
                     <EmojiEventsIcon sx={{ fontSize: '10rem', color: '#f1c40f', mb: 2 }} />
                     <Typography variant="h2" fontWeight="900" color="#f1c40f" mb={4}>NHÀ VÔ ĐỊCH</Typography>
-                    
                     {players.sort((a,b) => b.score - a.score).slice(0,3).map((p, i) => (
                         <Paper key={i} sx={{ p: 3, mb: 2, width: '400px', display: 'flex', justifyContent: 'space-between', bgcolor: i === 0 ? '#f1c40f' : 'white', mx: 'auto' }}>
                             <Typography variant="h4" color="black" fontWeight="bold">#{i+1} {p.name}</Typography>
