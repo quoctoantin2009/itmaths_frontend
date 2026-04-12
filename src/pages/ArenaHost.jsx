@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
 import { 
     Box, Typography, Button, Grid, Paper, Chip, IconButton,
-    Radio, RadioGroup, FormControlLabel, FormControl, Divider 
+    Radio, RadioGroup, FormControlLabel, FormControl 
 } from '@mui/material';
 import PlayCircleFilledWhiteIcon from '@mui/icons-material/PlayCircleFilledWhite';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
@@ -46,6 +46,29 @@ const formatLatexText = (text) => {
         }
     }
     return parts.join('');
+};
+
+// 🟢 BỘ RENDER THÔNG MINH: VỪA VẼ TOÁN HỌC, VỪA VẼ ẢNH
+const RenderSmartContent = ({ text }) => {
+    if (!text) return null;
+    // Tự động tìm và tách các mã ảnh [IMG:link] ra khỏi văn bản
+    const parts = text.split(/\[IMG:(.*?)\]/g);
+    
+    return (
+        <Box sx={{ textAlign: 'left', display: 'inline-block', width: '100%' }}>
+            {parts.map((part, idx) => {
+                // Nếu là URL ảnh (nằm ở index lẻ do regex)
+                if (idx % 2 === 1) {
+                    return <Box key={idx} component="img" src={part} alt="Minh hoạ" sx={{ maxWidth: '100%', maxHeight: '250px', borderRadius: 2, display: 'block', mx: 'auto', my: 2, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />;
+                } 
+                // Nếu là văn bản/công thức toán học bình thường
+                else if (part.trim()) {
+                    return <Latex key={idx} delimiters={latexDelimiters}>{formatLatexText(part)}</Latex>;
+                }
+                return null;
+            })}
+        </Box>
+    );
 };
 
 function ArenaHost() {
@@ -190,8 +213,9 @@ function ArenaHost() {
                     </Box>
                     
                     <Paper sx={{ p: 4, mb: 4, mt: 2, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                            <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.text)}</Latex>
+                        <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5, width: '100%' }}>
+                            {/* 🟢 Đã đổi sang RenderSmartContent */}
+                            <RenderSmartContent text={currentQuestion.text} />
                         </Typography>
                     </Paper>
                     
@@ -202,8 +226,9 @@ function ArenaHost() {
                                 {currentQuestion.options.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, minHeight: '100px' }}>
                                         <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
-                                        <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word' }}>
-                                            {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
+                                        <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word', width: '100%' }}>
+                                            {/* 🟢 Đã đổi sang RenderSmartContent */}
+                                            {String.fromCharCode(65 + idx)}. <RenderSmartContent text={opt} />
                                         </Typography>
                                     </Paper>
                                 ))}
@@ -214,8 +239,9 @@ function ArenaHost() {
                             <Box display="flex" flexDirection="column" gap={2} mb={4}>
                                 {currentQuestion.options.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 2, px: 4, borderRadius: 2, borderLeft: '10px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1 }}>
-                                            Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
+                                        <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1, width: '100%' }}>
+                                            {/* 🟢 Đã đổi sang RenderSmartContent */}
+                                            Ý {String.fromCharCode(65 + idx)}: <RenderSmartContent text={opt} />
                                         </Typography>
                                         <FormControl component="fieldset">
                                             <RadioGroup row value={hostTfAnswers[idx] || ''} onChange={(e) => setHostTfAnswers({...hostTfAnswers, [idx]: e.target.value})}>
@@ -228,23 +254,19 @@ function ArenaHost() {
                             </Box>
                         )}
 
-                        {/* 🟢 KHU VỰC LỜI GIẢI CHI TIẾT - ĐÃ CẬP NHẬT NỀN TRẮNG CHỮ ĐEN */}
+                        {/* 🟢 KHU VỰC LỜI GIẢI CHI TIẾT */}
                         {timeLeft === 0 && (
                             <Paper sx={{ 
-                                p: 3, 
-                                mb: 4, 
-                                bgcolor: 'white', 
-                                border: '3px solid #2ecc71', 
-                                borderRadius: 3, 
-                                textAlign: 'left',
-                                boxShadow: '0 0 20px rgba(46, 204, 113, 0.4)' 
+                                p: 3, mb: 4, bgcolor: 'white', border: '3px solid #2ecc71', 
+                                borderRadius: 3, textAlign: 'left', boxShadow: '0 0 20px rgba(46, 204, 113, 0.4)' 
                             }}>
                                 <Typography variant="h5" color="#27ae60" fontWeight="900" mb={2}>
                                     💡 ĐÁP ÁN & LỜI GIẢI CHI TIẾT:
                                 </Typography>
-                                <Typography variant="h5" color="black" sx={{ lineHeight: 1.6, fontWeight: '500' }}>
+                                <Typography variant="h5" color="black" sx={{ lineHeight: 1.6, fontWeight: '500', width: '100%' }}>
                                     {currentQuestion.explanation ? (
-                                        <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.explanation)}</Latex>
+                                        // 🟢 Đã đổi sang RenderSmartContent
+                                        <RenderSmartContent text={currentQuestion.explanation} />
                                     ) : (
                                         "👉 Mời Giáo viên phân tích và giải thích đáp án cho học sinh..."
                                     )}

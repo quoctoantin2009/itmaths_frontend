@@ -40,6 +40,29 @@ const formatLatexText = (text) => {
     return parts.join('');
 };
 
+// 🟢 BỘ RENDER THÔNG MINH: VỪA VẼ TOÁN HỌC, VỪA VẼ ẢNH
+const RenderSmartContent = ({ text }) => {
+    if (!text) return null;
+    // Tự động tìm và tách các mã ảnh [IMG:link] ra khỏi văn bản
+    const parts = text.split(/\[IMG:(.*?)\]/g);
+    
+    return (
+        <Box sx={{ textAlign: 'left', display: 'inline-block', width: '100%' }}>
+            {parts.map((part, idx) => {
+                // Nếu là URL ảnh (nằm ở index lẻ do regex)
+                if (idx % 2 === 1) {
+                    return <Box key={idx} component="img" src={part} alt="Minh hoạ" sx={{ maxWidth: '100%', maxHeight: '250px', borderRadius: 2, display: 'block', mx: 'auto', my: 2, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />;
+                } 
+                // Nếu là văn bản/công thức toán học bình thường
+                else if (part.trim()) {
+                    return <Latex key={idx} delimiters={latexDelimiters}>{formatLatexText(part)}</Latex>;
+                }
+                return null;
+            })}
+        </Box>
+    );
+};
+
 function ArenaPlayer() {
     const { pin } = useParams();
     const navigate = useNavigate();
@@ -153,18 +176,19 @@ function ArenaPlayer() {
                 <Box flex={1} display="flex" flexDirection="column" p={2} gap={2}>
                     <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                         <Typography variant="body1" fontWeight="bold" fontSize="1.2rem" sx={{ lineHeight: 1.5 }}>
-                            <Latex delimiters={latexDelimiters}>{formatLatexText(currentQuestion.text)}</Latex>
+                            {/* 🟢 Đã đổi sang RenderSmartContent */}
+                            <RenderSmartContent text={currentQuestion.text} />
                         </Typography>
                     </Paper>
 
-                    {/* 🟢 GIAO DIỆN CHỜ HOẶC HẾT GIỜ CHO HỌC SINH */}
                     {!hasAnswered && timeLeft > 0 ? (
                         <Box flex={1} display="flex" flexDirection="column" gap={2}>
                             {currentQuestion.type === 'MCQ' && currentQuestion.options.map((opt, idx) => (
                                 <Button key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)} sx={{ bgcolor: colorPalette[idx], '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' }, justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none' }}>
                                     <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
-                                    <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left">
-                                        {String.fromCharCode(65 + idx)}. <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
+                                    <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left" sx={{ width: '100%' }}>
+                                        {/* 🟢 Đã đổi sang RenderSmartContent */}
+                                        {String.fromCharCode(65 + idx)}. <RenderSmartContent text={opt} />
                                     </Typography>
                                 </Button>
                             ))}
@@ -174,7 +198,8 @@ function ArenaPlayer() {
                                     {currentQuestion.options.map((opt, idx) => (
                                         <Paper key={idx} sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #3498db' }}>
                                             <Typography variant="body1" mb={1} fontWeight="bold" sx={{ lineHeight: 1.5 }}>
-                                                Ý {String.fromCharCode(65 + idx)}: <Latex delimiters={latexDelimiters}>{formatLatexText(opt)}</Latex>
+                                                {/* 🟢 Đã đổi sang RenderSmartContent */}
+                                                Ý {String.fromCharCode(65 + idx)}: <RenderSmartContent text={opt} />
                                             </Typography>
                                             <FormControl component="fieldset">
                                                 <RadioGroup row value={tfAnswers[idx] || ''} onChange={(e) => setTfAnswers({...tfAnswers, [idx]: e.target.value})}>
