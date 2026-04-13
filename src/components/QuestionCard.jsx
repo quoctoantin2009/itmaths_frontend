@@ -1,7 +1,7 @@
 import React from 'react';
 import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
-import { Radio, Paper, Box, Chip } from '@mui/material';
+import { Radio, Paper, Box } from '@mui/material';
 
 // --- HÀM KIỂM TRA ĐÁP ÁN NGẮN ---
 const checkShortAnswer = (userAns, correctAns) => {
@@ -11,91 +11,68 @@ const checkShortAnswer = (userAns, correctAns) => {
         const c = parseFloat(correctAns.toString().replace(',', '.'));
         if (isNaN(u) || isNaN(c)) return false;
         return Math.abs(u - c) < 0.001; 
-    } catch (e) {
-        return false;
-    }
+    } catch (e) { return false; }
 };
 
-// --- HÀM XỬ LÝ NỘI DUNG (CORE) ---
+// --- HÀM XỬ LÝ NỘI DUNG (CORE - ĐÃ TỐI ƯU HIỂN THỊ ẢNH) ---
 const processContent = (content) => {
     if (!content) return "";
     
-    // 1. Xử lý các lỗi ký hiệu LaTeX phổ biến & Thay thế bullet
+    // 1. Dọn dẹp lỗi ký hiệu LaTeX
     let cleanContent = content
         .replaceAll('\\bullet', '•') 
         .replaceAll('begin{eqnarray*}', 'begin{aligned}')
-        .replaceAll('end{eqnarray*}', 'end{aligned}')
-        .replaceAll('begin{eqnarray}', 'begin{aligned}')
-        .replaceAll('end{eqnarray}', 'end{aligned}');
+        .replaceAll('end{eqnarray*}', 'end{aligned}');
 
-    // 2. Tách Toán học, Văn bản và [IMG:url]
-    // Regex này bắt: $$...$$, $...$, \begin{}...\end{}, \[...\], và [IMG:...]
-    const complexRegex = /((?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$.*?(?<!\\)\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\\[[\s\S]*?\\\]|\[IMG:.*?\])/gs;
-    const parts = cleanContent.split(complexRegex);
+    // 2. TÁCH RIÊNG MÃ ẢNH TRƯỚC (Sử dụng Regex thoáng hơn để bắt được link)
+    // Regex này sẽ tìm mọi chuỗi bắt đầu bằng [IMG: và kết thúc bằng ]
+    const imgRegex = /(\[IMG:.*?\])/g;
+    const partsWithImages = cleanContent.split(imgRegex);
 
     return (
-        <span style={{fontWeight: '400 !important'}}>
-            {parts.map((part, index) => {
+        <span style={{ fontWeight: '400' }}>
+            {partsWithImages.map((part, index) => {
                 if (!part) return null;
 
-                // Kiểm tra xem phần này có phải là công thức Toán không
-                const isMath = /^\$|^\$\.|^\\begin|^\\\[/.test(part.trim());
-                
-                // 🟢 KIỂM TRA XEM CÓ PHẢI MÃ HÌNH ẢNH KHÔNG
-                const isImage = /^\[IMG:.*?\]$/.test(part.trim());
-
-                if (isMath) {
-                    return <Latex key={index}>{part}</Latex>;
-                } else if (isImage) {
-                    // Cắt bỏ chuỗi "[IMG:" ở đầu (5 ký tự) và "]" ở cuối (1 ký tự) để lấy Link
-                    const imageUrl = part.slice(5, -1);
+                // Nếu là mã ảnh
+                if (part.startsWith('[IMG:') && part.endsWith(']')) {
+                    const url = part.slice(5, -1).trim();
                     return (
-                        <Box key={index} sx={{ my: 1.5, textAlign: 'center', width: '100%' }}>
+                        <Box key={`img-${index}`} sx={{ my: 2, textAlign: 'center', width: '100%' }}>
                             <img 
-                                src={imageUrl} 
-                                alt="Minh họa bài toán" 
+                                src={url} 
+                                alt="Hình ảnh minh họa" 
                                 style={{ 
                                     maxWidth: '100%', 
-                                    maxHeight: '400px', 
+                                    maxHeight: '450px', 
                                     borderRadius: '8px', 
-                                    objectFit: 'contain', 
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                     display: 'block',
                                     margin: '0 auto'
                                 }} 
+                                onError={(e) => { e.target.style.display = 'none'; console.error("Lỗi load ảnh:", url); }}
                             />
                         </Box>
                     );
-                } else {
-                    // Xử lý thẻ HTML <img> cũ do Python Tool gửi lên (nếu có)
-                    const imgRegex = /<img src='(.*?)' style='(.*?)' \/>/g;
-                    const subParts = part.split(imgRegex);
-
-                    if (subParts.length === 1) {
-                        return renderTextWithFormatting(part, index);
-                    }
-
-                    let elements = [];
-                    for (let i = 0; i < subParts.length; i += 3) {
-                        if (subParts[i]) {
-                            elements.push(renderTextWithFormatting(subParts[i], `${index}-txt-${i}`));
-                        }
-                        if (i + 1 < subParts.length) {
-                            const src = subParts[i+1];
-                            const styleObj = { maxWidth: '100%', display: 'block', margin: '10px auto', borderRadius: '4px' };
-                            elements.push(
-                                <img key={`${index}-img-${i}`} src={src} style={styleObj} alt="Minh họa" />
-                            );
-                        }
-                    }
-                    return <React.Fragment key={index}>{elements}</React.Fragment>;
                 }
+
+                // Nếu là văn bản (có thể chứa Toán học)
+                const mathRegex = /((?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$.*?(?<!\\)\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\\[[\s\S]*?\\\])/gs;
+                const subParts = part.split(mathRegex);
+
+                return subParts.map((sub, idx) => {
+                    if (!sub) return null;
+                    const isMath = /^\$|^\$\.|^\\begin|^\\\[/.test(sub.trim());
+                    if (isMath) {
+                        return <Latex key={`math-${index}-${idx}`}>{sub}</Latex>;
+                    }
+                    return renderTextWithFormatting(sub, `txt-${index}-${idx}`);
+                });
             })}
         </span>
     );
 };
 
-// Hàm phụ: Xử lý xuống dòng (\n) và in đậm (\textbf) trong văn bản thường
 const renderTextWithFormatting = (text, keyPrefix) => {
     const textLines = text.split('\n');
     return (
@@ -117,149 +94,102 @@ const renderTextWithFormatting = (text, keyPrefix) => {
 };
 
 function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted }) {
-  const normalStyle = { fontWeight: '400 !important', color: '#333', fontSize: '1rem', fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif' };
-
-  const scrollableContainerStyle = {
-      overflowX: 'auto',      
-      overflowY: 'hidden',    
-      maxWidth: '100%',       
-      paddingBottom: '5px',
-      whiteSpace: 'pre-wrap' // Giữ khoảng trắng và xuống dòng
-  };
+  const normalStyle = { color: '#333', fontSize: '1rem', lineHeight: '1.6' };
+  const scrollStyle = { overflowX: 'auto', maxWidth: '100%', paddingBottom: '5px' };
 
   const renderMCQ = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 2 }}>
         {question.choices.map((choice, idx) => {
             let bgColor = 'white';
-            let borderColor = '#ddd';
-            
+            let borderColor = '#e0e0e0';
             if (isSubmitted) {
-                if (choice.is_correct) { 
-                    bgColor = '#d4edda'; borderColor = '#28a745';
-                } else if (userAnswer === choice.content && !choice.is_correct) {
-                    bgColor = '#f8d7da'; borderColor = '#dc3545';
-                }
-            } else if (userAnswer === choice.content) {
-                bgColor = '#e3f2fd'; borderColor = '#2196f3';
-            }
+                if (choice.is_correct) { bgColor = '#e8f5e9'; borderColor = '#4caf50'; }
+                else if (userAnswer === choice.content) { bgColor = '#ffebee'; borderColor = '#f44336'; }
+            } else if (userAnswer === choice.content) { bgColor = '#e3f2fd'; borderColor = '#2196f3'; }
 
             return (
-                <label key={idx} style={{display: 'flex', alignItems: 'center', padding: '10px', border: `1px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, cursor: 'pointer', ...normalStyle}}>
-                    <input type="radio" name={`q-${question.id}`} checked={userAnswer === choice.content}
+                <label key={idx} style={{ 
+                    display: 'flex', alignItems: 'center', padding: '12px', border: `1px solid ${borderColor}`, 
+                    borderRadius: '10px', backgroundColor: bgColor, cursor: isSubmitted ? 'default' : 'pointer', transition: '0.2s'
+                }}>
+                    <input type="radio" checked={userAnswer === choice.content}
                         onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, choice.content, 'MCQ')}
-                        disabled={isSubmitted} style={{ marginRight: '10px' }}
+                        disabled={isSubmitted} style={{ marginRight: '12px', transform: 'scale(1.2)' }}
                     />
-                    <div style={{flex: 1, ...scrollableContainerStyle}}> 
-                        <strong style={{marginRight:5, fontWeight:'bold'}}>{choice.label}.</strong> 
+                    <Box sx={{ flex: 1, ...scrollStyle }}>
+                        <strong style={{ marginRight: 8 }}>{choice.label}.</strong> 
                         {processContent(choice.content)}
-                    </div>
+                    </Box>
                 </label>
             );
         })}
-    </div>
+    </Box>
   );
 
   const renderTF = () => (
-    <div style={{marginTop: '10px'}}>
-        <div style={{display: 'grid', gridTemplateColumns: '6fr 1fr 1fr', borderBottom: '2px solid #eee', paddingBottom: '5px', marginBottom: '10px'}}>
-            <span style={{fontWeight: 'bold'}}>Mệnh đề</span>
-            <span style={{textAlign:'center', fontWeight: 'bold', color: '#2e7d32'}}>Đúng</span>
-            <span style={{textAlign:'center', fontWeight: 'bold', color: '#d32f2f'}}>Sai</span>
-        </div>
+    <Box sx={{ mt: 2, border: '1px solid #eee', borderRadius: '10px', overflow: 'hidden' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', bgcolor: '#f8f9fa', p: 1.5, borderBottom: '2px solid #eee' }}>
+            <Typography fontWeight="bold">Mệnh đề</Typography>
+            <Typography fontWeight="bold" color="success.main" align="center">Đúng</Typography>
+            <Typography fontWeight="bold" color="error.main" align="center">Sai</Typography>
+        </Box>
         {question.choices.map((choice, idx) => {
             const userChoice = userAnswer && userAnswer[choice.id];
-            let rowStyle = { ...normalStyle, borderBottom: '1px solid #f0f0f0', padding: '10px 5px' };
-            
+            let rowBg = 'transparent';
             if (isSubmitted && userChoice) {
-                const isUserRight = (userChoice === "true" && choice.is_correct) || (userChoice === "false" && !choice.is_correct);
-                if (isUserRight) {
-                    rowStyle.backgroundColor = '#d4edda'; rowStyle.border = '1px solid #c3e6cb';
-                } else {
-                    rowStyle.backgroundColor = '#f8d7da'; rowStyle.border = '1px solid #f5c6cb';
-                }
-                rowStyle.borderRadius = '4px';
+                const isRight = (userChoice === "true" && choice.is_correct) || (userChoice === "false" && !choice.is_correct);
+                rowBg = isRight ? '#e8f5e9' : '#ffebee';
             }
-
             return (
-                <div key={idx} style={{display: 'grid', gridTemplateColumns: '6fr 1fr 1fr', alignItems: 'center', ...rowStyle}}>
-                    <div style={scrollableContainerStyle}> 
-                        <strong style={{fontWeight:'bold'}}>{choice.label})</strong> {processContent(choice.content)}
-                    </div>
-                    <div style={{textAlign:'center'}}>
-                        <Radio checked={userChoice === "true"} onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, "true", 'TF')} disabled={isSubmitted} color="success"/>
-                    </div>
-                    <div style={{textAlign:'center'}}>
-                        <Radio checked={userChoice === "false"} onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, "false", 'TF')} disabled={isSubmitted} color="error"/>
-                    </div>
-                </div>
-            )
+                <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', alignItems: 'center', p: 1.5, borderBottom: '1px solid #eee', bgcolor: rowBg }}>
+                    <Box sx={scrollStyle}><strong style={{ marginRight: 5 }}>{choice.label})</strong> {processContent(choice.content)}</Box>
+                    <Radio size="small" checked={userChoice === "true"} color="success" onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, "true", 'TF')} disabled={isSubmitted} sx={{ justifySelf: 'center' }}/>
+                    <Radio size="small" checked={userChoice === "false"} color="error" onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, "false", 'TF')} disabled={isSubmitted} sx={{ justifySelf: 'center' }}/>
+                </Box>
+            );
         })}
-    </div>
+    </Box>
   );
 
   const renderShort = () => {
     let borderColor = '#ccc';
     let bgColor = 'white';
-    let feedbackStatus = null;
-
     if (isSubmitted) {
         const isCorrect = checkShortAnswer(userAnswer, question.short_answer_correct);
-        if (isCorrect) {
-            borderColor = '#28a745'; bgColor = '#d4edda';
-            feedbackStatus = <span style={{marginLeft: '10px', color: 'green', fontWeight: 'bold'}}>✅ Chính xác</span>;
-        } else {
-            borderColor = '#dc3545'; bgColor = '#f8d7da';
-            feedbackStatus = <span style={{marginLeft: '10px', color: '#d32f2f', fontWeight: 'bold'}}>❌ Sai</span>;
-        }
+        borderColor = isCorrect ? '#4caf50' : '#f44336';
+        bgColor = isCorrect ? '#e8f5e9' : '#ffebee';
     }
-
-    let displayCorrectAnswer = (question.short_answer_correct !== null && question.short_answer_correct !== undefined) 
-        ? question.short_answer_correct.toString().replace('.', ',') : "Đang cập nhật";
-
     return (
-        <div style={{marginTop: '15px'}}>
-            <label style={{display:'block', marginBottom:'5px', fontWeight:'bold'}}>Nhập đáp án:</label>
-            <div style={{display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
-                <input 
-                    type="text" inputMode="text"
-                    value={userAnswer || ''} 
-                    onChange={(e) => onAnswerChange(question.id, null, e.target.value, 'SHORT')} 
-                    disabled={isSubmitted} 
-                    style={{
-                        padding: '10px', width: '150px', fontSize: '16px', 
-                        border: `2px solid ${borderColor}`, backgroundColor: bgColor, borderRadius:'4px'
-                    }} 
-                />
-                {isSubmitted && feedbackStatus}
-            </div>
+        <Box sx={{ mt: 2 }}>
+            <Typography fontWeight="bold" mb={1}>Đáp án của bạn:</Typography>
+            <input type="text" value={userAnswer || ''} disabled={isSubmitted}
+                onChange={(e) => onAnswerChange(question.id, null, e.target.value, 'SHORT')} 
+                style={{ padding: '12px', width: '180px', fontSize: '16px', border: `2px solid ${borderColor}`, backgroundColor: bgColor, borderRadius: '8px', outline: 'none' }} 
+            />
             {isSubmitted && (
-                <div style={{ marginTop: '10px', color: '#2e7d32', backgroundColor: '#e8f5e9', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', border: '1px solid #c8e6c9', display: 'inline-block', fontSize: '16px'}}>
-                    Đáp án đúng: {displayCorrectAnswer}
-                </div>
+                <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#e8f5e9', borderRadius: '8px', border: '1px solid #c8e6c9', display: 'inline-block', ml: 2 }}>
+                    <Typography color="success.dark" fontWeight="bold">Đúng: {question.short_answer_correct.toString().replace('.', ',')}</Typography>
+                </Box>
             )}
-        </div>
+        </Box>
     );
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-      <div style={{ marginBottom: '15px', ...normalStyle, ...scrollableContainerStyle }}>
-        <span style={{ fontWeight: 'bold', color: '#fff', backgroundColor: '#3f51b5', padding: '4px 12px', borderRadius: '4px', marginRight: '10px', fontSize: '14px', display: 'inline-block', verticalAlign: 'middle' }}>
-            Câu {index + 1}
-        </span>
+    <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, mb: 3, borderRadius: '15px', border: '1px solid #f0f0f0' }}>
+      <Box sx={{ mb: 2, ...normalStyle }}>
+        <Chip label={`Câu ${index + 1}`} color="primary" sx={{ fontWeight: 'bold', mr: 1.5, mb: 0.5 }} />
         {processContent(question.content)} 
-      </div>
+      </Box>
 
       {question.question_type === 'MCQ' && renderMCQ()}
       {question.question_type === 'TF' && renderTF()}
       {question.question_type === 'SHORT' && renderShort()}
 
       {isSubmitted && question.solution && (
-          <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 2, borderLeft: '4px solid #ff9800' }}>
-              <div style={{color: '#d32f2f', fontWeight: 'bold', marginBottom: '5px'}}>Lời giải:</div>
-              <div style={{...normalStyle, ...scrollableContainerStyle}}>
-                  {processContent(question.solution)}
-              </div>
+          <Box sx={{ mt: 3, p: 2, bgcolor: '#fff9c4', borderRadius: '10px', borderLeft: '5px solid #fbc02d' }}>
+              <Typography fontWeight="bold" color="warning.dark" mb={1}>💡 Hướng dẫn giải:</Typography>
+              <Box sx={scrollStyle}>{processContent(question.solution)}</Box>
           </Box>
       )}
     </Paper>
