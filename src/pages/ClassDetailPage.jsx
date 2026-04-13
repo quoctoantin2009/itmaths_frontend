@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../services/axiosClient';
 
@@ -9,9 +9,13 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import AssessmentIcon from '@mui/icons-material/Assessment'; 
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import FileDownloadIcon from '@mui/icons-material/FileDownload'; // ✅ [MỚI] Icon tải xuống
+import FileDownloadIcon from '@mui/icons-material/FileDownload'; 
+import ForumIcon from '@mui/icons-material/Forum'; // Icon Tab Chat
+import SendIcon from '@mui/icons-material/Send';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Snackbar, Alert, Slide, IconButton, Tooltip } from '@mui/material';
+import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography } from '@mui/material';
 
 import './ClassDetail.css';
 
@@ -31,12 +35,21 @@ const ClassDetail = () => {
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
-  // --- STATE CHO BỘ LỌC 3 CẤP ---
+  // --- STATE BỘ LỌC BÀI TẬP ---
   const [selectedGrade, setSelectedGrade] = useState('12'); 
   const [filteredTopics, setFilteredTopics] = useState([]); 
   const [selectedTopicId, setSelectedTopicId] = useState(''); 
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
+
+  // --- 🟢 STATE CHO TAB THẢO LUẬN (CHAT) ---
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [chatImage, setChatImage] = useState(null);
+  const [chatImagePreview, setChatImagePreview] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
 
   const [notification, setNotification] = useState({
     open: false, message: '', severity: 'success'
@@ -50,7 +63,18 @@ const ClassDetail = () => {
     if (activeTab === 'grades' && currentUser?.id === classroom?.teacher) {
         fetchReport();
     }
+    // 🟢 NẾU CHUYỂN SANG TAB CHAT -> GỌI API LẤY TIN NHẮN
+    if (activeTab === 'chat') {
+        fetchMessages();
+    }
   }, [activeTab]);
+
+  // Cuộn xuống cuối khi có tin nhắn mới
+  useEffect(() => {
+      if (activeTab === 'chat') {
+          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+  }, [messages, activeTab]);
 
   useEffect(() => {
     if (topics.length > 0) {
@@ -107,6 +131,64 @@ const ClassDetail = () => {
           console.error("Lỗi tải báo cáo:", error);
       }
   };
+
+  // 🟢 --- CÁC HÀM CHO TÍNH NĂNG CHAT ---
+  const fetchMessages = async () => {
+      try {
+          const res = await axiosClient.get(`/classrooms/${id}/chat/`);
+          setMessages(res.data);
+      } catch (error) {
+          showNotification("Không thể tải tin nhắn", "error");
+      }
+  };
+
+  const handleImageSelect = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+          setChatImage(file);
+          setChatImagePreview(URL.createObjectURL(file));
+      }
+  };
+
+  const handleRemoveImage = () => {
+      setChatImage(null);
+      setChatImagePreview('');
+      if (fileInputRef.current) fileInputRef.current.value = null;
+  };
+
+  const handleSendMessage = async () => {
+      if (!newMessage.trim() && !chatImage) return;
+
+      setSendingMsg(true);
+      const formData = new FormData();
+      formData.append('content', newMessage);
+      if (chatImage) formData.append('image', chatImage);
+
+      try {
+          const res = await axiosClient.post(`/classrooms/${id}/chat/`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          setMessages([...messages, res.data]);
+          setNewMessage('');
+          handleRemoveImage();
+      } catch (error) {
+          showNotification("Lỗi khi gửi tin nhắn", "error");
+      } finally {
+          setSendingMsg(false);
+      }
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+      if (!window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này không?")) return;
+      try {
+          await axiosClient.delete(`/classrooms/chat/${msgId}/delete/`);
+          setMessages(messages.filter(m => m.id !== msgId));
+          showNotification("Đã xóa tin nhắn", "success");
+      } catch (error) {
+          showNotification("Lỗi khi xóa tin nhắn", "error");
+      }
+  };
+  // 🟢 --------------------------------
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ open: true, message: msg, severity: type });
@@ -169,26 +251,22 @@ const ClassDetail = () => {
       navigate(`/history/${resultId}`);
   };
 
-  // ✅ [MỚI] Hàm xử lý tải file Excel
   const handleDownloadExcel = async () => {
     try {
         const response = await axiosClient.get(`/classrooms/${id}/export-excel/`, {
-            responseType: 'blob', // Quan trọng: Đặt kiểu phản hồi là blob (file binary)
+            responseType: 'blob',
         });
 
-        // Tạo URL từ blob
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
         
-        // Đặt tên file (Frontend tự đặt hoặc lấy từ header nếu backend trả về)
         const fileName = `Bang_Diem_Lop_${classroom.name}.xlsx`;
         link.setAttribute('download', fileName);
         
         document.body.appendChild(link);
         link.click();
         
-        // Dọn dẹp
         link.parentNode.removeChild(link);
         window.URL.revokeObjectURL(url);
 
@@ -231,6 +309,13 @@ const ClassDetail = () => {
             onClick={() => setActiveTab('stream')}
         >
             Bảng tin & Bài tập
+        </button>
+        {/* 🟢 TAB THẢO LUẬN MỚI */}
+        <button 
+            className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+        >
+            Thảo luận chung
         </button>
         <button 
             className={`nav-item ${activeTab === 'members' ? 'active' : ''}`}
@@ -369,6 +454,112 @@ const ClassDetail = () => {
             </div>
         )}
 
+        {/* 🟢 GIAO DIỆN TAB THẢO LUẬN (CHAT) TRONG LỚP HỌC */}
+        {activeTab === 'chat' && (
+            <div className="chat-layout" style={{ display: 'flex', flexDirection: 'column', height: '600px', backgroundColor: '#f0f2f5', borderRadius: '10px', overflow: 'hidden' }}>
+                
+                {/* Khu vực hiển thị tin nhắn */}
+                <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+                    {messages.length === 0 ? (
+                        <div style={{ textAlign: 'center', marginTop: '100px', color: '#888' }}>
+                            <ForumIcon sx={{ fontSize: 60, color: '#ccc' }} />
+                            <p>Chưa có tin nhắn nào. Hãy gửi lời chào đến cả lớp!</p>
+                        </div>
+                    ) : (
+                        messages.map((msg) => {
+                            const isMine = msg.sender_id === currentUser?.id;
+                            
+                            // Phân quyền: Giáo viên thấy hết nút xóa, Học sinh chỉ thấy của mình
+                            const canDelete = isTeacher || isMine;
+
+                            return (
+                                <Box key={msg.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', mb: 2 }}>
+                                    {/* Tên người gửi */}
+                                    <Typography variant="caption" sx={{ color: msg.is_teacher ? '#d35400' : 'gray', fontWeight: msg.is_teacher ? 'bold' : 'normal', mb: 0.5, px: 1 }}>
+                                        {msg.is_teacher ? '👨‍🏫 Giáo viên' : msg.sender_name}
+                                    </Typography>
+                                    
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                                        {/* Khung tin nhắn */}
+                                        <Paper elevation={1} sx={{ 
+                                            p: 1.5, 
+                                            maxWidth: '70%', 
+                                            bgcolor: isMine ? '#dcf8c6' : 'white',
+                                            border: msg.is_teacher && !isMine ? '2px solid #f39c12' : 'none',
+                                            borderRadius: isMine ? '15px 0px 15px 15px' : '0px 15px 15px 15px'
+                                        }}>
+                                            {msg.image && (
+                                                <img src={msg.image} alt="Đính kèm" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', marginBottom: msg.content ? '10px' : '0', cursor: 'pointer' }} onClick={() => window.open(msg.image, '_blank')} />
+                                            )}
+                                            {msg.content && (
+                                                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                    {msg.content}
+                                                </Typography>
+                                            )}
+                                        </Paper>
+
+                                        {/* Nút Xóa (Dựa theo phân quyền) */}
+                                        {canDelete && (
+                                            <Tooltip title="Xóa tin nhắn">
+                                                <IconButton size="small" onClick={() => handleDeleteMessage(msg.id)} sx={{ color: '#e74c3c', opacity: 0.7, '&:hover': { opacity: 1 } }}>
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                    </Box>
+                                    <Typography variant="caption" sx={{ color: '#bbb', mt: 0.5, px: 1, fontSize: '0.7rem' }}>
+                                        {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                    </Typography>
+                                </Box>
+                            );
+                        })
+                    )}
+                    <div ref={chatEndRef} />
+                </div>
+
+                {/* Khu vực xem trước ảnh chuẩn bị gửi */}
+                {chatImagePreview && (
+                    <Box sx={{ p: 2, bgcolor: '#e0e0e0', borderTop: '1px solid #ccc', position: 'relative' }}>
+                        <img src={chatImagePreview} alt="Preview" style={{ height: '80px', borderRadius: '5px' }} />
+                        <IconButton size="small" sx={{ position: 'absolute', top: 10, left: 10, bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }} onClick={handleRemoveImage}>
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
+                    </Box>
+                )}
+
+                {/* Khu vực nhập tin nhắn */}
+                <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'white', borderTop: '1px solid #ddd' }}>
+                    <input type="file" accept="image/*" hidden ref={fileInputRef} onChange={handleImageSelect} />
+                    <Tooltip title="Đính kèm ảnh bài tập">
+                        <IconButton color="primary" sx={{ mr: 1 }} onClick={() => fileInputRef.current.click()} disabled={sendingMsg}>
+                            <AddPhotoAlternateIcon />
+                        </IconButton>
+                    </Tooltip>
+                    
+                    <TextField 
+                        fullWidth size="small" 
+                        placeholder="Nhập nội dung thảo luận hoặc hỏi bài..." 
+                        variant="outlined" 
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                        disabled={sendingMsg}
+                        sx={{ bgcolor: '#f9f9f9', borderRadius: '20px', '& fieldset': { border: 'none' } }}
+                    />
+
+                    <Button 
+                        variant="contained" color="primary" 
+                        endIcon={sendingMsg ? <CircularProgress size={20} color="inherit" /> : <SendIcon />} 
+                        onClick={handleSendMessage}
+                        disabled={sendingMsg || (!newMessage.trim() && !chatImage)}
+                        sx={{ ml: 2, borderRadius: '20px', px: 3 }}
+                    >
+                        Gửi
+                    </Button>
+                </Box>
+            </div>
+        )}
+
         {activeTab === 'members' && (
             <div className="members-layout">
                 <div className="section-header">
@@ -422,19 +613,17 @@ const ClassDetail = () => {
 
         {activeTab === 'grades' && isTeacher && (
             <div className="grades-layout">
-                {/* ✅ [MỚI] Phần Header được cập nhật để chứa nút Xuất Excel */}
                 <div className="section-header">
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                         <div>
                             <h2 className="section-title">Bảng điểm lớp học</h2>
                             <p className="grades-subtitle">Kết quả các bài tập đã giao ({reportData.length} học sinh)</p>
                         </div>
-                        {/* Nút bấm Xuất Excel */}
                         <button 
                             className="btn-assign" 
                             onClick={handleDownloadExcel}
                             style={{
-                                backgroundColor: '#28a745', // Màu xanh Excel
+                                backgroundColor: '#28a745', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: '8px',
