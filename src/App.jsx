@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-
+import PersonalExamBuilder from './pages/PersonalExamBuilder';
 // 🟢 IMPORT CAPACITOR APP VÀ CORE
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -158,7 +158,7 @@ function App() {
 
           {/* 🟢 ROUTE QUẢN LÝ ĐỀ THI CÁ NHÂN */}
           <Route path="/quan-ly-de-thi" element={<PrivateRoute><PersonalExamManager /></PrivateRoute>} />
-
+          <Route path="/exams/:id/edit" element={<PrivateRoute><PersonalExamBuilder /></PrivateRoute>} />
           {/* 🟢 NHÓM ROUTE ĐẤU TRƯỜNG (MỚI) */}
           <Route path="/arena" element={<PrivateRoute><ArenaEntry /></PrivateRoute>} />
           <Route path="/arena/host/:pin" element={<PrivateRoute><ArenaHost /></PrivateRoute>} />
