@@ -84,7 +84,6 @@ function ArenaEntry() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     
-    // 🟢 KHAI BÁO ĐẦY ĐỦ CÁC HÀM QUẢN LÝ TOAST (ĐÃ FIX LỖI)
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
     const showToast = (message, type = 'error') => setToast({ open: true, message, type });
     const handleCloseToast = () => setToast({ ...toast, open: false });
@@ -174,14 +173,24 @@ function ArenaEntry() {
     const handleToggleSelect = (id) => setQSettings(prev => ({ ...prev, [id]: { ...(prev[id] || {}), selected: !(prev[id]?.selected) } }));
     const handleTimeChange = (id, val) => { const numericVal = String(val || '').replace(/[^0-9]/g, ''); setQSettings(prev => ({ ...prev, [id]: { ...(prev[id] || {}), time: numericVal, selected: true } })); };
 
+    // 🟢 TỐI ƯU UX: TẠO THƯ MỤC XONG BẬT LUÔN FORM SOẠN CÂU HỎI
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) return;
         try {
             const res = await axiosClient.post('/arena/folders/', { name: newFolderName });
-            setFolders([res.data, ...(Array.isArray(folders) ? folders : [])]);
+            const newFolder = res.data;
+            setFolders([newFolder, ...(Array.isArray(folders) ? folders : [])]);
             setNewFolderName('');
             setOpenFolderModal(false);
-            showToast('Tạo thư mục thành công!', 'success');
+            
+            // 1. Tự động chọn thư mục vừa tạo
+            setSelectedFolderId(newFolder.id);
+            // 2. Gắn sẵn ID thư mục đó vào Form soạn câu hỏi
+            setCustomQ(prev => ({ ...prev, folder_id: newFolder.id }));
+            // 3. Mở thẳng Cửa sổ soạn câu hỏi
+            setOpenCustomQModal(true);
+            
+            showToast('Tạo thư mục thành công! Mời Thầy/Cô nhập đề bài.', 'success');
         } catch (err) { showToast('Lỗi tạo thư mục! Có thể Backend chưa migrate.', 'error'); }
     };
 
@@ -199,9 +208,16 @@ function ArenaEntry() {
             const res = await axiosClient.post('/arena/custom-questions/create/', payload);
             setQuestions([res.data, ...(Array.isArray(questions) ? questions : [])]);
             setQSettings(prev => ({ ...prev, [res.data?.id]: { selected: true, time: "30" } }));
-            showToast('Đã lưu câu hỏi vào kho cá nhân!', 'success');
+            showToast('Đã lưu câu hỏi vào thư mục!', 'success');
             setOpenCustomQModal(false);
-            setCustomQ({ folder_id: '', content: '', question_type: 'MCQ', explanation: '', shortAnswer: '', optionsMCQ: [{ text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }, { text: '', is_correct: false }], optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }] });
+            
+            // 🟢 TỐI ƯU UX: GIỮ NGUYÊN folder_id ĐỂ TẠO CÂU SAU NHANH HƠN
+            setCustomQ({ 
+                folder_id: customQ.folder_id, 
+                content: '', question_type: 'MCQ', explanation: '', shortAnswer: '', 
+                optionsMCQ: [{ text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }, { text: '', is_correct: false }], 
+                optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }] 
+            });
         } catch (err) { showToast('Lỗi khi lưu câu hỏi.', 'error'); }
     };
 
@@ -268,7 +284,14 @@ function ArenaEntry() {
             <Dialog open={openCreateModal} onClose={() => setOpenCreateModal(false)} fullWidth maxWidth="md">
                 <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Cài đặt Trận Đấu</span>
-                    <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={() => setOpenCustomQModal(true)} sx={{ fontWeight: 'bold' }}>Tự soạn câu hỏi</Button>
+                    <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={() => {
+                        // 🟢 TỐI ƯU UX: Nếu bấm "Tự soạn" từ màn hình chính, tự bắt luôn Thư mục đang lọc
+                        setCustomQ(prev => ({ 
+                            ...prev, 
+                            folder_id: (viewMode === 'personal' && selectedFolderId !== 'ALL') ? selectedFolderId : '' 
+                        }));
+                        setOpenCustomQModal(true);
+                    }} sx={{ fontWeight: 'bold' }}>Tự soạn câu hỏi</Button>
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2 }}>
                     <TextField fullWidth label="Tên Trận Đấu" value={arenaTitle} onChange={(e) => setArenaTitle(e.target.value)} sx={{ mb: 3, mt: 1 }} />
@@ -393,9 +416,7 @@ function ArenaEntry() {
                 <DialogActions sx={{ p: 2 }}><Button onClick={() => setOpenCustomQModal(false)}>Hủy bỏ</Button><Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>Lưu Câu Hỏi</Button></DialogActions>
             </Dialog>
 
-            <Snackbar open={toast.open} autoHideDuration={4000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-                <Alert severity={toast.type} variant="filled">{toast.message}</Alert>
-            </Snackbar>
+            <Snackbar open={toast.open} autoHideDuration={4000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}><Alert severity={toast.type} variant="filled">{toast.message}</Alert></Snackbar>
         </Box>
     );
 }
