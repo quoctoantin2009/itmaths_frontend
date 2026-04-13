@@ -14,6 +14,7 @@ import ForumIcon from '@mui/icons-material/Forum';
 import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ReplayIcon from '@mui/icons-material/Replay'; // 🟢 Icon Đặt lại
 
 import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button, Switch, FormControlLabel, Grid, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 
@@ -66,7 +67,6 @@ const ClassDetail = () => {
     open: false, message: '', severity: 'success'
   });
 
-  // 🟢 STATE CHO POPUP THU HỒI BÀI TẬP
   const [deleteAssignConfirm, setDeleteAssignConfirm] = useState({ open: false, assignId: null });
 
   useEffect(() => { fetchData(); }, [id]);
@@ -240,14 +240,13 @@ const ClassDetail = () => {
     }
   };
 
-  // 🟢 HÀM XỬ LÝ THU HỒI BÀI TẬP (XÓA KHỎI LỚP)
   const confirmDeleteAssignment = async () => {
       const assignId = deleteAssignConfirm.assignId;
       setDeleteAssignConfirm({ open: false, assignId: null });
       try {
           await axiosClient.delete(`/class_assignments/${assignId}/`);
           showNotification("✅ Đã thu hồi bài tập khỏi lớp!", "success");
-          fetchData(); // Tải lại danh sách để làm mới giao diện
+          fetchData(); 
       } catch (error) {
           showNotification("❌ Lỗi khi thu hồi bài tập!", "error");
       }
@@ -375,7 +374,16 @@ const ClassDetail = () => {
                                 <FormControlLabel control={<Switch checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} color="primary" />} label={<Typography fontWeight="bold" color="primary">Cài đặt nâng cao (Thời gian & Thang điểm)</Typography>} />
                                 {showAdvanced && (
                                     <Box sx={{ mt: 2 }}>
-                                        <Typography variant="subtitle2" color="textSecondary" mb={1}>⏰ Hạn nộp bài</Typography>
+                                        {/* 🟢 NÚT HỦY THỜI GIAN ĐƯỢC ĐẶT Ở ĐÂY (Chỉ hiện khi đã chọn giờ) */}
+                                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                            <Typography variant="subtitle2" color="textSecondary">⏰ Cài đặt Thời gian</Typography>
+                                            {(advancedSettings.start_time || advancedSettings.end_time) && (
+                                                <Button size="small" color="error" startIcon={<ReplayIcon fontSize="small"/>} onClick={() => setAdvancedSettings(prev => ({...prev, start_time: '', end_time: ''}))}>
+                                                    Hủy thời gian
+                                                </Button>
+                                            )}
+                                        </Box>
+                                        
                                         <Grid container spacing={2} mb={3}>
                                             <Grid item xs={12} sm={6}><TextField fullWidth type="datetime-local" label="Thời gian mở đề (Bỏ trống = Mở ngay)" InputLabelProps={{ shrink: true }} value={advancedSettings.start_time} onChange={(e) => handleAdvancedChange('start_time', e.target.value)} size="small" /></Grid>
                                             <Grid item xs={12} sm={6}><TextField fullWidth type="datetime-local" label="Hạn chót nộp bài (Bỏ trống = Không giới hạn)" InputLabelProps={{ shrink: true }} value={advancedSettings.end_time} onChange={(e) => handleAdvancedChange('end_time', e.target.value)} size="small" /></Grid>
@@ -420,12 +428,11 @@ const ClassDetail = () => {
                                         </p>
                                     </div>
                                     
-                                    {/* 🟢 NÚT THU HỒI BÀI TẬP (Chỉ GV mới thấy) */}
                                     {isTeacher && (
                                         <Tooltip title="Thu hồi bài tập khỏi lớp">
                                             <IconButton 
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Tránh việc nhấn nút xóa mà lại mở đề thi lên
+                                                    e.stopPropagation(); 
                                                     setDeleteAssignConfirm({ open: true, assignId: assign.id });
                                                 }}
                                                 sx={{ color: '#e74c3c', '&:hover': { bgcolor: '#fdeaea' } }}
@@ -576,7 +583,6 @@ const ClassDetail = () => {
         )}
       </div>
 
-      {/* 🟢 HỘP THOẠI XÁC NHẬN THU HỒI BÀI TẬP */}
       <Dialog open={deleteAssignConfirm.open} onClose={() => setDeleteAssignConfirm({ open: false, assignId: null })} maxWidth="xs" fullWidth>
           <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c' }}>⚠️ Xác nhận thu hồi</DialogTitle>
           <DialogContent>
