@@ -17,12 +17,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-// 🔥 IMPORT ADMOB & CAPACITOR ĐỂ HIỂN THỊ BANNER APP
 import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
-
-// IMPORT ADSENSE BANNER WEB
-// import AdSenseBanner from '../components/AdSenseBanner'; 
 
 const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
     const fileInputRef = useRef();
@@ -115,6 +111,11 @@ function ArenaEntry() {
     const [openFolderModal, setOpenFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
 
+    // 🟢 STATE CHO QUẢN LÝ THƯ MỤC (ĐỔI TÊN & XÓA)
+    const [openRenameModal, setOpenRenameModal] = useState(false);
+    const [renameFolderName, setRenameFolderName] = useState('');
+    const [deleteFolderConfirm, setDeleteFolderConfirm] = useState({ open: false, folderId: null });
+
     const [deleteConfirm, setDeleteConfirm] = useState({ open: false, questionId: null });
 
     const [openCustomQModal, setOpenCustomQModal] = useState(false);
@@ -124,17 +125,15 @@ function ArenaEntry() {
         optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }]
     });
 
-    // 🟢 KHỞI TẠO QUẢNG CÁO BOTTOM BANNER NGAY KHI MỞ TRANG NÀY
     useEffect(() => {
         const initArenaAdMobBanner = async () => {
             if (Capacitor.isNativePlatform()) {
                 try {
                     await AdMob.initialize({ requestTrackingAuthorization: true });
                     await AdMob.showBanner({
-                        // Nhớ thay bằng ID thực tế của bạn khi Release
                         adId: 'ca-app-pub-2431317486483815/5036820439', 
                         adSize: BannerAdSize.ADAPTIVE_BANNER,
-                        position: BannerAdPosition.BOTTOM_CENTER, // Ép cứng ở mép dưới
+                        position: BannerAdPosition.BOTTOM_CENTER, 
                         margin: 0,
                         isTesting: false 
                     });
@@ -143,8 +142,6 @@ function ArenaEntry() {
         };
 
         initArenaAdMobBanner();
-
-        // 🟢 QUAN TRỌNG: Ẩn quảng cáo khi rời khỏi màn hình này (vào chơi)
         return () => {
             if (Capacitor.isNativePlatform()) {
                 AdMob.hideBanner().catch(e => {});
@@ -224,7 +221,34 @@ function ArenaEntry() {
             setCustomQ(prev => ({ ...prev, folder_id: newFolder.id }));
             setOpenCustomQModal(true);
             showToast('Tạo thư mục thành công! Mời Thầy/Cô nhập đề bài.', 'success');
-        } catch (err) { showToast('Lỗi tạo thư mục! Có thể Backend chưa migrate.', 'error'); }
+        } catch (err) { showToast('Lỗi tạo thư mục!', 'error'); }
+    };
+
+    // 🟢 HÀM XỬ LÝ ĐỔI TÊN THƯ MỤC
+    const handleRenameFolder = async () => {
+        if (!renameFolderName.trim()) return;
+        try {
+            const res = await axiosClient.patch(`/arena/folders/${selectedFolderId}/`, { name: renameFolderName });
+            setFolders(folders.map(f => f.id === selectedFolderId ? res.data : f));
+            setOpenRenameModal(false);
+            showToast('Đổi tên thư mục thành công!', 'success');
+        } catch (error) {
+            showToast('Lỗi khi đổi tên thư mục!', 'error');
+        }
+    };
+
+    // 🟢 HÀM XỬ LÝ XÓA THƯ MỤC
+    const processDeleteFolder = async () => {
+        const id = deleteFolderConfirm.folderId;
+        setDeleteFolderConfirm({ open: false, folderId: null });
+        try {
+            await axiosClient.delete(`/arena/folders/${id}/`);
+            setFolders(folders.filter(f => f.id !== id));
+            setSelectedFolderId('ALL'); // Reset về xem tất cả
+            showToast('Đã xóa thư mục thành công!', 'success');
+        } catch (error) {
+            showToast('Không thể xóa! Thư mục này có thể đang chứa câu hỏi.', 'error');
+        }
     };
 
     const handleSaveCustomQuestion = async () => {
@@ -302,8 +326,7 @@ function ArenaEntry() {
         <Box sx={{ minHeight: '100vh', bgcolor: '#4a148c', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <Tooltip title="Hướng dẫn & Luật chơi"><IconButton onClick={() => setOpenGuide(true)} sx={{ position: 'absolute', top: 20, right: 20, color: '#f1c40f', bgcolor: 'rgba(255,255,255,0.1)' }}><HelpOutlineIcon fontSize="large" /></IconButton></Tooltip>
 
-            {/* Nội dung chính (Khu vực Đấu trường) */}
-            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, paddingBottom: '80px' /* Chừa chỗ cho quảng cáo không bị che lấp chữ */ }}>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, paddingBottom: '80px' }}>
                 <Container maxWidth="xs">
                     <Typography variant="h3" fontWeight="900" textAlign="center" color="white" mb={4}>ITMaths ARENA</Typography>
                     <Paper elevation={10} sx={{ p: 4, borderRadius: 4, textAlign: 'center' }}>
@@ -316,14 +339,8 @@ function ArenaEntry() {
                 </Container>
             </Box>
 
-            {/* 🟢 KHU VỰC CHỨA QUẢNG CÁO BANNER (DÁN SÁT MÉP DƯỚI) 🟢 */}
-            <Box sx={{ position: 'fixed', bottom: 0, left: 0, width: '100%', display: 'flex', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.3)', zIndex: 1000 }}>
-                {/* Bỏ comment dòng dưới nếu bạn muốn hiện AdSense trên WEB 
-                <AdSenseBanner dataAdSlot="9564905223" format="auto" /> 
-                */}
-            </Box>
+            <Box sx={{ position: 'fixed', bottom: 0, left: 0, width: '100%', display: 'flex', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.3)', zIndex: 1000 }}></Box>
 
-            {/* Các popup Dialog giữ nguyên */}
             <Dialog open={openGuide} onClose={() => setOpenGuide(false)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ bgcolor: '#2c3e50', color: '#f1c40f', fontWeight: 'bold', textAlign: 'center' }}>📖 CẨM NANG ĐẤU TRƯỜNG</DialogTitle>
                 <DialogContent sx={{ p: 4 }}>
@@ -331,7 +348,7 @@ function ArenaEntry() {
                     <Typography variant="body1" mb={2}>
                         - <b>Trắc nghiệm & Tự luận:</b> Trả lời đúng được thưởng 250đ - 500đ.<br/>
                         - <b>Đúng/Sai:</b> Phải chọn đúng cả 4 ý mới đạt 1000đ.<br/>
-                        - <b>Đua tốc độ:</b> Ai trả lời Nhanh nhất x2.0, Nhanh nhì x1.8, Nhanh ba x1.6...
+                        - <b>Đua tốc độ:</b> Ai trả lời Nhanh nhất x2.0, Nhanh nhì x1.8...
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ justifyContent: 'center', p: 2 }}><Button onClick={() => setOpenGuide(false)} variant="contained" color="primary" sx={{ borderRadius: 5, px: 4 }}>Đã hiểu</Button></DialogActions>
@@ -368,7 +385,7 @@ function ArenaEntry() {
                     )}
 
                     {viewMode === 'personal' && (
-                        <Box display="flex" alignItems="center" gap={2} mb={3} p={2} bgcolor="rgba(230, 126, 34, 0.1)" borderRadius={2} border="1px dashed #e67e22">
+                        <Box display="flex" alignItems="center" gap={1} mb={3} p={2} bgcolor="rgba(230, 126, 34, 0.1)" borderRadius={2} border="1px dashed #e67e22">
                             <FormControl fullWidth size="small">
                                 <InputLabel>Lọc theo Thư mục</InputLabel>
                                 <Select value={selectedFolderId} label="Lọc theo Thư mục" onChange={(e) => setSelectedFolderId(e.target.value)}>
@@ -376,7 +393,27 @@ function ArenaEntry() {
                                     {safeFolders.map(f => <MenuItem key={f?.id} value={f?.id}>📁 {f?.name}</MenuItem>)}
                                 </Select>
                             </FormControl>
-                            <Button variant="contained" color="warning" onClick={() => setOpenFolderModal(true)} startIcon={<AddCircleOutlineIcon />} sx={{ whiteSpace: 'nowrap' }}>Tạo Thư mục mới</Button>
+                            
+                            {/* 🟢 NÚT ĐỔI TÊN VÀ XÓA THƯ MỤC XUẤT HIỆN Ở ĐÂY */}
+                            {selectedFolderId !== 'ALL' && (
+                                <Box display="flex" gap={0.5}>
+                                    <Tooltip title="Đổi tên thư mục này">
+                                        <IconButton size="small" color="primary" onClick={() => {
+                                            setRenameFolderName(folders.find(f => f.id === selectedFolderId)?.name || '');
+                                            setOpenRenameModal(true);
+                                        }}>
+                                            <EditIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Xóa thư mục này">
+                                        <IconButton size="small" color="error" onClick={() => setDeleteFolderConfirm({ open: true, folderId: selectedFolderId })}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                            )}
+
+                            <Button variant="contained" color="warning" onClick={() => setOpenFolderModal(true)} startIcon={<AddCircleOutlineIcon />} sx={{ whiteSpace: 'nowrap', ml: 1 }}>Tạo Thư mục</Button>
                         </Box>
                     )}
 
@@ -409,6 +446,7 @@ function ArenaEntry() {
                 <DialogActions sx={{ p: 2 }}><Button onClick={() => setOpenCreateModal(false)}>Hủy</Button><Button onClick={submitCreateArena} variant="contained" sx={{ bgcolor: '#4a148c' }}>Khởi tạo Đấu Trường</Button></DialogActions>
             </Dialog>
 
+            {/* Modal Tạo thư mục */}
             <Dialog open={openFolderModal} onClose={() => setOpenFolderModal(false)} maxWidth="xs" fullWidth>
                 <DialogTitle sx={{ fontWeight: 'bold' }}>Tạo Thư Mục Mới</DialogTitle>
                 <DialogContent>
@@ -420,10 +458,34 @@ function ArenaEntry() {
                 </DialogActions>
             </Dialog>
 
+            {/* 🟢 Modal Đổi tên thư mục */}
+            <Dialog open={openRenameModal} onClose={() => setOpenRenameModal(false)} maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#2980b9' }}>Đổi tên Thư Mục</DialogTitle>
+                <DialogContent>
+                    <TextField autoFocus fullWidth label="Tên mới" value={renameFolderName} onChange={e => setRenameFolderName(e.target.value)} sx={{ mt: 1 }} />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenRenameModal(false)}>Hủy</Button>
+                    <Button onClick={handleRenameFolder} variant="contained" color="primary">Lưu thay đổi</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* 🟢 Modal Xác nhận Xóa Thư mục */}
+            <Dialog open={deleteFolderConfirm.open} onClose={() => setDeleteFolderConfirm({ open: false, folderId: null })} maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c' }}>⚠️ Cảnh báo xóa Thư mục</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1">Bạn có chắc chắn muốn xóa thư mục này không?</Typography>
+                    <Typography variant="body2" color="error" mt={1}>Lưu ý: Chỉ có thể xóa thư mục nếu nó đang trống (không chứa câu hỏi nào).</Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteFolderConfirm({ open: false, folderId: null })} color="inherit">Hủy bỏ</Button>
+                    <Button onClick={processDeleteFolder} variant="contained" color="error">Xác nhận xóa</Button>
+                </DialogActions>
+            </Dialog>
+
             <Dialog open={openCustomQModal} onClose={() => setOpenCustomQModal(false)} fullWidth maxWidth="md">
                 <DialogTitle sx={{ bgcolor: '#f39c12', color: 'white', fontWeight: 'bold' }}>Tự soạn Câu hỏi</DialogTitle>
                 <DialogContent sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    
                     <FormControl fullWidth size="small" sx={{ mt: 1 }}>
                         <InputLabel>Lưu vào Thư mục</InputLabel>
                         <Select value={customQ?.folder_id || ''} label="Lưu vào Thư mục" onChange={(e) => setCustomQ({...customQ, folder_id: e.target.value})}>
