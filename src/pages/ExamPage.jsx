@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-// [QUAN TRỌNG] Thay axios thường bằng axiosClient để tự động xử lý Token & URL
 import axiosClient from "../services/axiosClient";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 import QuestionCard from "../components/QuestionCard";
-import ExamHistoryDialog from "../components/ExamHistoryDialog"; // ✅ Đã import Component lịch sử
+import ExamHistoryDialog from "../components/ExamHistoryDialog"; 
 import {
   Button, Box, CircularProgress, Paper, Backdrop,
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
@@ -18,15 +17,9 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-// IMPORT BANNER MOBILE APP
 import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
-// 🔥 THÊM IMPORT CAPACITOR CORE
 import { Capacitor } from '@capacitor/core';
 
-// IMPORT BANNER WEB
-//import AdSenseBanner from '../components/AdSenseBanner';
-
-// --- STYLE & ANIMATION ---
 const pulse = keyframes`
   0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); }
   70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 82, 82, 0); }
@@ -57,41 +50,19 @@ const FloatingTimer = styled(Box)(({ theme, isWarning }) => ({
 
 const styles = {
   pageWrapper: {
-    minHeight: '100vh',
-    width: '100%',
-    background: '#f4f6f8',
-    padding: '0',
-    boxSizing: 'border-box',
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+    minHeight: '100vh', width: '100%', background: '#f4f6f8', padding: '0',
+    boxSizing: 'border-box', fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
   },
   container: {
-    maxWidth: '100%',
-    margin: '0',
-    padding: '10px',
-    backgroundColor: 'transparent',
-    borderRadius: '0',
-    boxShadow: 'none',
-    minHeight: '80vh',
-    position: 'relative',
-    paddingTop: 'max(env(safe-area-inset-top), 20px)',
-    paddingBottom: '60px' 
+    maxWidth: '100%', margin: '0', padding: '10px', backgroundColor: 'transparent',
+    borderRadius: '0', boxShadow: 'none', minHeight: '80vh', position: 'relative',
+    paddingTop: 'max(env(safe-area-inset-top), 20px)', paddingBottom: '60px' 
   },
   examButton: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    padding: '15px',
-    margin: '10px 0',
-    border: '1px solid #eee',
-    borderRadius: '12px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '16px',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    color: '#333',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%',
+    padding: '15px', margin: '10px 0', border: '1px solid #eee', borderRadius: '12px',
+    backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '16px', fontWeight: '500',
+    transition: 'all 0.2s', color: '#333', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
   },
 };
 
@@ -110,31 +81,6 @@ const formatTime = (seconds) => {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-};
-
-// 🟢 HÀM GIẢI MÃ HÌNH ẢNH
-const parseImageCodeToJSX = (text) => {
-    if (!text || typeof text !== 'string') return text;
-    const parts = text.split(/(\[IMG:.*?\])/g);
-    return (
-        <span style={{ display: 'inline-block' }}>
-            {parts.map((part, index) => {
-                if (part.startsWith('[IMG:') && part.endsWith(']')) {
-                    const url = part.slice(5, -1);
-                    return (
-                        <Box key={index} sx={{ my: 1, textAlign: 'center' }}>
-                            <img 
-                                src={url} 
-                                alt="Embedded content" 
-                                style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} 
-                            />
-                        </Box>
-                    );
-                }
-                return <span key={index}>{part}</span>;
-            })}
-        </span>
-    );
 };
 
 function ExamPage() {
@@ -158,9 +104,8 @@ function ExamPage() {
 
   const searchParams = new URLSearchParams(location.search);
   const topicId = location.state?.fromTopicId || searchParams.get('topic');
-  const classroomId = searchParams.get('classroom_id'); // Lấy classroom_id từ URL nếu có
+  const classroomId = searchParams.get('classroom_id'); 
 
-  // 🔥 CẬP NHẬT 1: CHỈ INIT VÀ SHOW BANNER ADMOB TRÊN NATIVE APP
   useEffect(() => {
     const initAdMobAndBanner = async () => {
       if (Capacitor.isNativePlatform()) {
@@ -178,7 +123,6 @@ function ExamPage() {
     };
     initAdMobAndBanner();
 
-    // Cleanup: Ẩn banner khi rời trang (Chỉ gọi nếu là App)
     return () => {
         if (Capacitor.isNativePlatform()) {
             AdMob.hideBanner().catch(e => {});
@@ -191,9 +135,7 @@ function ExamPage() {
     if (!id) {
       setLoading(true);
       let url = '/exams/';
-      if (topicId) {
-          url += `?topic=${topicId}`;
-      }
+      if (topicId) url += `?topic=${topicId}`;
 
       axiosClient.get(url)
         .then((res) => setExams(res.data))
@@ -203,9 +145,7 @@ function ExamPage() {
   }, [id, topicId]);
 
   useEffect(() => {
-    if (id) {
-      handleSelectExam(parseInt(id));
-    }
+    if (id) handleSelectExam(parseInt(id));
   }, [id]);
 
   useEffect(() => {
@@ -254,21 +194,10 @@ function ExamPage() {
         throw new Error("Dữ liệu câu hỏi không hợp lệ.");
       }
 
-      // 🟢 RỬA DỮ LIỆU: Phân tích mã hình ảnh trước khi set vào State
-      const processedQuestions = rawQuestions.map(q => {
-          const newQ = { ...q, content: parseImageCodeToJSX(q.content) };
-          if (newQ.choices && Array.isArray(newQ.choices)) {
-              newQ.choices = newQ.choices.map(c => ({
-                  ...c,
-                  content: parseImageCodeToJSX(c.content)
-              }));
-          }
-          return newQ;
-      });
-
-      const part1 = processedQuestions.filter(q => q.question_type === 'MCQ');
-      const part2 = processedQuestions.filter(q => q.question_type === 'TF');
-      const part3 = processedQuestions.filter(q => q.question_type === 'SHORT');
+      // 🟢 Giữ nguyên Data dạng CHỮ (String) để QuestionCard không bị crash
+      const part1 = rawQuestions.filter(q => q.question_type === 'MCQ');
+      const part2 = rawQuestions.filter(q => q.question_type === 'TF');
+      const part3 = rawQuestions.filter(q => q.question_type === 'SHORT');
 
       const shuffledPart1 = shuffleArray(part1).map(q => {
         const choicesSafe = q.choices || [];
@@ -325,32 +254,9 @@ function ExamPage() {
     setOpenConfirm(false);
     window.dispatchEvent(new Event('ITMATHS_EXAM_SUBMITTED'));
 
-    // --- TÍNH ĐIỂM TẠI CLIENT ---
-    let scoreP1 = 0, scoreP2 = 0, scoreP3 = 0, correctCountTotal = 0;
-
-    // LƯU Ý: Phải truy cập nội dung text từ React Node object vì ta đã giải mã [IMG]
-    // Do đó thay vì so sánh content, ta so sánh ID để đảm bảo chính xác tuyệt đối.
-    questions.forEach(q => {
-      const userAns = userAnswers[q.id];
-      const choicesSafe = q.choices || [];
-
-      if (q.question_type === 'MCQ') {
-        const correctChoice = choicesSafe.find(c => c.is_correct);
-        // Thay userAns === correctChoice.content bằng userAns === correctChoice.id 
-        // (Nếu ở QuestionCard.jsx bạn đang truyền lên ID)
-        // Hiện tại giả định QuestionCard.jsx vẫn truyền text/ReactNode
-        // Tốt nhất nên cập nhật logic gửi ID ở backend, nhưng ở client ta cứ gửi tạm.
-        // Server sẽ chấm lại chính xác dựa trên cấu hình giáo viên.
-      }
-    });
-
-    // Mặc định tạm để hiển thị Client (Sẽ được Server ghi đè nếu chấm khác)
-    setScoreData({ p1: 0, p2: 0, p3: 0, total: 0 });
-
-    // --- LƯU ĐIỂM LÊN SERVER ---
     axiosClient.post(`/submit-result/`, {
         exam: selectedExamId,
-        classroom_id: classroomId, // Truyền classroom_id lên để Server chấm theo thang điểm giáo viên cài
+        classroom_id: classroomId, 
         detail_answers: userAnswers
     })
     .then((res) => {
@@ -364,7 +270,6 @@ function ExamPage() {
 
     setIsProcessingResult(true);
 
-    // 🔥 CẬP NHẬT 2: CHỈ GỌI QUẢNG CÁO INTERSTITIAL NẾU LÀ APP
     try {
         if (Capacitor.isNativePlatform()) {
             await AdMob.hideBanner(); 
@@ -423,7 +328,6 @@ function ExamPage() {
             </Box>
         </Backdrop>
 
-        {/* --- VIEW DANH SÁCH ĐỀ THI --- */}
         {!selectedExamId ? (
           <div>
             <Box mb={2}>
@@ -474,7 +378,6 @@ function ExamPage() {
             )}
           </div>
         ) : (
-          /* --- VIEW LÀM BÀI THI --- */
           <div>
             {!submitted && (
               <FloatingTimer isWarning={timeLeft < 300}>
