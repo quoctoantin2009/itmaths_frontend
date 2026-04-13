@@ -15,7 +15,8 @@ import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper } from '@mui/material';
+// 🟢 ĐÃ BỔ SUNG ĐẦY ĐỦ Paper, TextField, Button ĐỂ TRÁNH LỖI MÀN HÌNH TRẮNG
+import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button } from '@mui/material';
 
 import './ClassDetail.css';
 
@@ -128,11 +129,9 @@ const ClassDetail = () => {
       }
   };
 
-  // 🟢 HÀM FETCH TIN NHẮN AN TOÀN TUYỆT ĐỐI
   const fetchMessages = async () => {
       try {
           const res = await axiosClient.get(`/classrooms/${id}/chat/`);
-          // Ép kiểu an toàn: Nếu API trả về mảng thì lấy, không thì lấy mảng rỗng []
           setMessages(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
           showNotification("Không thể tải tin nhắn. Hãy chắc chắn Backend đã chạy Migrate!", "error");
