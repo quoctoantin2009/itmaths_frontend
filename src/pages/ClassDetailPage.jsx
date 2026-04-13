@@ -15,7 +15,7 @@ import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button, Switch, FormControlLabel, Grid, Divider } from '@mui/material';
+import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button, Switch, FormControlLabel, Grid, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 
 import './ClassDetail.css';
 
@@ -65,6 +65,9 @@ const ClassDetail = () => {
   const [notification, setNotification] = useState({
     open: false, message: '', severity: 'success'
   });
+
+  // 🟢 STATE CHO POPUP THU HỒI BÀI TẬP
+  const [deleteAssignConfirm, setDeleteAssignConfirm] = useState({ open: false, assignId: null });
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -199,14 +202,13 @@ const ClassDetail = () => {
   const handleAssignExam = async () => {
     if (!selectedExamId) { showNotification("Vui lòng chọn một đề thi cụ thể!", "warning"); return; }
     
-    // 🟢 KIỂM TRA BẮT BUỘC: So sánh mốc thời gian Mở và Đóng đề
     if (showAdvanced && advancedSettings.start_time && advancedSettings.end_time) {
         const startDate = new Date(advancedSettings.start_time);
         const endDate = new Date(advancedSettings.end_time);
 
         if (startDate >= endDate) {
             showNotification("⚠️ Lỗi: Hạn chót nộp bài phải diễn ra sau Thời gian mở đề!", "error");
-            return; // Chặn đứng tại đây, không cho gọi API
+            return;
         }
     }
 
@@ -236,6 +238,19 @@ const ClassDetail = () => {
         } else msg = "❌ Lỗi kết nối Server";
         showNotification(msg, "error");
     }
+  };
+
+  // 🟢 HÀM XỬ LÝ THU HỒI BÀI TẬP (XÓA KHỎI LỚP)
+  const confirmDeleteAssignment = async () => {
+      const assignId = deleteAssignConfirm.assignId;
+      setDeleteAssignConfirm({ open: false, assignId: null });
+      try {
+          await axiosClient.delete(`/class_assignments/${assignId}/`);
+          showNotification("✅ Đã thu hồi bài tập khỏi lớp!", "success");
+          fetchData(); // Tải lại danh sách để làm mới giao diện
+      } catch (error) {
+          showNotification("❌ Lỗi khi thu hồi bài tập!", "error");
+      }
   };
 
   const handleOpenExam = (examId) => navigate(`/exams/${examId}?classroom_id=${id}`); 
@@ -390,9 +405,9 @@ const ClassDetail = () => {
                     <div className="assignment-list">
                         {Array.isArray(classroom.assignments) && classroom.assignments.length > 0 ? (
                             classroom.assignments.map((assign, index) => (
-                                <div key={index} className="stream-card" onClick={() => handleOpenExam(assign.exam)} title="Nhấn để làm bài">
+                                <div key={index} className="stream-card" onClick={() => handleOpenExam(assign.exam)} title="Nhấn để làm bài" style={{ position: 'relative' }}>
                                     <div className="card-icon"><AssignmentIcon sx={{ color: 'white' }} /></div>
-                                    <div className="card-content">
+                                    <div className="card-content" style={{ flex: 1 }}>
                                         <h4 className="card-title">Giáo viên đã đăng bài tập: <span className="topic-highlight"> {assign.exam_title}</span></h4>
                                         <p className="sub-info">Chuyên đề: {assign.topic_title || "Cá nhân"} ({assign.exam_duration} phút)</p>
                                         <p className="card-date">
@@ -404,6 +419,21 @@ const ClassDetail = () => {
                                             )}
                                         </p>
                                     </div>
+                                    
+                                    {/* 🟢 NÚT THU HỒI BÀI TẬP (Chỉ GV mới thấy) */}
+                                    {isTeacher && (
+                                        <Tooltip title="Thu hồi bài tập khỏi lớp">
+                                            <IconButton 
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Tránh việc nhấn nút xóa mà lại mở đề thi lên
+                                                    setDeleteAssignConfirm({ open: true, assignId: assign.id });
+                                                }}
+                                                sx={{ color: '#e74c3c', '&:hover': { bgcolor: '#fdeaea' } }}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
                                 </div>
                             ))
                         ) : (
@@ -545,6 +575,19 @@ const ClassDetail = () => {
             </div>
         )}
       </div>
+
+      {/* 🟢 HỘP THOẠI XÁC NHẬN THU HỒI BÀI TẬP */}
+      <Dialog open={deleteAssignConfirm.open} onClose={() => setDeleteAssignConfirm({ open: false, assignId: null })} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c' }}>⚠️ Xác nhận thu hồi</DialogTitle>
+          <DialogContent>
+              <Typography>Bạn có chắc chắn muốn thu hồi bài tập này khỏi lớp không?</Typography>
+              <Typography variant="body2" color="textSecondary" mt={1}>(Đề thi gốc vẫn được giữ nguyên trong Kho đề của bạn)</Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setDeleteAssignConfirm({ open: false, assignId: null })} color="inherit">Hủy</Button>
+              <Button onClick={confirmDeleteAssignment} variant="contained" color="error">Thu hồi</Button>
+          </DialogActions>
+      </Dialog>
 
       <Snackbar open={notification.open} autoHideDuration={4000} onClose={handleCloseNotification} TransitionComponent={TransitionDown} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleCloseNotification} severity={notification.severity} variant="filled" sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}>
