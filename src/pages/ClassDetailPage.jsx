@@ -10,12 +10,12 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import AssessmentIcon from '@mui/icons-material/Assessment'; 
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FileDownloadIcon from '@mui/icons-material/FileDownload'; 
-import ForumIcon from '@mui/icons-material/Forum'; // Icon Tab Chat
+import ForumIcon from '@mui/icons-material/Forum'; 
 import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography } from '@mui/material';
+import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper } from '@mui/material';
 
 import './ClassDetail.css';
 
@@ -35,14 +35,12 @@ const ClassDetail = () => {
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
-  // --- STATE BỘ LỌC BÀI TẬP ---
   const [selectedGrade, setSelectedGrade] = useState('12'); 
   const [filteredTopics, setFilteredTopics] = useState([]); 
   const [selectedTopicId, setSelectedTopicId] = useState(''); 
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
 
-  // --- 🟢 STATE CHO TAB THẢO LUẬN (CHAT) ---
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [chatImage, setChatImage] = useState(null);
@@ -63,13 +61,11 @@ const ClassDetail = () => {
     if (activeTab === 'grades' && currentUser?.id === classroom?.teacher) {
         fetchReport();
     }
-    // 🟢 NẾU CHUYỂN SANG TAB CHAT -> GỌI API LẤY TIN NHẮN
     if (activeTab === 'chat') {
         fetchMessages();
     }
   }, [activeTab]);
 
-  // Cuộn xuống cuối khi có tin nhắn mới
   useEffect(() => {
       if (activeTab === 'chat') {
           chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,7 +73,7 @@ const ClassDetail = () => {
   }, [messages, activeTab]);
 
   useEffect(() => {
-    if (topics.length > 0) {
+    if (Array.isArray(topics) && topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
         const newFilteredTopics = topics.filter(t => t.grade === gradeNum);
         setFilteredTopics(newFilteredTopics);
@@ -89,8 +85,8 @@ const ClassDetail = () => {
 
   useEffect(() => {
     if (selectedTopicId) {
-        const topic = topics.find(t => t.id === parseInt(selectedTopicId));
-        if (topic && topic.exercises) {
+        const topic = (Array.isArray(topics) ? topics : []).find(t => t.id === parseInt(selectedTopicId));
+        if (topic && Array.isArray(topic.exercises)) {
             setFilteredExams(topic.exercises);
         } else {
             setFilteredExams([]);
@@ -111,10 +107,10 @@ const ClassDetail = () => {
       setClassroom(classRes.data);
 
       const membersRes = await axiosClient.get(`/classrooms/${id}/members/`);
-      setMembers(membersRes.data);
+      setMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
 
       const topicRes = await axiosClient.get('/topics/');
-      setTopics(topicRes.data);
+      setTopics(Array.isArray(topicRes.data) ? topicRes.data : (topicRes.data?.results || []));
 
       setLoading(false);
     } catch (error) {
@@ -126,19 +122,21 @@ const ClassDetail = () => {
   const fetchReport = async () => {
       try {
           const res = await axiosClient.get(`/classrooms/${id}/report/`);
-          setReportData(res.data);
+          setReportData(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
           console.error("Lỗi tải báo cáo:", error);
       }
   };
 
-  // 🟢 --- CÁC HÀM CHO TÍNH NĂNG CHAT ---
+  // 🟢 HÀM FETCH TIN NHẮN AN TOÀN TUYỆT ĐỐI
   const fetchMessages = async () => {
       try {
           const res = await axiosClient.get(`/classrooms/${id}/chat/`);
-          setMessages(res.data);
+          // Ép kiểu an toàn: Nếu API trả về mảng thì lấy, không thì lấy mảng rỗng []
+          setMessages(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
-          showNotification("Không thể tải tin nhắn", "error");
+          showNotification("Không thể tải tin nhắn. Hãy chắc chắn Backend đã chạy Migrate!", "error");
+          setMessages([]);
       }
   };
 
@@ -168,7 +166,8 @@ const ClassDetail = () => {
           const res = await axiosClient.post(`/classrooms/${id}/chat/`, formData, {
               headers: { 'Content-Type': 'multipart/form-data' }
           });
-          setMessages([...messages, res.data]);
+          const safeMessages = Array.isArray(messages) ? messages : [];
+          setMessages([...safeMessages, res.data]);
           setNewMessage('');
           handleRemoveImage();
       } catch (error) {
@@ -182,13 +181,13 @@ const ClassDetail = () => {
       if (!window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này không?")) return;
       try {
           await axiosClient.delete(`/classrooms/chat/${msgId}/delete/`);
-          setMessages(messages.filter(m => m.id !== msgId));
+          const safeMessages = Array.isArray(messages) ? messages : [];
+          setMessages(safeMessages.filter(m => m.id !== msgId));
           showNotification("Đã xóa tin nhắn", "success");
       } catch (error) {
           showNotification("Lỗi khi xóa tin nhắn", "error");
       }
   };
-  // 🟢 --------------------------------
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ open: true, message: msg, severity: type });
@@ -200,8 +199,10 @@ const ClassDetail = () => {
   };
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(classroom.invite_code);
-    showNotification(`Đã sao chép mã lớp: ${classroom.invite_code}`, 'success');
+    if (classroom?.invite_code) {
+        navigator.clipboard.writeText(classroom.invite_code);
+        showNotification(`Đã sao chép mã lớp: ${classroom.invite_code}`, 'success');
+    }
   };
 
   const handleAssignExam = async () => {
@@ -243,13 +244,8 @@ const ClassDetail = () => {
     }
   };
 
-  const handleOpenExam = (examId) => {
-      navigate(`/exams/${examId}`); 
-  };
-
-  const handleViewResult = (resultId) => {
-      navigate(`/history/${resultId}`);
-  };
+  const handleOpenExam = (examId) => navigate(`/exams/${examId}`); 
+  const handleViewResult = (resultId) => navigate(`/history/${resultId}`);
 
   const handleDownloadExcel = async () => {
     try {
@@ -261,7 +257,7 @@ const ClassDetail = () => {
         const link = document.createElement('a');
         link.href = url;
         
-        const fileName = `Bang_Diem_Lop_${classroom.name}.xlsx`;
+        const fileName = `Bang_Diem_Lop_${classroom?.name || 'Class'}.xlsx`;
         link.setAttribute('download', fileName);
         
         document.body.appendChild(link);
@@ -281,6 +277,7 @@ const ClassDetail = () => {
   if (!classroom) return <div className="error-screen">Không tìm thấy lớp học 😔</div>;
 
   const isTeacher = currentUser?.id === classroom.teacher; 
+  const safeMessages = Array.isArray(messages) ? messages : [];
 
   return (
     <div className="class-detail-container">
@@ -304,30 +301,17 @@ const ClassDetail = () => {
       </div>
 
       <div className="class-nav">
-        <button 
-            className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`}
-            onClick={() => setActiveTab('stream')}
-        >
+        <button className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`} onClick={() => setActiveTab('stream')}>
             Bảng tin & Bài tập
         </button>
-        {/* 🟢 TAB THẢO LUẬN MỚI */}
-        <button 
-            className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`}
-            onClick={() => setActiveTab('chat')}
-        >
+        <button className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
             Thảo luận chung
         </button>
-        <button 
-            className={`nav-item ${activeTab === 'members' ? 'active' : ''}`}
-            onClick={() => setActiveTab('members')}
-        >
-            Thành viên ({members.length})
+        <button className={`nav-item ${activeTab === 'members' ? 'active' : ''}`} onClick={() => setActiveTab('members')}>
+            Thành viên ({Array.isArray(members) ? members.length : 0})
         </button>
         {isTeacher && (
-            <button 
-                className={`nav-item ${activeTab === 'grades' ? 'active' : ''}`}
-                onClick={() => setActiveTab('grades')}
-            >
+            <button className={`nav-item ${activeTab === 'grades' ? 'active' : ''}`} onClick={() => setActiveTab('grades')}>
                 Bảng điểm
             </button>
         )}
@@ -346,7 +330,6 @@ const ClassDetail = () => {
                 </div>
 
                 <div className="stream-center">
-                    
                     {isTeacher && (
                         <div className="assign-box">
                             <div className="assign-header">
@@ -357,11 +340,7 @@ const ClassDetail = () => {
                             <div className="assign-filter-container">
                                 <div className="filter-item">
                                     <label>1. Chọn Khối:</label>
-                                    <select 
-                                        className="topic-select"
-                                        value={selectedGrade}
-                                        onChange={(e) => setSelectedGrade(e.target.value)}
-                                    >
+                                    <select className="topic-select" value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
                                         <option value="12">Toán 12 & Ôn thi TN</option>
                                         <option value="11">Toán 11</option>
                                         <option value="10">Toán 10</option>
@@ -374,12 +353,7 @@ const ClassDetail = () => {
 
                                 <div className="filter-item">
                                     <label>2. Chọn Chuyên đề:</label>
-                                    <select 
-                                        className="topic-select"
-                                        value={selectedTopicId}
-                                        onChange={(e) => setSelectedTopicId(e.target.value)}
-                                        disabled={filteredTopics.length === 0}
-                                    >
+                                    <select className="topic-select" value={selectedTopicId} onChange={(e) => setSelectedTopicId(e.target.value)} disabled={filteredTopics.length === 0}>
                                         <option value="">-- Chọn chuyên đề --</option>
                                         {filteredTopics.map(t => (
                                             <option key={t.id} value={t.id}>{t.title}</option>
@@ -390,31 +364,17 @@ const ClassDetail = () => {
                                 <div className="filter-item full-width">
                                     <label>3. Chọn Đề thi / Bài tập:</label>
                                     <div className="action-row">
-                                        <select 
-                                            className="topic-select"
-                                            value={selectedExamId}
-                                            onChange={(e) => setSelectedExamId(e.target.value)}
-                                            disabled={!selectedTopicId}
-                                        >
+                                        <select className="topic-select" value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)} disabled={!selectedTopicId}>
                                             <option value="">-- Chọn bài tập --</option>
                                             {filteredExams.length > 0 ? (
                                                 filteredExams.map(ex => (
-                                                    <option key={ex.id} value={ex.id}>
-                                                        📄 {ex.title} ({ex.duration} phút)
-                                                    </option>
+                                                    <option key={ex.id} value={ex.id}>📄 {ex.title} ({ex.duration} phút)</option>
                                                 ))
                                             ) : (
                                                 <option disabled>Không có bài tập nào</option>
                                             )}
                                         </select>
-                                        
-                                        <button 
-                                            className="btn-assign" 
-                                            onClick={handleAssignExam}
-                                            disabled={!selectedExamId}
-                                        >
-                                            GIAO BÀI
-                                        </button>
+                                        <button className="btn-assign" onClick={handleAssignExam} disabled={!selectedExamId}>GIAO BÀI</button>
                                     </div>
                                 </div>
                             </div>
@@ -422,22 +382,12 @@ const ClassDetail = () => {
                     )}
 
                     <div className="assignment-list">
-                        {classroom.assignments && classroom.assignments.length > 0 ? (
+                        {Array.isArray(classroom.assignments) && classroom.assignments.length > 0 ? (
                             classroom.assignments.map((assign, index) => (
-                                <div 
-                                    key={index} 
-                                    className="stream-card"
-                                    onClick={() => handleOpenExam(assign.exam)} 
-                                    title="Nhấn để làm bài"
-                                >
-                                    <div className="card-icon">
-                                        <AssignmentIcon sx={{ color: 'white' }} />
-                                    </div>
+                                <div key={index} className="stream-card" onClick={() => handleOpenExam(assign.exam)} title="Nhấn để làm bài">
+                                    <div className="card-icon"><AssignmentIcon sx={{ color: 'white' }} /></div>
                                     <div className="card-content">
-                                        <h4 className="card-title">
-                                            Giáo viên đã đăng bài tập: 
-                                            <span className="topic-highlight"> {assign.exam_title}</span>
-                                        </h4>
+                                        <h4 className="card-title">Giáo viên đã đăng bài tập: <span className="topic-highlight"> {assign.exam_title}</span></h4>
                                         <p className="sub-info">Chuyên đề: {assign.topic_title} ({assign.exam_duration} phút)</p>
                                         <p className="card-date">{new Date(assign.created_at).toLocaleDateString('vi-VN')}</p>
                                     </div>
@@ -454,40 +404,28 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* 🟢 GIAO DIỆN TAB THẢO LUẬN (CHAT) TRONG LỚP HỌC */}
+        {/* 🟢 TAB CHAT AN TOÀN */}
         {activeTab === 'chat' && (
             <div className="chat-layout" style={{ display: 'flex', flexDirection: 'column', height: '600px', backgroundColor: '#f0f2f5', borderRadius: '10px', overflow: 'hidden' }}>
-                
-                {/* Khu vực hiển thị tin nhắn */}
                 <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-                    {messages.length === 0 ? (
+                    {safeMessages.length === 0 ? (
                         <div style={{ textAlign: 'center', marginTop: '100px', color: '#888' }}>
                             <ForumIcon sx={{ fontSize: 60, color: '#ccc' }} />
                             <p>Chưa có tin nhắn nào. Hãy gửi lời chào đến cả lớp!</p>
                         </div>
                     ) : (
-                        messages.map((msg) => {
+                        safeMessages.map((msg) => {
                             const isMine = msg.sender_id === currentUser?.id;
-                            
-                            // Phân quyền: Giáo viên thấy hết nút xóa, Học sinh chỉ thấy của mình
                             const canDelete = isTeacher || isMine;
 
                             return (
                                 <Box key={msg.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', mb: 2 }}>
-                                    {/* Tên người gửi */}
                                     <Typography variant="caption" sx={{ color: msg.is_teacher ? '#d35400' : 'gray', fontWeight: msg.is_teacher ? 'bold' : 'normal', mb: 0.5, px: 1 }}>
                                         {msg.is_teacher ? '👨‍🏫 Giáo viên' : msg.sender_name}
                                     </Typography>
                                     
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: isMine ? 'row-reverse' : 'row' }}>
-                                        {/* Khung tin nhắn */}
-                                        <Paper elevation={1} sx={{ 
-                                            p: 1.5, 
-                                            maxWidth: '70%', 
-                                            bgcolor: isMine ? '#dcf8c6' : 'white',
-                                            border: msg.is_teacher && !isMine ? '2px solid #f39c12' : 'none',
-                                            borderRadius: isMine ? '15px 0px 15px 15px' : '0px 15px 15px 15px'
-                                        }}>
+                                        <Paper elevation={1} sx={{ p: 1.5, maxWidth: '70%', bgcolor: isMine ? '#dcf8c6' : 'white', border: msg.is_teacher && !isMine ? '2px solid #f39c12' : 'none', borderRadius: isMine ? '15px 0px 15px 15px' : '0px 15px 15px 15px' }}>
                                             {msg.image && (
                                                 <img src={msg.image} alt="Đính kèm" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', marginBottom: msg.content ? '10px' : '0', cursor: 'pointer' }} onClick={() => window.open(msg.image, '_blank')} />
                                             )}
@@ -498,7 +436,6 @@ const ClassDetail = () => {
                                             )}
                                         </Paper>
 
-                                        {/* Nút Xóa (Dựa theo phân quyền) */}
                                         {canDelete && (
                                             <Tooltip title="Xóa tin nhắn">
                                                 <IconButton size="small" onClick={() => handleDeleteMessage(msg.id)} sx={{ color: '#e74c3c', opacity: 0.7, '&:hover': { opacity: 1 } }}>
@@ -508,7 +445,7 @@ const ClassDetail = () => {
                                         )}
                                     </Box>
                                     <Typography variant="caption" sx={{ color: '#bbb', mt: 0.5, px: 1, fontSize: '0.7rem' }}>
-                                        {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
                                     </Typography>
                                 </Box>
                             );
@@ -517,7 +454,6 @@ const ClassDetail = () => {
                     <div ref={chatEndRef} />
                 </div>
 
-                {/* Khu vực xem trước ảnh chuẩn bị gửi */}
                 {chatImagePreview && (
                     <Box sx={{ p: 2, bgcolor: '#e0e0e0', borderTop: '1px solid #ccc', position: 'relative' }}>
                         <img src={chatImagePreview} alt="Preview" style={{ height: '80px', borderRadius: '5px' }} />
@@ -527,33 +463,22 @@ const ClassDetail = () => {
                     </Box>
                 )}
 
-                {/* Khu vực nhập tin nhắn */}
                 <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'white', borderTop: '1px solid #ddd' }}>
                     <input type="file" accept="image/*" hidden ref={fileInputRef} onChange={handleImageSelect} />
                     <Tooltip title="Đính kèm ảnh bài tập">
-                        <IconButton color="primary" sx={{ mr: 1 }} onClick={() => fileInputRef.current.click()} disabled={sendingMsg}>
+                        <IconButton color="primary" sx={{ mr: 1 }} onClick={() => fileInputRef.current?.click()} disabled={sendingMsg}>
                             <AddPhotoAlternateIcon />
                         </IconButton>
                     </Tooltip>
                     
                     <TextField 
-                        fullWidth size="small" 
-                        placeholder="Nhập nội dung thảo luận hoặc hỏi bài..." 
-                        variant="outlined" 
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        fullWidth size="small" placeholder="Nhập nội dung thảo luận hoặc hỏi bài..." variant="outlined" 
+                        value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                        disabled={sendingMsg}
-                        sx={{ bgcolor: '#f9f9f9', borderRadius: '20px', '& fieldset': { border: 'none' } }}
+                        disabled={sendingMsg} sx={{ bgcolor: '#f9f9f9', borderRadius: '20px', '& fieldset': { border: 'none' } }}
                     />
 
-                    <Button 
-                        variant="contained" color="primary" 
-                        endIcon={sendingMsg ? <CircularProgress size={20} color="inherit" /> : <SendIcon />} 
-                        onClick={handleSendMessage}
-                        disabled={sendingMsg || (!newMessage.trim() && !chatImage)}
-                        sx={{ ml: 2, borderRadius: '20px', px: 3 }}
-                    >
+                    <Button variant="contained" color="primary" endIcon={sendingMsg ? <CircularProgress size={20} color="inherit" /> : <SendIcon />} onClick={handleSendMessage} disabled={sendingMsg || (!newMessage.trim() && !chatImage)} sx={{ ml: 2, borderRadius: '20px', px: 3 }}>
                         Gửi
                     </Button>
                 </Box>
@@ -567,36 +492,34 @@ const ClassDetail = () => {
                     <div className="divider"></div>
                 </div>
                 <div className="member-row teacher-row">
-                    <div className="member-avatar teacher-avatar">{classroom.teacher_name.charAt(0)}</div>
-                    <span className="member-name">{classroom.teacher_name}</span>
+                    <div className="member-avatar teacher-avatar">{classroom?.teacher_name ? classroom.teacher_name.charAt(0) : 'G'}</div>
+                    <span className="member-name">{classroom?.teacher_name || 'Giáo viên'}</span>
                 </div>
 
                 <div className="section-header" style={{marginTop: '40px'}}>
                     <div className="title-row">
                         <h2 className="section-title">Học sinh</h2>
-                        <span className="student-count">{members.length} sinh viên</span>
+                        <span className="student-count">{Array.isArray(members) ? members.length : 0} sinh viên</span>
                     </div>
                     <div className="divider"></div>
                 </div>
                 
-                {members.length > 0 ? (
+                {Array.isArray(members) && members.length > 0 ? (
                     <div className="student-list">
                          {members.map(mem => (
                             <div key={mem.id} className="member-row">
                                 <div className="member-left" style={{display: 'flex', alignItems: 'center'}}>
                                     <div className="member-avatar" style={{marginRight: '15px'}}>
-                                        {mem.student_avatar}
+                                        {mem?.student_name ? mem.student_name.charAt(0) : 'H'}
                                     </div>
                                     <div>
-                                        <div className="member-name">{mem.student_name}</div>
-                                        <div style={{fontSize: '0.8rem', color: '#888'}}>{mem.student_email}</div>
+                                        <div className="member-name">{mem?.student_name || 'Học sinh'}</div>
+                                        <div style={{fontSize: '0.8rem', color: '#888'}}>{mem?.student_email}</div>
                                     </div>
                                 </div>
                                 {isTeacher && (
                                     <Tooltip title="Xóa khỏi lớp">
-                                        <IconButton size="small">
-                                            <PersonRemoveIcon fontSize="small" color="disabled"/>
-                                        </IconButton>
+                                        <IconButton size="small"><PersonRemoveIcon fontSize="small" color="disabled"/></IconButton>
                                     </Tooltip>
                                 )}
                             </div>
@@ -617,66 +540,43 @@ const ClassDetail = () => {
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                         <div>
                             <h2 className="section-title">Bảng điểm lớp học</h2>
-                            <p className="grades-subtitle">Kết quả các bài tập đã giao ({reportData.length} học sinh)</p>
+                            <p className="grades-subtitle">Kết quả các bài tập đã giao ({Array.isArray(reportData) ? reportData.length : 0} học sinh)</p>
                         </div>
-                        <button 
-                            className="btn-assign" 
-                            onClick={handleDownloadExcel}
-                            style={{
-                                backgroundColor: '#28a745', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                padding: '8px 16px',
-                                fontSize: '0.9rem'
-                            }}
-                        >
-                            <FileDownloadIcon fontSize="small"/>
-                            Xuất Excel
+                        <button className="btn-assign" onClick={handleDownloadExcel} style={{backgroundColor: '#28a745', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem'}}>
+                            <FileDownloadIcon fontSize="small"/> Xuất Excel
                         </button>
                     </div>
                     <div className="divider"></div>
                 </div>
 
-                {reportData.length > 0 ? (
+                {Array.isArray(reportData) && reportData.length > 0 ? (
                     <div className="grades-container">
                         {reportData.map((student) => (
                             <div key={student.student_id} className="student-grade-card">
                                 <div className="student-header">
                                     <div className="student-info">
-                                        <div className="member-avatar">{student.student_name.charAt(0)}</div>
+                                        <div className="member-avatar">{student?.student_name ? student.student_name.charAt(0) : 'H'}</div>
                                         <div>
-                                            <span className="student-name-bold">{student.student_name}</span>
-                                            <span className="student-username"> ({student.username})</span>
+                                            <span className="student-name-bold">{student?.student_name}</span>
+                                            <span className="student-username"> ({student?.username})</span>
                                         </div>
                                     </div>
-                                    <div className="score-summary">
-                                        Đã làm: <strong>{student.results.length}</strong> bài
-                                    </div>
+                                    <div className="score-summary">Đã làm: <strong>{Array.isArray(student.results) ? student.results.length : 0}</strong> bài</div>
                                 </div>
 
-                                {student.results.length > 0 ? (
+                                {Array.isArray(student.results) && student.results.length > 0 ? (
                                     <table className="grade-table">
                                         <thead>
                                             <tr>
-                                                <th>Bài tập / Đề thi</th>
-                                                <th>Chuyên đề</th>
-                                                <th>Ngày làm</th>
-                                                <th>Điểm số</th>
-                                                <th>Chi tiết</th>
+                                                <th>Bài tập / Đề thi</th><th>Chuyên đề</th><th>Ngày làm</th><th>Điểm số</th><th>Chi tiết</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {student.results.map((res, idx) => (
                                                 <tr key={idx} className="grade-row-clickable" onClick={() => handleViewResult(res.id)}>
-                                                    <td>{res.exam_title}</td>
-                                                    <td>{res.topic_title}</td>
+                                                    <td>{res.exam_title}</td><td>{res.topic_title}</td>
                                                     <td>{new Date(res.date).toLocaleDateString('vi-VN')} {new Date(res.date).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</td>
-                                                    <td>
-                                                        <span className={`score-badge ${res.score >= 5 ? 'pass' : 'fail'}`}>
-                                                            {res.score}
-                                                        </span>
-                                                    </td>
+                                                    <td><span className={`score-badge ${res.score >= 5 ? 'pass' : 'fail'}`}>{res.score}</span></td>
                                                     <td><VisibilityIcon fontSize="small" color="action"/></td>
                                                 </tr>
                                             ))}
@@ -700,22 +600,12 @@ const ClassDetail = () => {
       </div>
 
       <Snackbar 
-        open={notification.open} 
-        autoHideDuration={4000}
-        onClose={handleCloseNotification}
-        TransitionComponent={TransitionDown}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        open={notification.open} autoHideDuration={4000} onClose={handleCloseNotification} TransitionComponent={TransitionDown} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-            onClose={handleCloseNotification} 
-            severity={notification.severity} 
-            variant="filled"
-            sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}
-        >
+        <Alert onClose={handleCloseNotification} severity={notification.severity} variant="filled" sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}>
           {notification.message}
         </Alert>
       </Snackbar>
-
     </div>
   );
 };
