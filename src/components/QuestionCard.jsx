@@ -1,7 +1,7 @@
 import React from 'react';
 import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
-import { Radio, Paper, Box } from '@mui/material';
+import { Radio, Paper, Box, Chip } from '@mui/material';
 
 // --- HÀM KIỂM TRA ĐÁP ÁN NGẮN ---
 const checkShortAnswer = (userAns, correctAns) => {
@@ -22,16 +22,16 @@ const processContent = (content) => {
     
     // 1. Xử lý các lỗi ký hiệu LaTeX phổ biến & Thay thế bullet
     let cleanContent = content
-        .replaceAll('\\bullet', '•') // [FIX] Biến \bullet thành dấu chấm tròn
+        .replaceAll('\\bullet', '•') 
         .replaceAll('begin{eqnarray*}', 'begin{aligned}')
         .replaceAll('end{eqnarray*}', 'end{aligned}')
         .replaceAll('begin{eqnarray}', 'begin{aligned}')
         .replaceAll('end{eqnarray}', 'end{aligned}');
 
-    // 2. Tách Toán học và Văn bản
-    // Regex này bắt: $$...$$, $...$, \begin{}...\end{}, \[...\]
-    const mathRegex = /((?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$.*?(?<!\\)\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\\[[\s\S]*?\\\])/gs;
-    const parts = cleanContent.split(mathRegex);
+    // 2. Tách Toán học, Văn bản và [IMG:url]
+    // Regex này bắt: $$...$$, $...$, \begin{}...\end{}, \[...\], và [IMG:...]
+    const complexRegex = /((?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$.*?(?<!\\)\$|\\begin\{.*?\}.*?\\end\{.*?\}|\\\[[\s\S]*?\\\]|\[IMG:.*?\])/gs;
+    const parts = cleanContent.split(complexRegex);
 
     return (
         <span style={{fontWeight: '400 !important'}}>
@@ -40,43 +40,51 @@ const processContent = (content) => {
 
                 // Kiểm tra xem phần này có phải là công thức Toán không
                 const isMath = /^\$|^\$\.|^\\begin|^\\\[/.test(part.trim());
+                
+                // 🟢 KIỂM TRA XEM CÓ PHẢI MÃ HÌNH ẢNH KHÔNG
+                const isImage = /^\[IMG:.*?\]$/.test(part.trim());
 
                 if (isMath) {
                     return <Latex key={index}>{part}</Latex>;
+                } else if (isImage) {
+                    // Cắt bỏ chuỗi "[IMG:" ở đầu (5 ký tự) và "]" ở cuối (1 ký tự) để lấy Link
+                    const imageUrl = part.slice(5, -1);
+                    return (
+                        <Box key={index} sx={{ my: 1.5, textAlign: 'center', width: '100%' }}>
+                            <img 
+                                src={imageUrl} 
+                                alt="Minh họa bài toán" 
+                                style={{ 
+                                    maxWidth: '100%', 
+                                    maxHeight: '400px', 
+                                    borderRadius: '8px', 
+                                    objectFit: 'contain', 
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                    display: 'block',
+                                    margin: '0 auto'
+                                }} 
+                            />
+                        </Box>
+                    );
                 } else {
-                    // [QUAN TRỌNG] Xử lý thẻ HTML <img> do Python Tool gửi lên
-                    // Regex tìm thẻ <img src='...' style='...' />
+                    // Xử lý thẻ HTML <img> cũ do Python Tool gửi lên (nếu có)
                     const imgRegex = /<img src='(.*?)' style='(.*?)' \/>/g;
                     const subParts = part.split(imgRegex);
 
-                    // Nếu không có ảnh, xử lý text bình thường (xuống dòng, in đậm)
                     if (subParts.length === 1) {
                         return renderTextWithFormatting(part, index);
                     }
 
-                    // Nếu có ảnh, render xen kẽ Text - Ảnh - Text
-                    // Cấu trúc split của Regex có capture group: [Text, Url, Style, Text, Url, Style...]
                     let elements = [];
                     for (let i = 0; i < subParts.length; i += 3) {
-                        // Phần Text
                         if (subParts[i]) {
                             elements.push(renderTextWithFormatting(subParts[i], `${index}-txt-${i}`));
                         }
-                        // Phần Ảnh (nếu có)
                         if (i + 1 < subParts.length) {
                             const src = subParts[i+1];
-                            const styleStr = subParts[i+2]; // style string từ Python
-                            
-                            // Parse style string thành object React (đơn giản hóa)
                             const styleObj = { maxWidth: '100%', display: 'block', margin: '10px auto', borderRadius: '4px' };
-                            
                             elements.push(
-                                <img 
-                                    key={`${index}-img-${i}`}
-                                    src={src} 
-                                    style={styleObj} 
-                                    alt="Minh họa"
-                                />
+                                <img key={`${index}-img-${i}`} src={src} style={styleObj} alt="Minh họa" />
                             );
                         }
                     }
@@ -111,12 +119,12 @@ const renderTextWithFormatting = (text, keyPrefix) => {
 function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted }) {
   const normalStyle = { fontWeight: '400 !important', color: '#333', fontSize: '1rem', fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif' };
 
-  // [FIX] Style container cho phép cuộn ngang khi nội dung tràn (cho công thức dài/ảnh to)
   const scrollableContainerStyle = {
-      overflowX: 'auto',       // Cho phép cuộn ngang
-      overflowY: 'hidden',     // Ẩn cuộn dọc không cần thiết
-      maxWidth: '100%',        // Không vượt quá chiều rộng cha
-      paddingBottom: '5px'     // Thêm chút padding để thanh cuộn không che nội dung
+      overflowX: 'auto',      
+      overflowY: 'hidden',    
+      maxWidth: '100%',       
+      paddingBottom: '5px',
+      whiteSpace: 'pre-wrap' // Giữ khoảng trắng và xuống dòng
   };
 
   const renderMCQ = () => (
@@ -141,7 +149,7 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
                         onChange={() => !isSubmitted && onAnswerChange(question.id, choice.id, choice.content, 'MCQ')}
                         disabled={isSubmitted} style={{ marginRight: '10px' }}
                     />
-                    <div style={{flex: 1, ...scrollableContainerStyle}}> {/* Áp dụng scroll cho từng đáp án */}
+                    <div style={{flex: 1, ...scrollableContainerStyle}}> 
                         <strong style={{marginRight:5, fontWeight:'bold'}}>{choice.label}.</strong> 
                         {processContent(choice.content)}
                     </div>
@@ -174,7 +182,7 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
 
             return (
                 <div key={idx} style={{display: 'grid', gridTemplateColumns: '6fr 1fr 1fr', alignItems: 'center', ...rowStyle}}>
-                    <div style={scrollableContainerStyle}> {/* Áp dụng scroll cho câu hỏi TF */}
+                    <div style={scrollableContainerStyle}> 
                         <strong style={{fontWeight:'bold'}}>{choice.label})</strong> {processContent(choice.content)}
                     </div>
                     <div style={{textAlign:'center'}}>
@@ -235,12 +243,10 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
 
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-      {/* [FIX] Thêm scrollableContainerStyle vào div chứa nội dung câu hỏi */}
       <div style={{ marginBottom: '15px', ...normalStyle, ...scrollableContainerStyle }}>
         <span style={{ fontWeight: 'bold', color: '#fff', backgroundColor: '#3f51b5', padding: '4px 12px', borderRadius: '4px', marginRight: '10px', fontSize: '14px', display: 'inline-block', verticalAlign: 'middle' }}>
             Câu {index + 1}
         </span>
-        {/* Render nội dung câu hỏi */}
         {processContent(question.content)} 
       </div>
 
@@ -251,7 +257,6 @@ function QuestionCard({ question, index, userAnswer, onAnswerChange, isSubmitted
       {isSubmitted && question.solution && (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 2, borderLeft: '4px solid #ff9800' }}>
               <div style={{color: '#d32f2f', fontWeight: 'bold', marginBottom: '5px'}}>Lời giải:</div>
-              {/* [FIX] Thêm scrollableContainerStyle cho lời giải luôn */}
               <div style={{...normalStyle, ...scrollableContainerStyle}}>
                   {processContent(question.solution)}
               </div>
