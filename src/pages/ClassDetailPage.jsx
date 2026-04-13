@@ -15,8 +15,8 @@ import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-// 🟢 ĐÃ BỔ SUNG ĐẦY ĐỦ Paper, TextField, Button ĐỂ TRÁNH LỖI MÀN HÌNH TRẮNG
-import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button } from '@mui/material';
+// 🟢 THÊM THƯ VIỆN CHO GIAO DIỆN CÀI ĐẶT NÂNG CAO
+import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button, Switch, FormControlLabel, Grid, Divider } from '@mui/material';
 
 import './ClassDetail.css';
 
@@ -41,6 +41,19 @@ const ClassDetail = () => {
   const [selectedTopicId, setSelectedTopicId] = useState(''); 
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
+
+  // 🟢 STATE CHO CÀI ĐẶT NÂNG CAO (THỜI GIAN & ĐIỂM SỐ)
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedSettings, setAdvancedSettings] = useState({
+      start_time: '',
+      end_time: '',
+      point_mcq: 0.25,
+      point_short: 0.5,
+      point_tf_4: 1.0,
+      point_tf_3: 0.5,
+      point_tf_2: 0.25,
+      point_tf_1: 0.1
+  });
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -134,7 +147,6 @@ const ClassDetail = () => {
           const res = await axiosClient.get(`/classrooms/${id}/chat/`);
           setMessages(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
-          showNotification("Không thể tải tin nhắn. Hãy chắc chắn Backend đã chạy Migrate!", "error");
           setMessages([]);
       }
   };
@@ -204,6 +216,7 @@ const ClassDetail = () => {
     }
   };
 
+  // 🟢 HÀM GIAO BÀI ĐÃ TÍCH HỢP DATA CÀI ĐẶT NÂNG CAO
   const handleAssignExam = async () => {
     if (!selectedExamId) {
         showNotification("Vui lòng chọn một đề thi cụ thể!", "warning");
@@ -211,39 +224,47 @@ const ClassDetail = () => {
     }
     
     try {
-      await axiosClient.post('/class_assignments/', {
-        classroom: id,
-        exam: selectedExamId 
-      });
+      const payload = {
+          classroom: id,
+          exam: selectedExamId 
+      };
+
+      // Nếu bật cài đặt nâng cao thì nhồi thêm data vào payload
+      if (showAdvanced) {
+          if (advancedSettings.start_time) payload.start_time = new Date(advancedSettings.start_time).toISOString();
+          if (advancedSettings.end_time) payload.end_time = new Date(advancedSettings.end_time).toISOString();
+          
+          payload.point_mcq = parseFloat(advancedSettings.point_mcq);
+          payload.point_short = parseFloat(advancedSettings.point_short);
+          payload.point_tf_4 = parseFloat(advancedSettings.point_tf_4);
+          payload.point_tf_3 = parseFloat(advancedSettings.point_tf_3);
+          payload.point_tf_2 = parseFloat(advancedSettings.point_tf_2);
+          payload.point_tf_1 = parseFloat(advancedSettings.point_tf_1);
+      }
+
+      await axiosClient.post('/class_assignments/', payload);
       
       showNotification("✅ Giao bài thành công!", "success");
       fetchData(); 
       setSelectedExamId(''); 
+      setShowAdvanced(false); // Reset form
     } catch (error) {
         console.error("Lỗi giao bài:", error);
-        
         let msg = "❌ Có lỗi xảy ra";
         const data = error.response?.data;
-
         if (data) {
-            if (data.message) {
-                msg = "⚠️ " + data.message;
-            } else if (data.non_field_errors) {
-                msg = "⚠️ Bài tập này đã có trong lớp rồi!";
-            } else if (data.exam) {
-                msg = "⚠️ Lỗi đề thi: " + data.exam[0];
-            } else {
-                msg = "❌ Lỗi: " + JSON.stringify(data);
-            }
+            if (data.message) msg = "⚠️ " + data.message;
+            else if (data.non_field_errors) msg = "⚠️ Bài tập này đã có trong lớp rồi!";
+            else if (data.exam) msg = "⚠️ Lỗi đề thi: " + data.exam[0];
+            else msg = "❌ Lỗi: " + JSON.stringify(data);
         } else {
             msg = "❌ Lỗi kết nối Server";
         }
-        
         showNotification(msg, "error");
     }
   };
 
-  const handleOpenExam = (examId) => navigate(`/exams/${examId}`); 
+  const handleOpenExam = (examId) => navigate(`/exams/${examId}?classroom_id=${id}`); 
   const handleViewResult = (resultId) => navigate(`/history/${resultId}`);
 
   const handleDownloadExcel = async () => {
@@ -251,25 +272,24 @@ const ClassDetail = () => {
         const response = await axiosClient.get(`/classrooms/${id}/export-excel/`, {
             responseType: 'blob',
         });
-
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
-        
         const fileName = `Bang_Diem_Lop_${classroom?.name || 'Class'}.xlsx`;
         link.setAttribute('download', fileName);
-        
         document.body.appendChild(link);
         link.click();
-        
         link.parentNode.removeChild(link);
         window.URL.revokeObjectURL(url);
-
         showNotification("✅ Tải xuống thành công!", "success");
     } catch (error) {
         console.error("Lỗi tải Excel:", error);
         showNotification("❌ Không thể tải file Excel. Vui lòng thử lại.", "error");
     }
+  };
+
+  const handleAdvancedChange = (field, value) => {
+      setAdvancedSettings(prev => ({ ...prev, [field]: value }));
   };
 
   if (loading) return <div className="loading-screen">Đang tải dữ liệu lớp học...</div>;
@@ -362,21 +382,70 @@ const ClassDetail = () => {
 
                                 <div className="filter-item full-width">
                                     <label>3. Chọn Đề thi / Bài tập:</label>
-                                    <div className="action-row">
-                                        <select className="topic-select" value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)} disabled={!selectedTopicId}>
-                                            <option value="">-- Chọn bài tập --</option>
-                                            {filteredExams.length > 0 ? (
-                                                filteredExams.map(ex => (
-                                                    <option key={ex.id} value={ex.id}>📄 {ex.title} ({ex.duration} phút)</option>
-                                                ))
-                                            ) : (
-                                                <option disabled>Không có bài tập nào</option>
-                                            )}
-                                        </select>
-                                        <button className="btn-assign" onClick={handleAssignExam} disabled={!selectedExamId}>GIAO BÀI</button>
-                                    </div>
+                                    <select className="topic-select" value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)} disabled={!selectedTopicId}>
+                                        <option value="">-- Chọn bài tập --</option>
+                                        {filteredExams.length > 0 ? (
+                                            filteredExams.map(ex => (
+                                                <option key={ex.id} value={ex.id}>📄 {ex.title} ({ex.duration} phút)</option>
+                                            ))
+                                        ) : (
+                                            <option disabled>Không có bài tập nào</option>
+                                        )}
+                                    </select>
                                 </div>
                             </div>
+
+                            {/* 🟢 KHU VỰC CÀI ĐẶT NÂNG CAO */}
+                            <Box sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                                <FormControlLabel 
+                                    control={<Switch checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} color="primary" />} 
+                                    label={<Typography fontWeight="bold" color="primary">Cài đặt nâng cao (Thời gian & Thang điểm)</Typography>} 
+                                />
+                                
+                                {showAdvanced && (
+                                    <Box sx={{ mt: 2 }}>
+                                        <Typography variant="subtitle2" color="textSecondary" mb={1}>⏰ Hạn nộp bài</Typography>
+                                        <Grid container spacing={2} mb={3}>
+                                            <Grid item xs={12} sm={6}>
+                                                <TextField fullWidth type="datetime-local" label="Thời gian mở đề (Bỏ trống = Mở ngay)" InputLabelProps={{ shrink: true }} value={advancedSettings.start_time} onChange={(e) => handleAdvancedChange('start_time', e.target.value)} size="small" />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <TextField fullWidth type="datetime-local" label="Hạn chót nộp bài (Bỏ trống = Không giới hạn)" InputLabelProps={{ shrink: true }} value={advancedSettings.end_time} onChange={(e) => handleAdvancedChange('end_time', e.target.value)} size="small" />
+                                            </Grid>
+                                        </Grid>
+
+                                        <Divider sx={{ my: 2 }} />
+
+                                        <Typography variant="subtitle2" color="textSecondary" mb={1}>🎯 Tùy chỉnh Thang điểm</Typography>
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={6} sm={3}>
+                                                <TextField fullWidth type="number" label="Trắc nghiệm (1 câu)" inputProps={{ step: "0.1" }} value={advancedSettings.point_mcq} onChange={(e) => handleAdvancedChange('point_mcq', e.target.value)} size="small" />
+                                            </Grid>
+                                            <Grid item xs={6} sm={3}>
+                                                <TextField fullWidth type="number" label="Trả lời ngắn (1 câu)" inputProps={{ step: "0.1" }} value={advancedSettings.point_short} onChange={(e) => handleAdvancedChange('point_short', e.target.value)} size="small" />
+                                            </Grid>
+                                            <Grid item xs={6} sm={3}>
+                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 4 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_4} onChange={(e) => handleAdvancedChange('point_tf_4', e.target.value)} size="small" color="success" focused/>
+                                            </Grid>
+                                            <Grid item xs={6} sm={3}>
+                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 3 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_3} onChange={(e) => handleAdvancedChange('point_tf_3', e.target.value)} size="small" />
+                                            </Grid>
+                                            <Grid item xs={6} sm={3}>
+                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 2 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_2} onChange={(e) => handleAdvancedChange('point_tf_2', e.target.value)} size="small" />
+                                            </Grid>
+                                            <Grid item xs={6} sm={3}>
+                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 1 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_1} onChange={(e) => handleAdvancedChange('point_tf_1', e.target.value)} size="small" />
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                )}
+                            </Box>
+
+                            <Box sx={{ mt: 3, textAlign: 'right' }}>
+                                <Button variant="contained" color="primary" onClick={handleAssignExam} disabled={!selectedExamId} size="large" sx={{ px: 4, py: 1.5, borderRadius: 5, fontWeight: 'bold' }}>
+                                    GIAO BÀI TẬP NÀY
+                                </Button>
+                            </Box>
                         </div>
                     )}
 
@@ -388,7 +457,14 @@ const ClassDetail = () => {
                                     <div className="card-content">
                                         <h4 className="card-title">Giáo viên đã đăng bài tập: <span className="topic-highlight"> {assign.exam_title}</span></h4>
                                         <p className="sub-info">Chuyên đề: {assign.topic_title} ({assign.exam_duration} phút)</p>
-                                        <p className="card-date">{new Date(assign.created_at).toLocaleDateString('vi-VN')}</p>
+                                        <p className="card-date">
+                                            Đăng ngày: {new Date(assign.created_at).toLocaleDateString('vi-VN')}
+                                            {assign.end_time && (
+                                                <span style={{color: '#e74c3c', fontWeight: 'bold', marginLeft: '10px'}}>
+                                                    ⏳ Hạn nộp: {new Date(assign.end_time).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})} {new Date(assign.end_time).toLocaleDateString('vi-VN')}
+                                                </span>
+                                            )}
+                                        </p>
                                     </div>
                                 </div>
                             ))
@@ -403,7 +479,7 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* 🟢 TAB CHAT AN TOÀN */}
+        {/* CÁC TAB KHÁC GIỮ NGUYÊN */}
         {activeTab === 'chat' && (
             <div className="chat-layout" style={{ display: 'flex', flexDirection: 'column', height: '600px', backgroundColor: '#f0f2f5', borderRadius: '10px', overflow: 'hidden' }}>
                 <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
