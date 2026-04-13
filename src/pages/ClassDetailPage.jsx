@@ -15,7 +15,6 @@ import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-// 🟢 THÊM THƯ VIỆN CHO GIAO DIỆN CÀI ĐẶT NÂNG CAO
 import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button, Switch, FormControlLabel, Grid, Divider } from '@mui/material';
 
 import './ClassDetail.css';
@@ -36,23 +35,27 @@ const ClassDetail = () => {
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
+  // 🟢 STATE CHỌN NGUỒN ĐỀ (HỆ THỐNG HAY CÁ NHÂN)
+  const [examSource, setExamSource] = useState('system');
+
+  // --- BỘ LỌC ĐỀ HỆ THỐNG ---
   const [selectedGrade, setSelectedGrade] = useState('12'); 
   const [filteredTopics, setFilteredTopics] = useState([]); 
   const [selectedTopicId, setSelectedTopicId] = useState(''); 
+  
+  // --- BỘ LỌC ĐỀ CÁ NHÂN ---
+  const [examFolders, setExamFolders] = useState([]);
+  const [selectedExamFolderId, setSelectedExamFolderId] = useState('');
+  const [personalExams, setPersonalExams] = useState([]);
+
+  // --- STATE CHUNG ---
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
 
-  // 🟢 STATE CHO CÀI ĐẶT NÂNG CAO (THỜI GIAN & ĐIỂM SỐ)
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedSettings, setAdvancedSettings] = useState({
-      start_time: '',
-      end_time: '',
-      point_mcq: 0.25,
-      point_short: 0.5,
-      point_tf_4: 1.0,
-      point_tf_3: 0.5,
-      point_tf_2: 0.25,
-      point_tf_1: 0.1
+      start_time: '', end_time: '', point_mcq: 0.25, point_short: 0.5,
+      point_tf_4: 1.0, point_tf_3: 0.5, point_tf_2: 0.25, point_tf_1: 0.1
   });
 
   const [messages, setMessages] = useState([]);
@@ -67,30 +70,22 @@ const ClassDetail = () => {
     open: false, message: '', severity: 'success'
   });
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
+  useEffect(() => { fetchData(); }, [id]);
 
   useEffect(() => {
-    if (activeTab === 'grades' && currentUser?.id === classroom?.teacher) {
-        fetchReport();
-    }
-    if (activeTab === 'chat') {
-        fetchMessages();
-    }
+    if (activeTab === 'grades' && currentUser?.id === classroom?.teacher) fetchReport();
+    if (activeTab === 'chat') fetchMessages();
   }, [activeTab]);
 
   useEffect(() => {
-      if (activeTab === 'chat') {
-          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }
+      if (activeTab === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeTab]);
 
+  // LOGIC LỌC ĐỀ HỆ THỐNG
   useEffect(() => {
     if (Array.isArray(topics) && topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
-        const newFilteredTopics = topics.filter(t => t.grade === gradeNum);
-        setFilteredTopics(newFilteredTopics);
+        setFilteredTopics(topics.filter(t => t.grade === gradeNum));
         setSelectedTopicId('');
         setFilteredExams([]);
         setSelectedExamId('');
@@ -100,16 +95,29 @@ const ClassDetail = () => {
   useEffect(() => {
     if (selectedTopicId) {
         const topic = (Array.isArray(topics) ? topics : []).find(t => t.id === parseInt(selectedTopicId));
-        if (topic && Array.isArray(topic.exercises)) {
-            setFilteredExams(topic.exercises);
-        } else {
-            setFilteredExams([]);
-        }
+        setFilteredExams(topic && Array.isArray(topic.exercises) ? topic.exercises : []);
     } else {
         setFilteredExams([]);
     }
     setSelectedExamId('');
   }, [selectedTopicId, topics]);
+
+  // 🟢 LOGIC LỌC ĐỀ CÁ NHÂN
+  useEffect(() => {
+      if (examSource === 'personal') {
+          const fetchPersonalExams = async () => {
+              try {
+                  const folderQuery = selectedExamFolderId ? `folder=${selectedExamFolderId}&` : '';
+                  // Lấy đề cá nhân (is_public=false) của chính giáo viên này
+                  const res = await axiosClient.get(`/exams/?${folderQuery}is_public=false`);
+                  setPersonalExams(Array.isArray(res.data) ? res.data : (res.data?.results || []));
+              } catch (error) {
+                  console.error("Lỗi tải đề cá nhân", error);
+              }
+          };
+          fetchPersonalExams();
+      }
+  }, [examSource, selectedExamFolderId]);
 
   const fetchData = async () => {
     try {
@@ -126,6 +134,12 @@ const ClassDetail = () => {
       const topicRes = await axiosClient.get('/topics/');
       setTopics(Array.isArray(topicRes.data) ? topicRes.data : (topicRes.data?.results || []));
 
+      // 🟢 Nếu là giáo viên, tải luôn danh sách Thư mục cá nhân
+      if (userRes.data.id === classRes.data.teacher) {
+          const folderRes = await axiosClient.get('/exam-folders/');
+          setExamFolders(Array.isArray(folderRes.data) ? folderRes.data : []);
+      }
+
       setLoading(false);
     } catch (error) {
       console.error("Lỗi:", error);
@@ -137,78 +151,52 @@ const ClassDetail = () => {
       try {
           const res = await axiosClient.get(`/classrooms/${id}/report/`);
           setReportData(Array.isArray(res.data) ? res.data : []);
-      } catch (error) {
-          console.error("Lỗi tải báo cáo:", error);
-      }
+      } catch (error) { console.error("Lỗi tải báo cáo:", error); }
   };
 
   const fetchMessages = async () => {
       try {
           const res = await axiosClient.get(`/classrooms/${id}/chat/`);
           setMessages(Array.isArray(res.data) ? res.data : []);
-      } catch (error) {
-          setMessages([]);
-      }
+      } catch (error) { setMessages([]); }
   };
 
   const handleImageSelect = (e) => {
       const file = e.target.files[0];
-      if (file) {
-          setChatImage(file);
-          setChatImagePreview(URL.createObjectURL(file));
-      }
+      if (file) { setChatImage(file); setChatImagePreview(URL.createObjectURL(file)); }
   };
 
   const handleRemoveImage = () => {
-      setChatImage(null);
-      setChatImagePreview('');
+      setChatImage(null); setChatImagePreview('');
       if (fileInputRef.current) fileInputRef.current.value = null;
   };
 
   const handleSendMessage = async () => {
       if (!newMessage.trim() && !chatImage) return;
-
       setSendingMsg(true);
       const formData = new FormData();
       formData.append('content', newMessage);
       if (chatImage) formData.append('image', chatImage);
 
       try {
-          const res = await axiosClient.post(`/classrooms/${id}/chat/`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          const safeMessages = Array.isArray(messages) ? messages : [];
-          setMessages([...safeMessages, res.data]);
-          setNewMessage('');
-          handleRemoveImage();
-      } catch (error) {
-          showNotification("Lỗi khi gửi tin nhắn", "error");
-      } finally {
-          setSendingMsg(false);
-      }
+          const res = await axiosClient.post(`/classrooms/${id}/chat/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+          setMessages([...(Array.isArray(messages) ? messages : []), res.data]);
+          setNewMessage(''); handleRemoveImage();
+      } catch (error) { showNotification("Lỗi khi gửi tin nhắn", "error"); } 
+      finally { setSendingMsg(false); }
   };
 
   const handleDeleteMessage = async (msgId) => {
       if (!window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này không?")) return;
       try {
           await axiosClient.delete(`/classrooms/chat/${msgId}/delete/`);
-          const safeMessages = Array.isArray(messages) ? messages : [];
-          setMessages(safeMessages.filter(m => m.id !== msgId));
+          setMessages((Array.isArray(messages) ? messages : []).filter(m => m.id !== msgId));
           showNotification("Đã xóa tin nhắn", "success");
-      } catch (error) {
-          showNotification("Lỗi khi xóa tin nhắn", "error");
-      }
+      } catch (error) { showNotification("Lỗi khi xóa tin nhắn", "error"); }
   };
 
-  const showNotification = (msg, type = 'success') => {
-    setNotification({ open: true, message: msg, severity: type });
-  };
-
-  const handleCloseNotification = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setNotification({ ...notification, open: false });
-  };
-
+  const showNotification = (msg, type = 'success') => setNotification({ open: true, message: msg, severity: type });
+  const handleCloseNotification = (e, reason) => { if (reason !== 'clickaway') setNotification({ ...notification, open: false }); };
   const handleCopyCode = () => {
     if (classroom?.invite_code) {
         navigator.clipboard.writeText(classroom.invite_code);
@@ -216,24 +204,13 @@ const ClassDetail = () => {
     }
   };
 
-  // 🟢 HÀM GIAO BÀI ĐÃ TÍCH HỢP DATA CÀI ĐẶT NÂNG CAO
   const handleAssignExam = async () => {
-    if (!selectedExamId) {
-        showNotification("Vui lòng chọn một đề thi cụ thể!", "warning");
-        return;
-    }
-    
+    if (!selectedExamId) { showNotification("Vui lòng chọn một đề thi cụ thể!", "warning"); return; }
     try {
-      const payload = {
-          classroom: id,
-          exam: selectedExamId 
-      };
-
-      // Nếu bật cài đặt nâng cao thì nhồi thêm data vào payload
+      const payload = { classroom: id, exam: selectedExamId };
       if (showAdvanced) {
           if (advancedSettings.start_time) payload.start_time = new Date(advancedSettings.start_time).toISOString();
           if (advancedSettings.end_time) payload.end_time = new Date(advancedSettings.end_time).toISOString();
-          
           payload.point_mcq = parseFloat(advancedSettings.point_mcq);
           payload.point_short = parseFloat(advancedSettings.point_short);
           payload.point_tf_4 = parseFloat(advancedSettings.point_tf_4);
@@ -241,15 +218,10 @@ const ClassDetail = () => {
           payload.point_tf_2 = parseFloat(advancedSettings.point_tf_2);
           payload.point_tf_1 = parseFloat(advancedSettings.point_tf_1);
       }
-
       await axiosClient.post('/class_assignments/', payload);
-      
       showNotification("✅ Giao bài thành công!", "success");
-      fetchData(); 
-      setSelectedExamId(''); 
-      setShowAdvanced(false); // Reset form
+      fetchData(); setSelectedExamId(''); setShowAdvanced(false); 
     } catch (error) {
-        console.error("Lỗi giao bài:", error);
         let msg = "❌ Có lỗi xảy ra";
         const data = error.response?.data;
         if (data) {
@@ -257,40 +229,25 @@ const ClassDetail = () => {
             else if (data.non_field_errors) msg = "⚠️ Bài tập này đã có trong lớp rồi!";
             else if (data.exam) msg = "⚠️ Lỗi đề thi: " + data.exam[0];
             else msg = "❌ Lỗi: " + JSON.stringify(data);
-        } else {
-            msg = "❌ Lỗi kết nối Server";
-        }
+        } else msg = "❌ Lỗi kết nối Server";
         showNotification(msg, "error");
     }
   };
 
   const handleOpenExam = (examId) => navigate(`/exams/${examId}?classroom_id=${id}`); 
   const handleViewResult = (resultId) => navigate(`/history/${resultId}`);
-
   const handleDownloadExcel = async () => {
     try {
-        const response = await axiosClient.get(`/classrooms/${id}/export-excel/`, {
-            responseType: 'blob',
-        });
+        const response = await axiosClient.get(`/classrooms/${id}/export-excel/`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        const fileName = `Bang_Diem_Lop_${classroom?.name || 'Class'}.xlsx`;
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        const link = document.createElement('a'); link.href = url;
+        link.setAttribute('download', `Bang_Diem_Lop_${classroom?.name || 'Class'}.xlsx`);
+        document.body.appendChild(link); link.click(); link.parentNode.removeChild(link); window.URL.revokeObjectURL(url);
         showNotification("✅ Tải xuống thành công!", "success");
-    } catch (error) {
-        console.error("Lỗi tải Excel:", error);
-        showNotification("❌ Không thể tải file Excel. Vui lòng thử lại.", "error");
-    }
+    } catch (error) { showNotification("❌ Không thể tải file Excel. Vui lòng thử lại.", "error"); }
   };
 
-  const handleAdvancedChange = (field, value) => {
-      setAdvancedSettings(prev => ({ ...prev, [field]: value }));
-  };
+  const handleAdvancedChange = (field, value) => setAdvancedSettings(prev => ({ ...prev, [field]: value }));
 
   if (loading) return <div className="loading-screen">Đang tải dữ liệu lớp học...</div>;
   if (!classroom) return <div className="error-screen">Không tìm thấy lớp học 😔</div>;
@@ -300,44 +257,26 @@ const ClassDetail = () => {
 
   return (
     <div className="class-detail-container">
-      
       <div className="class-banner">
         <div className="banner-content">
           <h1 className="banner-title">{classroom.name}</h1>
-          <p className="banner-subtitle">
-            Khối {classroom.grade} • {classroom.program_type === 'gifted' ? 'Bồi dưỡng' : 'Cơ bản'}
-          </p>
+          <p className="banner-subtitle">Khối {classroom.grade} • {classroom.program_type === 'gifted' ? 'Bồi dưỡng' : 'Cơ bản'}</p>
           <p className="teacher-name">GVCN: <strong>{classroom.teacher_name}</strong></p>
         </div>
-        
         <div className="class-code-box" onClick={handleCopyCode} title="Bấm để sao chép">
             <span className="code-label">Mã lớp</span>
-            <div className="code-value">
-                {classroom.invite_code}
-                <ContentCopyIcon fontSize="small" style={{marginLeft: 5}}/>
-            </div>
+            <div className="code-value">{classroom.invite_code} <ContentCopyIcon fontSize="small" style={{marginLeft: 5}}/></div>
         </div>
       </div>
 
       <div className="class-nav">
-        <button className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`} onClick={() => setActiveTab('stream')}>
-            Bảng tin & Bài tập
-        </button>
-        <button className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
-            Thảo luận chung
-        </button>
-        <button className={`nav-item ${activeTab === 'members' ? 'active' : ''}`} onClick={() => setActiveTab('members')}>
-            Thành viên ({Array.isArray(members) ? members.length : 0})
-        </button>
-        {isTeacher && (
-            <button className={`nav-item ${activeTab === 'grades' ? 'active' : ''}`} onClick={() => setActiveTab('grades')}>
-                Bảng điểm
-            </button>
-        )}
+        <button className={`nav-item ${activeTab === 'stream' ? 'active' : ''}`} onClick={() => setActiveTab('stream')}>Bảng tin & Bài tập</button>
+        <button className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>Thảo luận chung</button>
+        <button className={`nav-item ${activeTab === 'members' ? 'active' : ''}`} onClick={() => setActiveTab('members')}>Thành viên ({Array.isArray(members) ? members.length : 0})</button>
+        {isTeacher && <button className={`nav-item ${activeTab === 'grades' ? 'active' : ''}`} onClick={() => setActiveTab('grades')}>Bảng điểm</button>}
       </div>
 
       <div className="class-body">
-        
         {activeTab === 'stream' && (
             <div className="stream-layout">
                 <div className="stream-left">
@@ -356,86 +295,82 @@ const ClassDetail = () => {
                                 <h3>Giao bài tập mới</h3>
                             </div>
                             
+                            {/* 🟢 THANH CHUYỂN ĐỔI NGUỒN ĐỀ THI */}
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                                <Box sx={{ bgcolor: '#f1f2f6', borderRadius: 10, p: 0.5, display: 'inline-flex' }}>
+                                    <Button onClick={() => { setExamSource('system'); setSelectedExamId(''); }} sx={{ borderRadius: 10, px: 3, py: 1, fontWeight: 'bold', bgcolor: examSource === 'system' ? '#4a148c' : 'transparent', color: examSource === 'system' ? 'white' : '#333' }}>🏫 Ngân hàng Hệ thống</Button>
+                                    <Button onClick={() => { setExamSource('personal'); setSelectedExamId(''); }} sx={{ borderRadius: 10, px: 3, py: 1, fontWeight: 'bold', bgcolor: examSource === 'personal' ? '#e67e22' : 'transparent', color: examSource === 'personal' ? 'white' : '#333' }}>🎒 Kho Đề Cá Nhân</Button>
+                                </Box>
+                            </Box>
+
                             <div className="assign-filter-container">
-                                <div className="filter-item">
-                                    <label>1. Chọn Khối:</label>
-                                    <select className="topic-select" value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
-                                        <option value="12">Toán 12 & Ôn thi TN</option>
-                                        <option value="11">Toán 11</option>
-                                        <option value="10">Toán 10</option>
-                                        <option value="9">Toán 9</option>
-                                        <option value="8">Toán 8</option>
-                                        <option value="7">Toán 7</option>
-                                        <option value="6">Toán 6</option>
-                                    </select>
-                                </div>
-
-                                <div className="filter-item">
-                                    <label>2. Chọn Chuyên đề:</label>
-                                    <select className="topic-select" value={selectedTopicId} onChange={(e) => setSelectedTopicId(e.target.value)} disabled={filteredTopics.length === 0}>
-                                        <option value="">-- Chọn chuyên đề --</option>
-                                        {filteredTopics.map(t => (
-                                            <option key={t.id} value={t.id}>{t.title}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="filter-item full-width">
-                                    <label>3. Chọn Đề thi / Bài tập:</label>
-                                    <select className="topic-select" value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)} disabled={!selectedTopicId}>
-                                        <option value="">-- Chọn bài tập --</option>
-                                        {filteredExams.length > 0 ? (
-                                            filteredExams.map(ex => (
-                                                <option key={ex.id} value={ex.id}>📄 {ex.title} ({ex.duration} phút)</option>
-                                            ))
-                                        ) : (
-                                            <option disabled>Không có bài tập nào</option>
-                                        )}
-                                    </select>
-                                </div>
+                                {examSource === 'system' ? (
+                                    <>
+                                        <div className="filter-item">
+                                            <label>1. Chọn Khối:</label>
+                                            <select className="topic-select" value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
+                                                <option value="12">Toán 12 & Ôn thi TN</option>
+                                                <option value="11">Toán 11</option>
+                                                <option value="10">Toán 10</option>
+                                                <option value="9">Toán 9</option>
+                                                <option value="8">Toán 8</option>
+                                                <option value="7">Toán 7</option>
+                                                <option value="6">Toán 6</option>
+                                            </select>
+                                        </div>
+                                        <div className="filter-item">
+                                            <label>2. Chọn Chuyên đề:</label>
+                                            <select className="topic-select" value={selectedTopicId} onChange={(e) => setSelectedTopicId(e.target.value)} disabled={filteredTopics.length === 0}>
+                                                <option value="">-- Chọn chuyên đề --</option>
+                                                {filteredTopics.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="filter-item full-width">
+                                            <label>3. Chọn Đề thi / Bài tập:</label>
+                                            <select className="topic-select" value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)} disabled={!selectedTopicId}>
+                                                <option value="">-- Chọn bài tập --</option>
+                                                {filteredExams.length > 0 ? filteredExams.map(ex => <option key={ex.id} value={ex.id}>📄 {ex.title} ({ex.duration} phút)</option>) : <option disabled>Không có bài tập nào</option>}
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="filter-item">
+                                            <label>1. Lọc theo Thư mục cá nhân:</label>
+                                            <select className="topic-select" value={selectedExamFolderId} onChange={(e) => setSelectedExamFolderId(e.target.value)}>
+                                                <option value="">-- Tất cả đề cá nhân --</option>
+                                                {examFolders.map(f => <option key={f.id} value={f.id}>📁 {f.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="filter-item full-width">
+                                            <label>2. Chọn Đề thi / Bài tập cá nhân:</label>
+                                            <select className="topic-select" value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)}>
+                                                <option value="">-- Chọn bài tập --</option>
+                                                {personalExams.length > 0 ? personalExams.map(ex => <option key={ex.id} value={ex.id}>📄 {ex.title} ({ex.duration} phút)</option>) : <option disabled>Không có bài tập nào</option>}
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
-                            {/* 🟢 KHU VỰC CÀI ĐẶT NÂNG CAO */}
                             <Box sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e0e0e0' }}>
-                                <FormControlLabel 
-                                    control={<Switch checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} color="primary" />} 
-                                    label={<Typography fontWeight="bold" color="primary">Cài đặt nâng cao (Thời gian & Thang điểm)</Typography>} 
-                                />
-                                
+                                <FormControlLabel control={<Switch checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} color="primary" />} label={<Typography fontWeight="bold" color="primary">Cài đặt nâng cao (Thời gian & Thang điểm)</Typography>} />
                                 {showAdvanced && (
                                     <Box sx={{ mt: 2 }}>
                                         <Typography variant="subtitle2" color="textSecondary" mb={1}>⏰ Hạn nộp bài</Typography>
                                         <Grid container spacing={2} mb={3}>
-                                            <Grid item xs={12} sm={6}>
-                                                <TextField fullWidth type="datetime-local" label="Thời gian mở đề (Bỏ trống = Mở ngay)" InputLabelProps={{ shrink: true }} value={advancedSettings.start_time} onChange={(e) => handleAdvancedChange('start_time', e.target.value)} size="small" />
-                                            </Grid>
-                                            <Grid item xs={12} sm={6}>
-                                                <TextField fullWidth type="datetime-local" label="Hạn chót nộp bài (Bỏ trống = Không giới hạn)" InputLabelProps={{ shrink: true }} value={advancedSettings.end_time} onChange={(e) => handleAdvancedChange('end_time', e.target.value)} size="small" />
-                                            </Grid>
+                                            <Grid item xs={12} sm={6}><TextField fullWidth type="datetime-local" label="Thời gian mở đề (Bỏ trống = Mở ngay)" InputLabelProps={{ shrink: true }} value={advancedSettings.start_time} onChange={(e) => handleAdvancedChange('start_time', e.target.value)} size="small" /></Grid>
+                                            <Grid item xs={12} sm={6}><TextField fullWidth type="datetime-local" label="Hạn chót nộp bài (Bỏ trống = Không giới hạn)" InputLabelProps={{ shrink: true }} value={advancedSettings.end_time} onChange={(e) => handleAdvancedChange('end_time', e.target.value)} size="small" /></Grid>
                                         </Grid>
-
                                         <Divider sx={{ my: 2 }} />
-
                                         <Typography variant="subtitle2" color="textSecondary" mb={1}>🎯 Tùy chỉnh Thang điểm</Typography>
                                         <Grid container spacing={2}>
-                                            <Grid item xs={6} sm={3}>
-                                                <TextField fullWidth type="number" label="Trắc nghiệm (1 câu)" inputProps={{ step: "0.1" }} value={advancedSettings.point_mcq} onChange={(e) => handleAdvancedChange('point_mcq', e.target.value)} size="small" />
-                                            </Grid>
-                                            <Grid item xs={6} sm={3}>
-                                                <TextField fullWidth type="number" label="Trả lời ngắn (1 câu)" inputProps={{ step: "0.1" }} value={advancedSettings.point_short} onChange={(e) => handleAdvancedChange('point_short', e.target.value)} size="small" />
-                                            </Grid>
-                                            <Grid item xs={6} sm={3}>
-                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 4 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_4} onChange={(e) => handleAdvancedChange('point_tf_4', e.target.value)} size="small" color="success" focused/>
-                                            </Grid>
-                                            <Grid item xs={6} sm={3}>
-                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 3 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_3} onChange={(e) => handleAdvancedChange('point_tf_3', e.target.value)} size="small" />
-                                            </Grid>
-                                            <Grid item xs={6} sm={3}>
-                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 2 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_2} onChange={(e) => handleAdvancedChange('point_tf_2', e.target.value)} size="small" />
-                                            </Grid>
-                                            <Grid item xs={6} sm={3}>
-                                                <TextField fullWidth type="number" label="Đúng/Sai (Đúng 1 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_1} onChange={(e) => handleAdvancedChange('point_tf_1', e.target.value)} size="small" />
-                                            </Grid>
+                                            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Trắc nghiệm (1 câu)" inputProps={{ step: "0.1" }} value={advancedSettings.point_mcq} onChange={(e) => handleAdvancedChange('point_mcq', e.target.value)} size="small" /></Grid>
+                                            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Trả lời ngắn (1 câu)" inputProps={{ step: "0.1" }} value={advancedSettings.point_short} onChange={(e) => handleAdvancedChange('point_short', e.target.value)} size="small" /></Grid>
+                                            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Đ/S (Đúng 4 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_4} onChange={(e) => handleAdvancedChange('point_tf_4', e.target.value)} size="small" color="success" focused/></Grid>
+                                            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Đ/S (Đúng 3 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_3} onChange={(e) => handleAdvancedChange('point_tf_3', e.target.value)} size="small" /></Grid>
+                                            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Đ/S (Đúng 2 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_2} onChange={(e) => handleAdvancedChange('point_tf_2', e.target.value)} size="small" /></Grid>
+                                            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Đ/S (Đúng 1 ý)" inputProps={{ step: "0.1" }} value={advancedSettings.point_tf_1} onChange={(e) => handleAdvancedChange('point_tf_1', e.target.value)} size="small" /></Grid>
                                         </Grid>
                                     </Box>
                                 )}
@@ -456,7 +391,7 @@ const ClassDetail = () => {
                                     <div className="card-icon"><AssignmentIcon sx={{ color: 'white' }} /></div>
                                     <div className="card-content">
                                         <h4 className="card-title">Giáo viên đã đăng bài tập: <span className="topic-highlight"> {assign.exam_title}</span></h4>
-                                        <p className="sub-info">Chuyên đề: {assign.topic_title} ({assign.exam_duration} phút)</p>
+                                        <p className="sub-info">Chuyên đề: {assign.topic_title || "Cá nhân"} ({assign.exam_duration} phút)</p>
                                         <p className="card-date">
                                             Đăng ngày: {new Date(assign.created_at).toLocaleDateString('vi-VN')}
                                             {assign.end_time && (
@@ -479,7 +414,7 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* CÁC TAB KHÁC GIỮ NGUYÊN */}
+        {/* CÁC TAB KHÁC GIỮ NGUYÊN (CHAT, MEMBERS, GRADES) */}
         {activeTab === 'chat' && (
             <div className="chat-layout" style={{ display: 'flex', flexDirection: 'column', height: '600px', backgroundColor: '#f0f2f5', borderRadius: '10px', overflow: 'hidden' }}>
                 <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
@@ -501,16 +436,9 @@ const ClassDetail = () => {
                                     
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexDirection: isMine ? 'row-reverse' : 'row' }}>
                                         <Paper elevation={1} sx={{ p: 1.5, maxWidth: '70%', bgcolor: isMine ? '#dcf8c6' : 'white', border: msg.is_teacher && !isMine ? '2px solid #f39c12' : 'none', borderRadius: isMine ? '15px 0px 15px 15px' : '0px 15px 15px 15px' }}>
-                                            {msg.image && (
-                                                <img src={msg.image} alt="Đính kèm" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', marginBottom: msg.content ? '10px' : '0', cursor: 'pointer' }} onClick={() => window.open(msg.image, '_blank')} />
-                                            )}
-                                            {msg.content && (
-                                                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                                    {msg.content}
-                                                </Typography>
-                                            )}
+                                            {msg.image && <img src={msg.image} alt="Đính kèm" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', marginBottom: msg.content ? '10px' : '0', cursor: 'pointer' }} onClick={() => window.open(msg.image, '_blank')} />}
+                                            {msg.content && <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</Typography>}
                                         </Paper>
-
                                         {canDelete && (
                                             <Tooltip title="Xóa tin nhắn">
                                                 <IconButton size="small" onClick={() => handleDeleteMessage(msg.id)} sx={{ color: '#e74c3c', opacity: 0.7, '&:hover': { opacity: 1 } }}>
@@ -528,83 +456,43 @@ const ClassDetail = () => {
                     )}
                     <div ref={chatEndRef} />
                 </div>
-
                 {chatImagePreview && (
                     <Box sx={{ p: 2, bgcolor: '#e0e0e0', borderTop: '1px solid #ccc', position: 'relative' }}>
                         <img src={chatImagePreview} alt="Preview" style={{ height: '80px', borderRadius: '5px' }} />
-                        <IconButton size="small" sx={{ position: 'absolute', top: 10, left: 10, bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }} onClick={handleRemoveImage}>
-                            <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <IconButton size="small" sx={{ position: 'absolute', top: 10, left: 10, bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }} onClick={handleRemoveImage}><DeleteIcon fontSize="small" /></IconButton>
                     </Box>
                 )}
-
                 <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'white', borderTop: '1px solid #ddd' }}>
                     <input type="file" accept="image/*" hidden ref={fileInputRef} onChange={handleImageSelect} />
-                    <Tooltip title="Đính kèm ảnh bài tập">
-                        <IconButton color="primary" sx={{ mr: 1 }} onClick={() => fileInputRef.current?.click()} disabled={sendingMsg}>
-                            <AddPhotoAlternateIcon />
-                        </IconButton>
-                    </Tooltip>
-                    
-                    <TextField 
-                        fullWidth size="small" placeholder="Nhập nội dung thảo luận hoặc hỏi bài..." variant="outlined" 
-                        value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                        disabled={sendingMsg} sx={{ bgcolor: '#f9f9f9', borderRadius: '20px', '& fieldset': { border: 'none' } }}
-                    />
-
-                    <Button variant="contained" color="primary" endIcon={sendingMsg ? <CircularProgress size={20} color="inherit" /> : <SendIcon />} onClick={handleSendMessage} disabled={sendingMsg || (!newMessage.trim() && !chatImage)} sx={{ ml: 2, borderRadius: '20px', px: 3 }}>
-                        Gửi
-                    </Button>
+                    <Tooltip title="Đính kèm ảnh bài tập"><IconButton color="primary" sx={{ mr: 1 }} onClick={() => fileInputRef.current?.click()} disabled={sendingMsg}><AddPhotoAlternateIcon /></IconButton></Tooltip>
+                    <TextField fullWidth size="small" placeholder="Nhập nội dung thảo luận hoặc hỏi bài..." variant="outlined" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} disabled={sendingMsg} sx={{ bgcolor: '#f9f9f9', borderRadius: '20px', '& fieldset': { border: 'none' } }} />
+                    <Button variant="contained" color="primary" endIcon={sendingMsg ? <CircularProgress size={20} color="inherit" /> : <SendIcon />} onClick={handleSendMessage} disabled={sendingMsg || (!newMessage.trim() && !chatImage)} sx={{ ml: 2, borderRadius: '20px', px: 3 }}>Gửi</Button>
                 </Box>
             </div>
         )}
 
         {activeTab === 'members' && (
             <div className="members-layout">
-                <div className="section-header">
-                    <h2 className="section-title">Giáo viên</h2>
-                    <div className="divider"></div>
-                </div>
+                <div className="section-header"><h2 className="section-title">Giáo viên</h2><div className="divider"></div></div>
                 <div className="member-row teacher-row">
                     <div className="member-avatar teacher-avatar">{classroom?.teacher_name ? classroom.teacher_name.charAt(0) : 'G'}</div>
                     <span className="member-name">{classroom?.teacher_name || 'Giáo viên'}</span>
                 </div>
-
-                <div className="section-header" style={{marginTop: '40px'}}>
-                    <div className="title-row">
-                        <h2 className="section-title">Học sinh</h2>
-                        <span className="student-count">{Array.isArray(members) ? members.length : 0} sinh viên</span>
-                    </div>
-                    <div className="divider"></div>
-                </div>
-                
+                <div className="section-header" style={{marginTop: '40px'}}><div className="title-row"><h2 className="section-title">Học sinh</h2><span className="student-count">{Array.isArray(members) ? members.length : 0} sinh viên</span></div><div className="divider"></div></div>
                 {Array.isArray(members) && members.length > 0 ? (
                     <div className="student-list">
                          {members.map(mem => (
                             <div key={mem.id} className="member-row">
                                 <div className="member-left" style={{display: 'flex', alignItems: 'center'}}>
-                                    <div className="member-avatar" style={{marginRight: '15px'}}>
-                                        {mem?.student_name ? mem.student_name.charAt(0) : 'H'}
-                                    </div>
-                                    <div>
-                                        <div className="member-name">{mem?.student_name || 'Học sinh'}</div>
-                                        <div style={{fontSize: '0.8rem', color: '#888'}}>{mem?.student_email}</div>
-                                    </div>
+                                    <div className="member-avatar" style={{marginRight: '15px'}}>{mem?.student_name ? mem.student_name.charAt(0) : 'H'}</div>
+                                    <div><div className="member-name">{mem?.student_name || 'Học sinh'}</div><div style={{fontSize: '0.8rem', color: '#888'}}>{mem?.student_email}</div></div>
                                 </div>
-                                {isTeacher && (
-                                    <Tooltip title="Xóa khỏi lớp">
-                                        <IconButton size="small"><PersonRemoveIcon fontSize="small" color="disabled"/></IconButton>
-                                    </Tooltip>
-                                )}
+                                {isTeacher && <Tooltip title="Xóa khỏi lớp"><IconButton size="small"><PersonRemoveIcon fontSize="small" color="disabled"/></IconButton></Tooltip>}
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="empty-members">
-                        <GroupIcon sx={{ fontSize: 60, color: '#ddd' }}/>
-                        <p>Chưa có học sinh nào tham gia lớp học.</p>
-                    </div>
+                    <div className="empty-members"><GroupIcon sx={{ fontSize: 60, color: '#ddd' }}/><p>Chưa có học sinh nào tham gia lớp học.</p></div>
                 )}
             </div>
         )}
@@ -613,17 +501,11 @@ const ClassDetail = () => {
             <div className="grades-layout">
                 <div className="section-header">
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                        <div>
-                            <h2 className="section-title">Bảng điểm lớp học</h2>
-                            <p className="grades-subtitle">Kết quả các bài tập đã giao ({Array.isArray(reportData) ? reportData.length : 0} học sinh)</p>
-                        </div>
-                        <button className="btn-assign" onClick={handleDownloadExcel} style={{backgroundColor: '#28a745', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem'}}>
-                            <FileDownloadIcon fontSize="small"/> Xuất Excel
-                        </button>
+                        <div><h2 className="section-title">Bảng điểm lớp học</h2><p className="grades-subtitle">Kết quả các bài tập đã giao ({Array.isArray(reportData) ? reportData.length : 0} học sinh)</p></div>
+                        <button className="btn-assign" onClick={handleDownloadExcel} style={{backgroundColor: '#28a745', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem'}}><FileDownloadIcon fontSize="small"/> Xuất Excel</button>
                     </div>
                     <div className="divider"></div>
                 </div>
-
                 {Array.isArray(reportData) && reportData.length > 0 ? (
                     <div className="grades-container">
                         {reportData.map((student) => (
@@ -631,21 +513,13 @@ const ClassDetail = () => {
                                 <div className="student-header">
                                     <div className="student-info">
                                         <div className="member-avatar">{student?.student_name ? student.student_name.charAt(0) : 'H'}</div>
-                                        <div>
-                                            <span className="student-name-bold">{student?.student_name}</span>
-                                            <span className="student-username"> ({student?.username})</span>
-                                        </div>
+                                        <div><span className="student-name-bold">{student?.student_name}</span><span className="student-username"> ({student?.username})</span></div>
                                     </div>
                                     <div className="score-summary">Đã làm: <strong>{Array.isArray(student.results) ? student.results.length : 0}</strong> bài</div>
                                 </div>
-
                                 {Array.isArray(student.results) && student.results.length > 0 ? (
                                     <table className="grade-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Bài tập / Đề thi</th><th>Chuyên đề</th><th>Ngày làm</th><th>Điểm số</th><th>Chi tiết</th>
-                                            </tr>
-                                        </thead>
+                                        <thead><tr><th>Bài tập / Đề thi</th><th>Chuyên đề</th><th>Ngày làm</th><th>Điểm số</th><th>Chi tiết</th></tr></thead>
                                         <tbody>
                                             {student.results.map((res, idx) => (
                                                 <tr key={idx} className="grade-row-clickable" onClick={() => handleViewResult(res.id)}>
@@ -664,19 +538,13 @@ const ClassDetail = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="empty-stream">
-                        <AssessmentIcon sx={{ fontSize: 60, color: '#ddd' }}/>
-                        <p>Chưa có dữ liệu điểm số nào.</p>
-                    </div>
+                    <div className="empty-stream"><AssessmentIcon sx={{ fontSize: 60, color: '#ddd' }}/><p>Chưa có dữ liệu điểm số nào.</p></div>
                 )}
             </div>
         )}
-
       </div>
 
-      <Snackbar 
-        open={notification.open} autoHideDuration={4000} onClose={handleCloseNotification} TransitionComponent={TransitionDown} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
+      <Snackbar open={notification.open} autoHideDuration={4000} onClose={handleCloseNotification} TransitionComponent={TransitionDown} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleCloseNotification} severity={notification.severity} variant="filled" sx={{ width: '100%', fontSize: '1rem', boxShadow: 3 }}>
           {notification.message}
         </Alert>
