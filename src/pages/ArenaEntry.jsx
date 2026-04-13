@@ -12,7 +12,7 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'; // Icon ảnh
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'; 
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
@@ -31,7 +31,6 @@ const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
             const res = await axiosClient.post('/arena/upload-image/', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            // Chèn mã ảnh vào ngay tại vị trí văn bản
             const imgCode = `\n[IMG:${res.data.url}]\n`;
             onChange(value + imgCode);
         } catch (err) {
@@ -82,6 +81,9 @@ function ArenaEntry() {
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     const [qSettings, setQSettings] = useState({});
 
+    // 🟢 TRẠNG THÁI QUẢN LÝ TAB: 'system' HOẶC 'personal'
+    const [viewMode, setViewMode] = useState('system');
+
     const [openCustomQModal, setOpenCustomQModal] = useState(false);
     const [customQ, setCustomQ] = useState({
         content: '', question_type: 'MCQ', explanation: '', shortAnswer: '',
@@ -103,8 +105,9 @@ function ArenaEntry() {
     };
 
     useEffect(() => { if (selectedGrade) axiosClient.get(`/topics/?grade=${selectedGrade}`).then(res => setTopics(res.data)); }, [selectedGrade]);
+    
     useEffect(() => {
-        if (selectedTopic) {
+        if (selectedTopic && viewMode === 'system') {
             setLoadingQuestions(true);
             axiosClient.get(`/arena/topic-questions/?topic_id=${selectedTopic}`).then(res => {
                 setQuestions(res.data);
@@ -113,12 +116,11 @@ function ArenaEntry() {
                 setQSettings(newSettings);
             }).finally(() => setLoadingQuestions(false));
         }
-    }, [selectedTopic]);
+    }, [selectedTopic, viewMode]);
 
     const handleToggleSelect = (id) => setQSettings(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id].selected } }));
     const handleTimeChange = (id, val) => { const numericVal = val.replace(/[^0-9]/g, ''); setQSettings(prev => ({ ...prev, [id]: { ...prev[id], time: numericVal, selected: true } })); };
 
-    // 🟢 LƯU CÂU HỎI LÊN SERVER (DÙNG JSON SẠCH)
     const handleSaveCustomQuestion = async () => {
         if (!customQ.content.trim()) return showToast('Vui lòng nhập đề bài!', 'warning');
         
@@ -211,17 +213,61 @@ function ArenaEntry() {
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2 }}>
                     <TextField fullWidth label="Tên Trận Đấu" value={arenaTitle} onChange={(e) => setArenaTitle(e.target.value)} sx={{ mb: 3, mt: 1 }} />
-                    <Box display="flex" gap={2} mb={3}>
-                        <FormControl fullWidth><InputLabel>Khối</InputLabel><Select value={selectedGrade} label="Khối" onChange={(e) => setSelectedGrade(e.target.value)}>{[12, 11, 10, 9, 8, 7, 6].map(g => <MenuItem key={g} value={g}>Lớp {g}</MenuItem>)}</Select></FormControl>
-                        <FormControl fullWidth disabled={!selectedGrade}><InputLabel>Chủ Đề (Server)</InputLabel><Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>{topics.map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}</Select></FormControl>
+                    
+                    {/* 🟢 THANH CHUYỂN ĐỔI: NGÂN HÀNG HỆ THỐNG <--> KHO CÁ NHÂN */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                        <Box sx={{ bgcolor: '#f1f2f6', borderRadius: 10, p: 0.5, display: 'inline-flex' }}>
+                            <Button 
+                                onClick={() => {
+                                    setViewMode('system');
+                                    setSelectedGrade(''); setSelectedTopic(''); setQuestions([]); 
+                                }}
+                                sx={{ borderRadius: 10, px: 3, py: 1, fontWeight: 'bold', bgcolor: viewMode === 'system' ? '#4a148c' : 'transparent', color: viewMode === 'system' ? 'white' : '#333', textTransform: 'none' }}
+                            >
+                                🏫 Ngân hàng Hệ thống
+                            </Button>
+                            <Button 
+                                onClick={() => {
+                                    setViewMode('personal');
+                                    setLoadingQuestions(true);
+                                    axiosClient.get('/arena/my-custom-questions/')
+                                        .then(res => {
+                                            setQuestions(res.data);
+                                            const newSettings = { ...qSettings };
+                                            res.data.forEach(q => { if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" }; });
+                                            setQSettings(newSettings);
+                                        })
+                                        .finally(() => setLoadingQuestions(false));
+                                }}
+                                sx={{ borderRadius: 10, px: 3, py: 1, fontWeight: 'bold', bgcolor: viewMode === 'personal' ? '#e67e22' : 'transparent', color: viewMode === 'personal' ? 'white' : '#333', textTransform: 'none' }}
+                            >
+                                🎒 Kho Cá Nhân của tôi
+                            </Button>
+                        </Box>
                     </Box>
-                    <Divider>Kho câu hỏi (Hệ thống & Cá nhân)</Divider>
+
+                    {/* Chỉ hiện chọn Khối/Chủ đề nếu đang ở Ngân hàng Hệ thống */}
+                    {viewMode === 'system' && (
+                        <Box display="flex" gap={2} mb={3}>
+                            <FormControl fullWidth><InputLabel>Khối</InputLabel><Select value={selectedGrade} label="Khối" onChange={(e) => setSelectedGrade(e.target.value)}>{[12, 11, 10, 9, 8, 7, 6].map(g => <MenuItem key={g} value={g}>Lớp {g}</MenuItem>)}</Select></FormControl>
+                            <FormControl fullWidth disabled={!selectedGrade}><InputLabel>Chủ Đề (Server)</InputLabel><Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>{topics.map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}</Select></FormControl>
+                        </Box>
+                    )}
+
+                    <Divider>
+                        <Chip label={viewMode === 'personal' ? "Câu hỏi do bạn tự soạn" : "Câu hỏi từ Hệ thống"} color="primary" variant="outlined" />
+                    </Divider>
+                    
                     {loadingQuestions ? <Box display="flex" justifyContent="center" p={3}><CircularProgress /></Box> : (
                         <List sx={{ maxHeight: 400, overflow: 'auto', border: '1px solid #ddd', mt: 2, borderRadius: 2 }}>
                             {questions.map((q) => (
-                                <ListItem key={q.id} sx={{ borderBottom: '1px solid #f0f0f0', bgcolor: q.is_private ? 'rgba(241, 196, 15, 0.1)' : 'transparent' }}>
+                                <ListItem key={q.id} sx={{ borderBottom: '1px solid #f0f0f0', bgcolor: q.is_private ? 'rgba(230, 126, 34, 0.05)' : 'transparent' }}>
                                     <ListItemIcon><Checkbox checked={!!qSettings[q.id]?.selected} onChange={() => handleToggleSelect(q.id)} /></ListItemIcon>
-                                    <ListItemText primary={<Typography noWrap variant="body1" sx={{ maxWidth: '400px' }}>{q.content}</Typography>} secondary={<Box display="flex" gap={1} mt={0.5}>{getTypeLabel(q.question_type)}{q.is_private && <Chip label="Của tôi" color="secondary" size="small" />}</Box>} sx={{ mr: 2 }} />
+                                    <ListItemText 
+                                        primary={<Typography noWrap variant="body1" sx={{ maxWidth: '400px' }}>{q.content}</Typography>} 
+                                        secondary={<Box display="flex" gap={1} mt={0.5}>{getTypeLabel(q.question_type)}{q.is_private && <Chip label="Của tôi" color="warning" size="small" />}</Box>} 
+                                        sx={{ mr: 2 }} 
+                                    />
                                     <TextField size="small" label="Số giây" value={qSettings[q.id]?.time !== undefined ? qSettings[q.id].time : "20"} onChange={(e) => handleTimeChange(q.id, e.target.value)} sx={{ width: 100 }} inputProps={{ inputMode: 'numeric' }} InputProps={{ startAdornment: (<InputAdornment position="start"><TimerIcon fontSize="small" color={qSettings[q.id]?.selected ? "primary" : "inherit"} /></InputAdornment>) }} />
                                 </ListItem>
                             ))}
