@@ -5,12 +5,14 @@ import axiosClient from '../services/axiosClient';
 import { 
     Box, Typography, Button, Paper, Grid, List, ListItem, 
     ListItemIcon, ListItemText, IconButton, Tooltip, Chip, 
-    CircularProgress, Divider, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem
+    CircularProgress, Divider, Snackbar, Alert, FormControl, 
+    InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions 
 } from '@mui/material';
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // 🟢 Bổ sung icon Check
 
 const PersonalExamBuilder = () => {
     const { id } = useParams(); 
@@ -26,6 +28,9 @@ const PersonalExamBuilder = () => {
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
 
+    // 🟢 STATE CHO CỬA SỔ XÓA ĐẸP MẮT
+    const [deleteConfirm, setDeleteConfirm] = useState({ open: false, questionId: null });
+
     useEffect(() => {
         fetchInitialData();
     }, [id]);
@@ -40,12 +45,10 @@ const PersonalExamBuilder = () => {
             const eqRes = await axiosClient.get(`/exams/${id}/questions/`);
             setExamQuestions(Array.isArray(eqRes.data) ? eqRes.data : []);
 
-            // 🟢 ĐÃ FIX URL: Link đúng đến thư mục Đấu trường
             const folderRes = await axiosClient.get('/arena/folders/'); 
             setFolders(Array.isArray(folderRes.data) ? folderRes.data : []);
 
             fetchBankQuestions('');
-            
         } catch (error) {
             showToast("Lỗi tải dữ liệu!", "error");
         } finally {
@@ -55,10 +58,8 @@ const PersonalExamBuilder = () => {
 
     const fetchBankQuestions = async (folderId) => {
         try {
-            // 🟢 ĐÃ FIX URL: Link đúng đến kho câu hỏi Đấu trường
             const res = await axiosClient.get('/arena/my-custom-questions/');
             let allQuestions = Array.isArray(res.data) ? res.data : [];
-            
             if (folderId) {
                 allQuestions = allQuestions.filter(q => q.folder_id === parseInt(folderId));
             }
@@ -87,12 +88,24 @@ const PersonalExamBuilder = () => {
         }
     };
 
-    const handleRemoveQuestionFromExam = async (questionId) => {
-        if (!window.confirm("Loại bỏ câu hỏi này khỏi đề?")) return;
+    // 🟢 THUẬT TOÁN KIỂM TRA TRÙNG LẶP (Dựa vào nội dung câu hỏi)
+    const isQuestionAlreadyInExam = (contentToCheck) => {
+        return examQuestions.some(q => q.content === contentToCheck);
+    };
+
+    // 🟢 HÀM MỞ POPUP XÓA
+    const handleDeleteClick = (questionId) => {
+        setDeleteConfirm({ open: true, questionId: questionId });
+    };
+
+    // 🟢 HÀM XÓA CHÍNH THỨC SAU KHI XÁC NHẬN
+    const confirmRemoveQuestion = async () => {
+        const qId = deleteConfirm.questionId;
+        setDeleteConfirm({ open: false, questionId: null }); // Đóng popup ngay lập tức
         try {
-            await axiosClient.delete(`/questions/${questionId}/`);
-            setExamQuestions(examQuestions.filter(q => q.id !== questionId));
-            showToast("Đã loại bỏ câu hỏi!");
+            await axiosClient.delete(`/questions/${qId}/`);
+            setExamQuestions(examQuestions.filter(q => q.id !== qId));
+            showToast("Đã loại bỏ câu hỏi khỏi đề!");
         } catch (error) {
             showToast("Lỗi khi loại bỏ!", "error");
         }
@@ -107,12 +120,28 @@ const PersonalExamBuilder = () => {
         }
     };
 
+    // Hàm render nội dung có ảnh
+    const renderContent = (text) => {
+        if (!text) return null;
+        const parts = text.split(/\[IMG:(.*?)\]/g);
+        return (
+            <span>
+                {parts.map((part, i) => {
+                    if (i % 2 === 1) {
+                        return <Chip key={i} size="small" label="🖼️ Hình ảnh" color="info" sx={{ mx: 0.5, height: 20 }} />;
+                    }
+                    return part;
+                })}
+            </span>
+        );
+    };
+
     if (loading) return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
 
     return (
         <Box sx={{ p: 3, bgcolor: '#f4f6f8', minHeight: '100vh' }}>
             <Box display="flex" alignItems="center" mb={3}>
-                <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/quan-ly-de-thi')} sx={{ mr: 2, fontWeight: 'bold' }}>
+                <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/quan-ly-de-thi')} sx={{ mr: 2, fontWeight: 'bold', bgcolor: 'white' }}>
                     Trở về
                 </Button>
                 <Typography variant="h5" fontWeight="bold" color="primary">
@@ -139,19 +168,34 @@ const PersonalExamBuilder = () => {
                         <Divider sx={{ mb: 2 }} />
 
                         <List sx={{ flex: 1, overflowY: 'auto' }}>
-                            {bankQuestions.map(q => (
-                                <ListItem key={q.id} sx={{ border: '1px solid #eee', mb: 1, borderRadius: 2, bgcolor: 'white' }}>
-                                    <ListItemText 
-                                        primary={<Typography noWrap sx={{ maxWidth: '80%' }}>{q.content}</Typography>}
-                                        secondary={<Box mt={0.5}>{getTypeLabel(q.question_type)}</Box>}
-                                    />
-                                    <Tooltip title="Đưa câu này vào Đề">
-                                        <IconButton color="primary" onClick={() => handleAddQuestionToExam(q.id)}>
-                                            <AddCircleIcon fontSize="large" />
-                                        </IconButton>
-                                    </Tooltip>
-                                </ListItem>
-                            ))}
+                            {bankQuestions.map(q => {
+                                // 🟢 Kiểm tra xem câu này đã có trong đề chưa
+                                const isAdded = isQuestionAlreadyInExam(q.content);
+
+                                return (
+                                    <ListItem key={q.id} sx={{ border: '1px solid #eee', mb: 1, borderRadius: 2, bgcolor: isAdded ? '#f9f9f9' : 'white', opacity: isAdded ? 0.7 : 1 }}>
+                                        <ListItemText 
+                                            primary={<Typography sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{renderContent(q.content)}</Typography>}
+                                            secondary={<Box mt={0.5}>{getTypeLabel(q.question_type)}</Box>}
+                                        />
+                                        
+                                        {/* 🟢 Nếu có rồi thì hiện tick xanh khóa lại, chưa có thì hiện nút Cộng */}
+                                        {isAdded ? (
+                                            <Tooltip title="Câu hỏi này đã nằm trong đề">
+                                                <IconButton disabled>
+                                                    <CheckCircleIcon color="success" fontSize="large" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : (
+                                            <Tooltip title="Đưa câu này vào Đề">
+                                                <IconButton color="primary" onClick={() => handleAddQuestionToExam(q.id)}>
+                                                    <AddCircleIcon fontSize="large" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                    </ListItem>
+                                );
+                            })}
                             {bankQuestions.length === 0 && <Typography align="center" color="textSecondary" mt={5}>Không có câu hỏi nào.</Typography>}
                         </List>
                     </Paper>
@@ -169,13 +213,13 @@ const PersonalExamBuilder = () => {
                         <List sx={{ flex: 1, overflowY: 'auto' }}>
                             {examQuestions.map((q, idx) => (
                                 <ListItem key={q.id} sx={{ border: '1px solid #ddd', mb: 1, borderRadius: 2, bgcolor: '#f8fcff' }}>
-                                    <ListItemIcon><Typography fontWeight="bold" color="primary">Câu {idx + 1}.</Typography></ListItemIcon>
+                                    <ListItemIcon><Typography fontWeight="bold" color="primary" sx={{ minWidth: '40px' }}>Câu {idx + 1}.</Typography></ListItemIcon>
                                     <ListItemText 
-                                        primary={<Typography sx={{ wordBreak: 'break-word' }}>{q.content}</Typography>}
+                                        primary={<Typography sx={{ wordBreak: 'break-word' }}>{renderContent(q.content)}</Typography>}
                                         secondary={<Box mt={0.5}>{getTypeLabel(q.question_type)}</Box>}
                                     />
                                     <Tooltip title="Loại khỏi Đề">
-                                        <IconButton color="error" onClick={() => handleRemoveQuestionFromExam(q.id)}>
+                                        <IconButton color="error" onClick={() => handleDeleteClick(q.id)}>
                                             <DeleteIcon />
                                         </IconButton>
                                     </Tooltip>
@@ -191,6 +235,21 @@ const PersonalExamBuilder = () => {
                     </Paper>
                 </Grid>
             </Grid>
+
+            {/* 🟢 CỬA SỔ CONFIRM XÓA CÂU HỎI XỊN SÒ */}
+            <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, questionId: null })} maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    ⚠️ Xác nhận loại bỏ
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1">Bạn có chắc chắn muốn loại bỏ câu hỏi này khỏi đề thi hiện tại không?</Typography>
+                    <Typography variant="body2" color="textSecondary" mt={1}>(Yên tâm, câu hỏi gốc trong kho vẫn được giữ nguyên)</Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setDeleteConfirm({ open: false, questionId: null })} color="inherit">Hủy bỏ</Button>
+                    <Button onClick={confirmRemoveQuestion} variant="contained" color="error">Đồng ý loại bỏ</Button>
+                </DialogActions>
+            </Dialog>
 
             <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({...toast, open: false})} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
                 <Alert severity={toast.type} variant="filled" sx={{ width: '100%', boxShadow: 3 }}>{toast.message}</Alert>
