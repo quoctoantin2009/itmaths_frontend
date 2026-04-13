@@ -12,11 +12,11 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
-import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'; 
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
+// Ô NHẬP LIỆU CÓ TÍCH HỢP NÚT TẢI ẢNH
 const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
     const fileInputRef = useRef();
     const [uploading, setUploading] = useState(false);
@@ -40,7 +40,11 @@ const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
                 InputProps={{
                     endAdornment: (
                         <InputAdornment position="end">
-                            <Tooltip title="Chèn ảnh vào ô này"><IconButton onClick={() => fileInputRef.current.click()} disabled={uploading} color="primary">{uploading ? <CircularProgress size={20} /> : <AddPhotoAlternateIcon />}</IconButton></Tooltip>
+                            <Tooltip title="Chèn ảnh vào ô này">
+                                <IconButton onClick={() => fileInputRef.current.click()} disabled={uploading} color="primary">
+                                    {uploading ? <CircularProgress size={20} /> : <AddPhotoAlternateIcon />}
+                                </IconButton>
+                            </Tooltip>
                         </InputAdornment>
                     ),
                 }}
@@ -50,10 +54,11 @@ const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
     );
 };
 
-// COMPONENT HIỂN THỊ CÔNG THỨC & ẢNH TRONG LIST CÂU HỎI
+// 🟢 BỘ RENDER THÔNG MINH - ĐÃ ĐƯỢC BẢO VỆ CHỐNG LỖI HIỂN THỊ
 const RenderSmartContent = ({ text }) => {
-    if (!text) return null;
-    const parts = text.split(/\[IMG:(.*?)\]/g);
+    if (text === null || text === undefined) return null;
+    const safeText = String(text); // Ép kiểu để đề phòng dữ liệu lưu trong DB bị nhầm thành số
+    const parts = safeText.split(/\[IMG:(.*?)\]/g);
     return <span>{parts.map((p, i) => i % 2 === 1 ? ' [🖼️ Hình ảnh] ' : p)}</span>;
 };
 
@@ -74,9 +79,8 @@ function ArenaEntry() {
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     const [qSettings, setQSettings] = useState({});
 
-    const [viewMode, setViewMode] = useState('system'); // system OR personal
+    const [viewMode, setViewMode] = useState('system');
 
-    // 🟢 STATE QUẢN LÝ THƯ MỤC
     const [folders, setFolders] = useState([]);
     const [selectedFolderId, setSelectedFolderId] = useState('ALL');
     const [openFolderModal, setOpenFolderModal] = useState(false);
@@ -100,36 +104,52 @@ function ArenaEntry() {
         }
     };
 
-    useEffect(() => { if (selectedGrade) axiosClient.get(`/topics/?grade=${selectedGrade}`).then(res => setTopics(res.data)); }, [selectedGrade]);
+    // 🟢 GỌI API AN TOÀN - KIỂM TRA MẢNG TRƯỚC KHI SET STATE
+    useEffect(() => { 
+        if (selectedGrade) {
+            axiosClient.get(`/topics/?grade=${selectedGrade}`)
+                .then(res => setTopics(Array.isArray(res.data) ? res.data : []))
+                .catch(() => setTopics([]));
+        }
+    }, [selectedGrade]);
     
-    // FETCH DỮ LIỆU KHI CHUYỂN TAB
     useEffect(() => {
         if (viewMode === 'system' && selectedTopic) {
             setLoadingQuestions(true);
-            axiosClient.get(`/arena/topic-questions/?topic_id=${selectedTopic}`).then(res => {
-                setQuestions(res.data);
-                const newSettings = { ...qSettings };
-                res.data.forEach(q => { if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" }; });
-                setQSettings(newSettings);
-            }).finally(() => setLoadingQuestions(false));
+            axiosClient.get(`/arena/topic-questions/?topic_id=${selectedTopic}`)
+                .then(res => {
+                    if (Array.isArray(res.data)) {
+                        setQuestions(res.data);
+                        const newSettings = { ...qSettings };
+                        res.data.forEach(q => { if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" }; });
+                        setQSettings(newSettings);
+                    } else { setQuestions([]); }
+                })
+                .catch(() => setQuestions([]))
+                .finally(() => setLoadingQuestions(false));
         } else if (viewMode === 'personal') {
-            // Lấy danh sách Thư mục
-            axiosClient.get('/arena/folders/').then(res => setFolders(res.data));
-            // Lấy danh sách câu hỏi cá nhân
+            axiosClient.get('/arena/folders/')
+                .then(res => setFolders(Array.isArray(res.data) ? res.data : []))
+                .catch(() => setFolders([]));
+
             setLoadingQuestions(true);
-            axiosClient.get('/arena/my-custom-questions/').then(res => {
-                setQuestions(res.data);
-                const newSettings = { ...qSettings };
-                res.data.forEach(q => { if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" }; });
-                setQSettings(newSettings);
-            }).finally(() => setLoadingQuestions(false));
+            axiosClient.get('/arena/my-custom-questions/')
+                .then(res => {
+                    if (Array.isArray(res.data)) {
+                        setQuestions(res.data);
+                        const newSettings = { ...qSettings };
+                        res.data.forEach(q => { if (!newSettings[q.id]) newSettings[q.id] = { selected: false, time: "20" }; });
+                        setQSettings(newSettings);
+                    } else { setQuestions([]); }
+                })
+                .catch(() => setQuestions([]))
+                .finally(() => setLoadingQuestions(false));
         }
     }, [selectedTopic, viewMode]);
 
     const handleToggleSelect = (id) => setQSettings(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id].selected } }));
     const handleTimeChange = (id, val) => { const numericVal = val.replace(/[^0-9]/g, ''); setQSettings(prev => ({ ...prev, [id]: { ...prev[id], time: numericVal, selected: true } })); };
 
-    // 🟢 HÀM TẠO THƯ MỤC MỚI
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) return;
         try {
@@ -138,10 +158,9 @@ function ArenaEntry() {
             setNewFolderName('');
             setOpenFolderModal(false);
             showToast('Tạo thư mục thành công!', 'success');
-        } catch (err) { showToast('Lỗi tạo thư mục!'); }
+        } catch (err) { showToast('Lỗi tạo thư mục! Có thể Backend chưa migrate.', 'error'); }
     };
 
-    // 🟢 HÀM LƯU CÂU HỎI VÀO THƯ MỤC
     const handleSaveCustomQuestion = async () => {
         if (!customQ.content.trim()) return showToast('Vui lòng nhập đề bài!', 'warning');
         const payload = {
@@ -178,10 +197,11 @@ function ArenaEntry() {
         }
     };
 
-    // Lọc câu hỏi theo thư mục nếu đang ở tab Personal
+    // 🟢 LỌC CÂU HỎI AN TOÀN
+    const safeQuestions = Array.isArray(questions) ? questions : [];
     const displayedQuestions = viewMode === 'personal' && selectedFolderId !== 'ALL' 
-        ? questions.filter(q => q.folder_id === selectedFolderId) 
-        : questions;
+        ? safeQuestions.filter(q => q.folder_id === selectedFolderId) 
+        : safeQuestions;
 
     const labelChars = ['A', 'B', 'C', 'D'];
 
@@ -234,21 +254,20 @@ function ArenaEntry() {
                     {viewMode === 'system' && (
                         <Box display="flex" gap={2} mb={3}>
                             <FormControl fullWidth><InputLabel>Khối</InputLabel><Select value={selectedGrade} label="Khối" onChange={(e) => setSelectedGrade(e.target.value)}>{[12, 11, 10, 9, 8, 7, 6].map(g => <MenuItem key={g} value={g}>Lớp {g}</MenuItem>)}</Select></FormControl>
-                            <FormControl fullWidth disabled={!selectedGrade}><InputLabel>Chủ Đề (Server)</InputLabel><Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>{topics.map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}</Select></FormControl>
+                            <FormControl fullWidth disabled={!selectedGrade}><InputLabel>Chủ Đề (Server)</InputLabel><Select value={selectedTopic} label="Chủ Đề" onChange={(e) => setSelectedTopic(e.target.value)}>{(Array.isArray(topics) ? topics : []).map((t) => <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>)}</Select></FormControl>
                         </Box>
                     )}
 
-                    {/* 🟢 THANH QUẢN LÝ THƯ MỤC KHI Ở KHO CÁ NHÂN */}
                     {viewMode === 'personal' && (
                         <Box display="flex" alignItems="center" gap={2} mb={3} p={2} bgcolor="rgba(230, 126, 34, 0.1)" borderRadius={2} border="1px dashed #e67e22">
                             <FormControl fullWidth size="small">
                                 <InputLabel>Lọc theo Thư mục</InputLabel>
                                 <Select value={selectedFolderId} label="Lọc theo Thư mục" onChange={(e) => setSelectedFolderId(e.target.value)}>
                                     <MenuItem value="ALL">-- Hiển thị Tất cả câu hỏi của tôi --</MenuItem>
-                                    {folders.map(f => <MenuItem key={f.id} value={f.id}>📁 {f.name}</MenuItem>)}
+                                    {(Array.isArray(folders) ? folders : []).map(f => <MenuItem key={f.id} value={f.id}>📁 {f.name}</MenuItem>)}
                                 </Select>
                             </FormControl>
-                            <Button variant="contained" color="warning" onClick={() => setOpenFolderModal(true)} startIcon={<CreateNewFolderIcon />} sx={{ whiteSpace: 'nowrap' }}>Tạo Thư mục mới</Button>
+                            <Button variant="contained" color="warning" onClick={() => setOpenFolderModal(true)} startIcon={<AddCircleOutlineIcon />} sx={{ whiteSpace: 'nowrap' }}>Tạo Thư mục mới</Button>
                         </Box>
                     )}
 
@@ -273,7 +292,6 @@ function ArenaEntry() {
                 <DialogActions sx={{ p: 2 }}><Button onClick={() => setOpenCreateModal(false)}>Hủy</Button><Button onClick={submitCreateArena} variant="contained" sx={{ bgcolor: '#4a148c' }}>Khởi tạo Đấu Trường</Button></DialogActions>
             </Dialog>
 
-            {/* 🟢 MODAL TẠO THƯ MỤC NHỎ */}
             <Dialog open={openFolderModal} onClose={() => setOpenFolderModal(false)} maxWidth="xs" fullWidth>
                 <DialogTitle sx={{ fontWeight: 'bold' }}>Tạo Thư Mục Mới</DialogTitle>
                 <DialogContent>
@@ -285,17 +303,15 @@ function ArenaEntry() {
                 </DialogActions>
             </Dialog>
 
-            {/* MODAL SOẠN CÂU HỎI THÔNG MINH */}
             <Dialog open={openCustomQModal} onClose={() => setOpenCustomQModal(false)} fullWidth maxWidth="md">
                 <DialogTitle sx={{ bgcolor: '#f39c12', color: 'white', fontWeight: 'bold' }}>Tự soạn Câu hỏi</DialogTitle>
                 <DialogContent sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     
-                    {/* CHỌN THƯ MỤC ĐỂ LƯU */}
                     <FormControl fullWidth size="small" sx={{ mt: 1 }}>
                         <InputLabel>Lưu vào Thư mục</InputLabel>
                         <Select value={customQ.folder_id} label="Lưu vào Thư mục" onChange={(e) => setCustomQ({...customQ, folder_id: e.target.value})}>
                             <MenuItem value="">-- Không phân loại (Nằm tự do ngoài kho) --</MenuItem>
-                            {folders.map(f => <MenuItem key={f.id} value={f.id}>📁 {f.name}</MenuItem>)}
+                            {(Array.isArray(folders) ? folders : []).map(f => <MenuItem key={f.id} value={f.id}>📁 {f.name}</MenuItem>)}
                         </Select>
                     </FormControl>
 
