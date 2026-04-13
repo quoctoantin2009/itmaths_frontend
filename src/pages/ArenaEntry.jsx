@@ -16,7 +16,6 @@ import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-// 🟢 Ô NHẬP LIỆU THÔNG MINH - ĐƯỢC BẢO VỆ GIÁ TRỊ NULL
 const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
     const fileInputRef = useRef();
     const [uploading, setUploading] = useState(false);
@@ -61,7 +60,6 @@ const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
     );
 };
 
-// 🟢 BỘ RENDER CHỐNG SẬP - NẾU DỮ LIỆU SAI KIỂU VẪN KHÔNG CRASH
 const RenderSmartContent = ({ text }) => {
     try {
         if (text === null || text === undefined) return null;
@@ -85,7 +83,12 @@ function ArenaEntry() {
     const [pin, setPin] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    
+    // 🟢 KHAI BÁO ĐẦY ĐỦ CÁC HÀM QUẢN LÝ TOAST (ĐÃ FIX LỖI)
     const [toast, setToast] = useState({ open: false, message: '', type: 'error' });
+    const showToast = (message, type = 'error') => setToast({ open: true, message, type });
+    const handleCloseToast = () => setToast({ ...toast, open: false });
+
     const [openScanner, setOpenScanner] = useState(false);
     const [openGuide, setOpenGuide] = useState(false);
 
@@ -112,8 +115,6 @@ function ArenaEntry() {
         optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }]
     });
 
-    const showToast = (message, type = 'error') => setToast({ open: true, message, type });
-
     const handleScanSuccess = (result) => {
         if (result && result.length > 0 && result[0]?.rawValue) {
             const raw = String(result[0].rawValue);
@@ -124,7 +125,6 @@ function ArenaEntry() {
         }
     };
 
-    // 🟢 BẢO VỆ API: TỰ ĐỘNG CHUYỂN DATA THÀNH MẢNG RỖNG NẾU API TRẢ VỀ LỖI
     useEffect(() => { 
         if (selectedGrade) {
             axiosClient.get(`/topics/?grade=${selectedGrade}`)
@@ -225,7 +225,6 @@ function ArenaEntry() {
         }
     };
 
-    // ĐẢM BẢO MẢNG LUÔN TỒN TẠI
     const safeQuestions = Array.isArray(questions) ? questions : [];
     const safeTopics = Array.isArray(topics) ? topics : [];
     const safeFolders = Array.isArray(folders) ? folders : [];
@@ -394,7 +393,9 @@ function ArenaEntry() {
                 <DialogActions sx={{ p: 2 }}><Button onClick={() => setOpenCustomQModal(false)}>Hủy bỏ</Button><Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>Lưu Câu Hỏi</Button></DialogActions>
             </Dialog>
 
-            <Snackbar open={toast.open} autoHideDuration={4000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}><Alert severity={toast.type} variant="filled">{toast.message}</Alert></Snackbar>
+            <Snackbar open={toast.open} autoHideDuration={4000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+                <Alert severity={toast.type} variant="filled">{toast.message}</Alert>
+            </Snackbar>
         </Box>
     );
 }
