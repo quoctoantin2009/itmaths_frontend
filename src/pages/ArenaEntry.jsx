@@ -13,6 +13,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'; 
+import DeleteIcon from '@mui/icons-material/Delete'; // 🟢 IMPORT ICON THÙNG RÁC
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
@@ -173,7 +174,6 @@ function ArenaEntry() {
     const handleToggleSelect = (id) => setQSettings(prev => ({ ...prev, [id]: { ...(prev[id] || {}), selected: !(prev[id]?.selected) } }));
     const handleTimeChange = (id, val) => { const numericVal = String(val || '').replace(/[^0-9]/g, ''); setQSettings(prev => ({ ...prev, [id]: { ...(prev[id] || {}), time: numericVal, selected: true } })); };
 
-    // 🟢 TỐI ƯU UX: TẠO THƯ MỤC XONG BẬT LUÔN FORM SOẠN CÂU HỎI
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) return;
         try {
@@ -182,14 +182,9 @@ function ArenaEntry() {
             setFolders([newFolder, ...(Array.isArray(folders) ? folders : [])]);
             setNewFolderName('');
             setOpenFolderModal(false);
-            
-            // 1. Tự động chọn thư mục vừa tạo
             setSelectedFolderId(newFolder.id);
-            // 2. Gắn sẵn ID thư mục đó vào Form soạn câu hỏi
             setCustomQ(prev => ({ ...prev, folder_id: newFolder.id }));
-            // 3. Mở thẳng Cửa sổ soạn câu hỏi
             setOpenCustomQModal(true);
-            
             showToast('Tạo thư mục thành công! Mời Thầy/Cô nhập đề bài.', 'success');
         } catch (err) { showToast('Lỗi tạo thư mục! Có thể Backend chưa migrate.', 'error'); }
     };
@@ -210,8 +205,6 @@ function ArenaEntry() {
             setQSettings(prev => ({ ...prev, [res.data?.id]: { selected: true, time: "30" } }));
             showToast('Đã lưu câu hỏi vào thư mục!', 'success');
             setOpenCustomQModal(false);
-            
-            // 🟢 TỐI ƯU UX: GIỮ NGUYÊN folder_id ĐỂ TẠO CÂU SAU NHANH HƠN
             setCustomQ({ 
                 folder_id: customQ.folder_id, 
                 content: '', question_type: 'MCQ', explanation: '', shortAnswer: '', 
@@ -219,6 +212,18 @@ function ArenaEntry() {
                 optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }] 
             });
         } catch (err) { showToast('Lỗi khi lưu câu hỏi.', 'error'); }
+    };
+
+    // 🟢 HÀM XÓA CÂU HỎI
+    const handleDeleteQuestion = async (id) => {
+        if (!window.confirm("Bạn có chắc chắn muốn xóa câu hỏi này khỏi kho cá nhân không? Thao tác này không thể hoàn tác.")) return;
+        try {
+            await axiosClient.delete(`/arena/custom-questions/${id}/delete/`);
+            setQuestions(questions.filter(q => q.id !== id));
+            showToast('Đã xóa câu hỏi thành công!', 'success');
+        } catch (err) {
+            showToast('Lỗi khi xóa câu hỏi. Vui lòng thử lại!', 'error');
+        }
     };
 
     const submitCreateArena = async () => {
@@ -285,7 +290,6 @@ function ArenaEntry() {
                 <DialogTitle sx={{ bgcolor: '#4a148c', color: 'white', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Cài đặt Trận Đấu</span>
                     <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={() => {
-                        // 🟢 TỐI ƯU UX: Nếu bấm "Tự soạn" từ màn hình chính, tự bắt luôn Thư mục đang lọc
                         setCustomQ(prev => ({ 
                             ...prev, 
                             folder_id: (viewMode === 'personal' && selectedFolderId !== 'ALL') ? selectedFolderId : '' 
@@ -335,6 +339,15 @@ function ArenaEntry() {
                                         secondary={<Box display="flex" gap={1} mt={0.5}>{getTypeLabel(q?.question_type)}{q?.is_private && <Chip label="Của tôi" color="warning" size="small" />}</Box>} sx={{ mr: 2 }} 
                                     />
                                     <TextField size="small" label="Số giây" value={qSettings[q?.id]?.time !== undefined ? qSettings[q?.id].time : "20"} onChange={(e) => handleTimeChange(q?.id, e.target.value)} sx={{ width: 100 }} inputProps={{ inputMode: 'numeric' }} InputProps={{ startAdornment: (<InputAdornment position="start"><TimerIcon fontSize="small" color={qSettings[q?.id]?.selected ? "primary" : "inherit"} /></InputAdornment>) }} />
+                                    
+                                    {/* 🟢 NÚT XÓA CÂU HỎI */}
+                                    {q?.is_private && (
+                                        <Tooltip title="Xóa câu hỏi này">
+                                            <IconButton color="error" onClick={() => handleDeleteQuestion(q.id)} sx={{ ml: 1 }}>
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
                                 </ListItem>
                             ))}
                             {displayedQuestions.length === 0 && <Typography p={3} textAlign="center" color="gray">Chưa có câu hỏi nào trong mục này.</Typography>}
