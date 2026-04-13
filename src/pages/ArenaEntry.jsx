@@ -13,7 +13,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'; 
-import DeleteIcon from '@mui/icons-material/Delete'; // 🟢 IMPORT ICON THÙNG RÁC
+import DeleteIcon from '@mui/icons-material/Delete'; 
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
@@ -107,6 +107,9 @@ function ArenaEntry() {
     const [selectedFolderId, setSelectedFolderId] = useState('ALL');
     const [openFolderModal, setOpenFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
+
+    // 🟢 STATE CHO POPUP XÓA CÂU HỎI
+    const [deleteConfirm, setDeleteConfirm] = useState({ open: false, questionId: null });
 
     const [openCustomQModal, setOpenCustomQModal] = useState(false);
     const [customQ, setCustomQ] = useState({
@@ -214,9 +217,15 @@ function ArenaEntry() {
         } catch (err) { showToast('Lỗi khi lưu câu hỏi.', 'error'); }
     };
 
-    // 🟢 HÀM XÓA CÂU HỎI
-    const handleDeleteQuestion = async (id) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa câu hỏi này khỏi kho cá nhân không? Thao tác này không thể hoàn tác.")) return;
+    // 🟢 HÀM BẬT POPUP XÓA CÂU HỎI
+    const handleDeleteQuestion = (id) => {
+        setDeleteConfirm({ open: true, questionId: id });
+    };
+
+    // 🟢 HÀM XỬ LÝ XÓA CHÍNH THỨC
+    const processDelete = async () => {
+        const id = deleteConfirm.questionId;
+        setDeleteConfirm({ open: false, questionId: null });
         try {
             await axiosClient.delete(`/arena/custom-questions/${id}/delete/`);
             setQuestions(questions.filter(q => q.id !== id));
@@ -340,7 +349,6 @@ function ArenaEntry() {
                                     />
                                     <TextField size="small" label="Số giây" value={qSettings[q?.id]?.time !== undefined ? qSettings[q?.id].time : "20"} onChange={(e) => handleTimeChange(q?.id, e.target.value)} sx={{ width: 100 }} inputProps={{ inputMode: 'numeric' }} InputProps={{ startAdornment: (<InputAdornment position="start"><TimerIcon fontSize="small" color={qSettings[q?.id]?.selected ? "primary" : "inherit"} /></InputAdornment>) }} />
                                     
-                                    {/* 🟢 NÚT XÓA CÂU HỎI */}
                                     {q?.is_private && (
                                         <Tooltip title="Xóa câu hỏi này">
                                             <IconButton color="error" onClick={() => handleDeleteQuestion(q.id)} sx={{ ml: 1 }}>
@@ -427,6 +435,21 @@ function ArenaEntry() {
                     <SmartTextField label="Lời giải chi tiết (Sẽ hiện trên Tivi khi hết giờ)" value={customQ?.explanation || ''} onChange={(v) => setCustomQ({...customQ, explanation: v})} />
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}><Button onClick={() => setOpenCustomQModal(false)}>Hủy bỏ</Button><Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>Lưu Câu Hỏi</Button></DialogActions>
+            </Dialog>
+
+            {/* 🟢 CỬA SỔ CONFIRM XÓA CÂU HỎI ĐẸP MẮT CỦA MATERIAL UI */}
+            <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, questionId: null })} maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    ⚠️ Xác nhận xóa
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1">Bạn có chắc chắn muốn xóa câu hỏi này khỏi kho cá nhân không?</Typography>
+                    <Typography variant="body2" color="error" mt={1}>Thao tác này sẽ xóa vĩnh viễn và không thể hoàn tác!</Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setDeleteConfirm({ open: false, questionId: null })} color="inherit">Hủy bỏ</Button>
+                    <Button onClick={processDelete} variant="contained" color="error">Xóa vĩnh viễn</Button>
+                </DialogActions>
             </Dialog>
 
             <Snackbar open={toast.open} autoHideDuration={4000} onClose={handleCloseToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}><Alert severity={toast.type} variant="filled">{toast.message}</Alert></Snackbar>
