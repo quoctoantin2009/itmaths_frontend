@@ -29,9 +29,11 @@ const formatLatexText = (text) => {
     return parts.join('');
 };
 
+// 🟢 BỘ RENDER ĐÃ ĐƯỢC BỌC KHIÊN BẢO VỆ (CHỐNG LỖI MÀN HÌNH TRẮNG)
 const RenderSmartContent = ({ text }) => {
-    if (!text) return null;
-    const parts = text.split(/\[IMG:(.*?)\]/g);
+    if (text === null || text === undefined) return null;
+    const safeText = String(text); // Ép kiểu an toàn sang chuỗi
+    const parts = safeText.split(/\[IMG:(.*?)\]/g);
     return (
         <Box sx={{ textAlign: 'left', display: 'inline-block', width: '100%' }}>
             {parts.map((part, idx) => {
@@ -79,10 +81,7 @@ function ArenaPlayer() {
                     setTimeLeft(time_limit || 20); setShortAnswer(''); setTfAnswers({});
                     break;
                 case 'answer_received':
-                    // 🟢 BẢO MẬT: CHỈ CỘNG ĐIỂM KHI SERVER CHO PHÉP & TÍNH TOÁN XONG
-                    if (player_name === playerName) {
-                        setScore(prev => prev + score_earned);
-                    }
+                    if (player_name === playerName) setScore(prev => prev + score_earned);
                     break;
                 case 'game_ended': setStatus('podium'); break;
             }
@@ -98,7 +97,6 @@ function ArenaPlayer() {
         }
     }, [timeLeft, status, hasAnswered]);
 
-    // 🟢 BẢO MẬT: HỌC SINH CHỈ GỬI ĐÁP ÁN THÔ LÊN SERVER, KHÔNG GỬI ĐIỂM
     const submitFinalAnswer = (answerData) => {
         setHasAnswered(true);
         sendJsonMessage({ action: 'submit_answer', player_name: playerName, answer_data: answerData });
@@ -107,7 +105,9 @@ function ArenaPlayer() {
     const handleMCQAnswer = (idx) => submitFinalAnswer(`OPTION_${idx}`);
     const handleShortAnswerSubmit = () => { if (shortAnswer.trim()) submitFinalAnswer(shortAnswer); };
     const handleTFSubmit = () => {
-        if (Object.keys(tfAnswers).length < (currentQuestion.options?.length || 4)) return alert('Vui lòng chọn Đúng/Sai cho tất cả các ý!');
+        // Bảo vệ an toàn nếu mảng options bị null
+        const optionCount = currentQuestion?.options?.length || 4;
+        if (Object.keys(tfAnswers).length < optionCount) return alert('Vui lòng chọn Đúng/Sai cho tất cả các ý!');
         submitFinalAnswer(tfAnswers); 
     };
 
@@ -139,7 +139,8 @@ function ArenaPlayer() {
 
                     {!hasAnswered && timeLeft > 0 ? (
                         <Box flex={1} display="flex" flexDirection="column" gap={2}>
-                            {currentQuestion.type === 'MCQ' && currentQuestion.options.map((opt, idx) => (
+                            {/* Dùng toán tử ?. để bảo vệ hàm map() */}
+                            {currentQuestion.type === 'MCQ' && currentQuestion.options?.map((opt, idx) => (
                                 <Button key={idx} fullWidth variant="contained" onClick={() => handleMCQAnswer(idx)} sx={{ bgcolor: colorPalette[idx], '&:hover': { bgcolor: colorPalette[idx], filter: 'brightness(0.9)' }, justifyContent: 'flex-start', borderRadius: 3, p: 2, gap: 2, textTransform: 'none' }}>
                                     <Typography variant="h5" fontWeight="bold">{shapes[idx]}</Typography>
                                     <Typography variant="body1" fontWeight="bold" fontSize="1.1rem" textAlign="left" sx={{ width: '100%' }}>{String.fromCharCode(65 + idx)}. <RenderSmartContent text={opt} /></Typography>
@@ -147,7 +148,7 @@ function ArenaPlayer() {
                             ))}
                             {currentQuestion.type === 'TF' && (
                                 <Box display="flex" flexDirection="column" gap={1.5}>
-                                    {currentQuestion.options.map((opt, idx) => (
+                                    {currentQuestion.options?.map((opt, idx) => (
                                         <Paper key={idx} sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #3498db' }}>
                                             <Typography variant="body1" mb={1} fontWeight="bold" sx={{ lineHeight: 1.5 }}>Ý {String.fromCharCode(65 + idx)}: <RenderSmartContent text={opt} /></Typography>
                                             <FormControl component="fieldset">

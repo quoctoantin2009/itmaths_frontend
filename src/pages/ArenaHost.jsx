@@ -48,20 +48,18 @@ const formatLatexText = (text) => {
     return parts.join('');
 };
 
-// 🟢 BỘ RENDER THÔNG MINH: VỪA VẼ TOÁN HỌC, VỪA VẼ ẢNH
+// 🟢 BỘ RENDER ĐÃ ĐƯỢC BỌC KHIÊN BẢO VỆ 
 const RenderSmartContent = ({ text }) => {
-    if (!text) return null;
-    // Tự động tìm và tách các mã ảnh [IMG:link] ra khỏi văn bản
-    const parts = text.split(/\[IMG:(.*?)\]/g);
+    if (text === null || text === undefined) return null;
+    const safeText = String(text);
+    const parts = safeText.split(/\[IMG:(.*?)\]/g);
     
     return (
         <Box sx={{ textAlign: 'left', display: 'inline-block', width: '100%' }}>
             {parts.map((part, idx) => {
-                // Nếu là URL ảnh (nằm ở index lẻ do regex)
                 if (idx % 2 === 1) {
                     return <Box key={idx} component="img" src={part} alt="Minh hoạ" sx={{ maxWidth: '100%', maxHeight: '250px', borderRadius: 2, display: 'block', mx: 'auto', my: 2, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />;
                 } 
-                // Nếu là văn bản/công thức toán học bình thường
                 else if (part.trim()) {
                     return <Latex key={idx} delimiters={latexDelimiters}>{formatLatexText(part)}</Latex>;
                 }
@@ -155,7 +153,7 @@ function ArenaHost() {
     const handleNextQuestion = () => sendJsonMessage({ action: 'host_next_question' });
 
     const isLongTextMCQ = currentQuestion?.type === 'MCQ' 
-        ? currentQuestion.options.some(opt => opt.length > 45) : false;
+        ? currentQuestion.options?.some(opt => opt.length > 45) : false;
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#2c3e50', color: 'white', p: 3, display: 'flex', flexDirection: 'column' }}>
@@ -214,20 +212,19 @@ function ArenaHost() {
                     
                     <Paper sx={{ p: 4, mb: 4, mt: 2, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="h4" color="black" fontWeight="bold" sx={{ lineHeight: 1.5, width: '100%' }}>
-                            {/* 🟢 Đã đổi sang RenderSmartContent */}
                             <RenderSmartContent text={currentQuestion.text} />
                         </Typography>
                     </Paper>
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
                         
+                        {/* Dùng toán tử ?. bảo vệ vòng lặp */}
                         {currentQuestion.type === 'MCQ' && (
                             <Box sx={{ display: 'grid', gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', gap: 2, mb: 4 }}>
-                                {currentQuestion.options.map((opt, idx) => (
+                                {currentQuestion.options?.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 3, bgcolor: colorPalette[idx], color: 'white', borderRadius: 3, display: 'flex', alignItems: 'center', gap: 3, minHeight: '100px' }}>
                                         <Typography variant="h3" fontWeight="bold" sx={{ minWidth: '40px' }}>{shapes[idx]}</Typography>
                                         <Typography variant="h5" fontWeight="bold" textAlign="left" sx={{ flex: 1, wordBreak: 'break-word', width: '100%' }}>
-                                            {/* 🟢 Đã đổi sang RenderSmartContent */}
                                             {String.fromCharCode(65 + idx)}. <RenderSmartContent text={opt} />
                                         </Typography>
                                     </Paper>
@@ -237,10 +234,9 @@ function ArenaHost() {
 
                         {currentQuestion.type === 'TF' && (
                             <Box display="flex" flexDirection="column" gap={2} mb={4}>
-                                {currentQuestion.options.map((opt, idx) => (
+                                {currentQuestion.options?.map((opt, idx) => (
                                     <Paper key={idx} sx={{ p: 2, px: 4, borderRadius: 2, borderLeft: '10px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <Typography variant="h5" fontWeight="bold" color="black" textAlign="left" sx={{ flex: 1, width: '100%' }}>
-                                            {/* 🟢 Đã đổi sang RenderSmartContent */}
                                             Ý {String.fromCharCode(65 + idx)}: <RenderSmartContent text={opt} />
                                         </Typography>
                                         <FormControl component="fieldset">
@@ -254,7 +250,6 @@ function ArenaHost() {
                             </Box>
                         )}
 
-                        {/* 🟢 KHU VỰC LỜI GIẢI CHI TIẾT */}
                         {timeLeft === 0 && (
                             <Paper sx={{ 
                                 p: 3, mb: 4, bgcolor: 'white', border: '3px solid #2ecc71', 
@@ -265,7 +260,6 @@ function ArenaHost() {
                                 </Typography>
                                 <Typography variant="h5" color="black" sx={{ lineHeight: 1.6, fontWeight: '500', width: '100%' }}>
                                     {currentQuestion.explanation ? (
-                                        // 🟢 Đã đổi sang RenderSmartContent
                                         <RenderSmartContent text={currentQuestion.explanation} />
                                     ) : (
                                         "👉 Mời Giáo viên phân tích và giải thích đáp án cho học sinh..."
