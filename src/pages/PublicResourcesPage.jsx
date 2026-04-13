@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { 
-    Box, Container, Typography, Paper, Tabs, Tab, Grid, 
-    Card, CardContent, Divider, List, ListItem, ListItemIcon, ListItemText 
+    Box, Container, Typography, Paper, Tabs, Tab, 
+    Divider, List, ListItem, ListItemIcon, ListItemText, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material';
 
-// Icons
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InfoIcon from '@mui/icons-material/Info';
 import SchoolIcon from '@mui/icons-material/School';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import ArticleIcon from '@mui/icons-material/Article';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import GroupIcon from '@mui/icons-material/Group';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import PostAddIcon from '@mui/icons-material/PostAdd';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
-import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const PublicResourcesPage = () => {
     const [tabValue, setTabValue] = useState(0);
@@ -50,174 +51,158 @@ const PublicResourcesPage = () => {
                     >
                         <Tab icon={<InfoIcon />} label="Giới thiệu & Hướng dẫn" sx={{ fontWeight: 'bold', py: 2 }} />
                         <Tab icon={<SchoolIcon />} label="Phương pháp học" sx={{ fontWeight: 'bold', py: 2 }} disabled />
-                        <Tab icon={<MenuBookIcon />} label="Tài liệu & Phầm mềm" sx={{ fontWeight: 'bold', py: 2 }} disabled />
+                        <Tab icon={<MenuBookIcon />} label="Tài liệu & Phần mềm" sx={{ fontWeight: 'bold', py: 2 }} disabled />
                         <Tab icon={<ArticleIcon />} label="Tin tức giáo dục" sx={{ fontWeight: 'bold', py: 2 }} disabled />
                     </Tabs>
 
                     <Box sx={{ p: { xs: 3, md: 5 }, bgcolor: '#fff' }}>
                         {tabValue === 0 && (
                             <Box>
-                                {/* PHẦN 1: GIỚI THIỆU CHUNG */}
-                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
-                                    Chào mừng đến với hệ sinh thái ITMaths
-                                </Typography>
-                                <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#444' }}>
-                                    <strong>ITMaths.vn</strong> không chỉ là một website thi trắc nghiệm thông thường, mà là một nền tảng chuyển đổi số toàn diện dành riêng cho môn Toán. Chúng tôi kết hợp giữa <b>Hệ thống quản lý học tập (LMS)</b>, <b>Tương tác thời gian thực (Gamification)</b>, và <b>Trí tuệ nhân tạo (AI)</b> để mang lại trải nghiệm giảng dạy - học tập hiện đại, chủ động và tối ưu nhất.
-                                </Typography>
-                                <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#444' }}>
-                                    Hệ thống được thiết kế bám sát định dạng thi mới nhất của Bộ GD&ĐT (Trắc nghiệm nhiều lựa chọn, Đúng/Sai, và Trả lời ngắn), hỗ trợ hiển thị công thức Toán học (LaTeX) và hình ảnh đồ thị sắc nét.
-                                </Typography>
-
-                                <Box sx={{ my: 4, p: 3, bgcolor: '#f3e5f5', borderRadius: 3, borderLeft: '6px solid #9c27b0' }}>
-                                    <Typography variant="h6" fontWeight="bold" color="#7b1fa2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <AutoAwesomeIcon /> Đặc quyền nổi bật
+                                {/* PHẦN 1: GIỚI THIỆU TỔNG QUAN ITMATHS */}
+                                <Box mb={6}>
+                                    <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ borderBottom: '3px solid #9c27b0', display: 'inline-block', pb: 1 }}>
+                                        ITMaths - Nền tảng học Toán Số hóa Toàn diện
                                     </Typography>
-                                    <List>
-                                        {['Tích hợp Gia sư AI (Gemini) hỗ trợ giải đáp thắc mắc 24/7 qua chat và hình ảnh.',
-                                          'Quản lý lớp học thông minh, tự động chấm điểm và xuất bảng điểm Excel.',
-                                          'Chế độ Đấu trường trực tiếp (Live Arena) giúp tiết học bùng nổ cảm xúc.'].map((text, idx) => (
-                                            <ListItem key={idx} sx={{ py: 0.5 }}>
-                                                <ListItemIcon sx={{ minWidth: 35 }}><CheckCircleIcon color="secondary" fontSize="small" /></ListItemIcon>
-                                                <ListItemText primary={text} />
-                                            </ListItem>
-                                        ))}
-                                    </List>
+                                    
+                                    <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#444', mt: 3 }}>
+                                        Chào mừng bạn đến với <strong>ITMaths</strong>! Được ấp ủ và phát triển với mong muốn mang công nghệ vào bục giảng, ITMaths không chỉ là một trang web thi trắc nghiệm đơn thuần, mà là một hệ sinh thái học tập khép kín. 
+                                    </Typography>
+                                    
+                                    <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#444' }}>
+                                        Với sự tích hợp mạnh mẽ của <b>Trí tuệ nhân tạo (AI)</b> và phương pháp <b>Học tập qua trò chơi (Gamification)</b>, chúng tôi hướng tới việc cá nhân hóa trải nghiệm của từng học sinh, giúp các em tự học một cách chủ động, qua đó góp phần giảm tải áp lực học thêm ngoài giờ. Đối với giáo viên, ITMaths cung cấp một bộ công cụ quyền lực để quản lý lớp học, soạn đề thi chuẩn format của Bộ GD&ĐT (đặc biệt xử lý mượt mà công thức LaTeX và đồ thị Toán học), và tự động hóa toàn bộ khâu chấm điểm.
+                                    </Typography>
+
+                                    <Box sx={{ mt: 3, p: 3, bgcolor: '#f3e5f5', borderRadius: 2 }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#7b1fa2" mb={2}>
+                                            🚀 3 Cột mốc sức mạnh của ITMaths:
+                                        </Typography>
+                                        <List disablePadding>
+                                            {[
+                                                'Quản lý học thuật chuẩn xác: Giao bài, giới hạn thời gian, tùy biến thang điểm chi tiết.',
+                                                'Tương tác bùng nổ: Đấu trường trực tiếp (Live Arena) mang không khí game show vào tận lớp học.',
+                                                'Gia sư AI 24/7: Sẵn sàng giải đáp, phân tích bài toán qua ảnh chụp bất cứ lúc nào học sinh cần.'
+                                            ].map((text, idx) => (
+                                                <ListItem key={idx} sx={{ py: 0.5, px: 0 }}>
+                                                    <ListItemIcon sx={{ minWidth: 35 }}><CheckCircleIcon color="secondary" /></ListItemIcon>
+                                                    <ListItemText primary={<Typography sx={{ fontSize: '1.05rem', color: '#333' }}>{text}</Typography>} />
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    </Box>
                                 </Box>
 
-                                <Divider sx={{ my: 5 }} />
-
-                                {/* PHẦN 2: HƯỚNG DẪN SỬ DỤNG DÀNH CHO GIÁO VIÊN */}
-                                <Typography variant="h4" fontWeight="bold" color="secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                    <SchoolIcon fontSize="large" /> Cẩm nang dành cho Giáo viên
-                                </Typography>
-                                <Typography variant="body1" color="textSecondary" paragraph mb={4}>
-                                    Biến ITMaths thành trợ thủ đắc lực của bạn chỉ với 4 công cụ cốt lõi sau đây:
+                                {/* PHẦN 2: HƯỚNG DẪN SỬ DỤNG CHI TIẾT THEO TRÌNH TỰ */}
+                                <Typography variant="h4" fontWeight="bold" color="secondary" gutterBottom sx={{ borderBottom: '3px solid #ffca28', display: 'inline-block', pb: 1, mb: 4 }}>
+                                    Cẩm nang vận hành hệ thống (Dành cho Giáo viên)
                                 </Typography>
 
-                                <Grid container spacing={4}>
-                                    {/* Bước 1: Kho Đề */}
-                                    <Grid item xs={12} md={6}>
-                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #3498db' }}>
-                                            <CardContent>
-                                                <Typography variant="h6" fontWeight="bold" color="#2980b9" gutterBottom>
-                                                    1. Quản lý Kho Đề Cá Nhân
-                                                </Typography>
-                                                <Typography variant="body2" paragraph color="#555">
-                                                    Nơi lưu trữ "tài sản trí tuệ" của riêng bạn. Không lo lẫn lộn với dữ liệu hệ thống.
-                                                </Typography>
-                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
-                                                    <li><b>Tạo Thư mục:</b> Phân loại đề theo khối, chương (VD: Đại số 12).</li>
-                                                    <li><b>Soạn Câu hỏi:</b> Nhập câu hỏi vào kho chung bằng trình soạn thảo hỗ trợ Toán học và Hình ảnh.</li>
-                                                    <li><b>Lắp ráp Đề thi:</b> Tạo một Đề thi mới, mở <i>Trình biên soạn 2 cột</i> và bấm dấu <b>(+)</b> để "bốc" câu hỏi từ kho thả vào đề thi cực kỳ nhanh chóng.</li>
-                                                </ul>
-                                            </CardContent>
-                                        </Card>
-                                    </Grid>
-
-                                    {/* Bước 2: Lớp học */}
-                                    <Grid item xs={12} md={6}>
-                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #2ecc71' }}>
-                                            <CardContent>
-                                                <Typography variant="h6" fontWeight="bold" color="#27ae60" gutterBottom>
-                                                    2. Vận hành Lớp Học (LMS)
-                                                </Typography>
-                                                <Typography variant="body2" paragraph color="#555">
-                                                    Quản lý học sinh và tiến độ làm bài chuyên nghiệp.
-                                                </Typography>
-                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
-                                                    <li><b>Tạo Lớp:</b> Nhận ngay <i>Mã Lớp (Invite Code)</i> để gửi cho học sinh tham gia.</li>
-                                                    <li><b>Thảo luận:</b> Bảng tin chung cho phép đăng thông báo, hỏi đáp đính kèm hình ảnh.</li>
-                                                    <li><b>Bảng điểm:</b> Theo dõi kết quả từng em, xem lại chi tiết bài làm, và nhấn nút <b>Xuất Excel</b> để lưu trữ minh chứng.</li>
-                                                </ul>
-                                            </CardContent>
-                                        </Card>
-                                    </Grid>
-
-                                    {/* Bước 3: Giao bài */}
-                                    <Grid item xs={12} md={6}>
-                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #f39c12' }}>
-                                            <CardContent>
-                                                <Typography variant="h6" fontWeight="bold" color="#d35400" gutterBottom>
-                                                    3. Giao Bài Tập Nâng Cao
-                                                </Typography>
-                                                <Typography variant="body2" paragraph color="#555">
-                                                    Kiểm soát thời gian và điểm số gắt gao như một kỳ thi thật.
-                                                </Typography>
-                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
-                                                    <li><b>Chọn Nguồn Đề:</b> Có thể lấy từ <i>Ngân hàng Hệ thống</i> hoặc <i>Kho Đề Cá Nhân</i>.</li>
-                                                    <li><b>Cài đặt Thời gian:</b> Hẹn giờ mở đề và khóa đề tự động (Học sinh nộp trễ sẽ bị chặn).</li>
-                                                    <li><b>Tùy biến Điểm số:</b> Tự do xét điểm cho từng loại câu (Trắc nghiệm, Ngắn, Đúng/Sai với 4 mức điểm linh hoạt).</li>
-                                                    <li><b>Thu hồi:</b> Dễ dàng xóa bài tập khỏi lớp khi không cần thiết.</li>
-                                                </ul>
-                                            </CardContent>
-                                        </Card>
-                                    </Grid>
-
-                                    {/* Bước 4: Đấu trường */}
-                                    <Grid item xs={12} md={6}>
-                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #e74c3c' }}>
-                                            <CardContent>
-                                                <Typography variant="h6" fontWeight="bold" color="#c0392b" gutterBottom>
-                                                    4. Tổ chức Đấu Trường (Live)
-                                                </Typography>
-                                                <Typography variant="body2" paragraph color="#555">
-                                                    Thay đổi không khí lớp học bằng trò chơi trắc nghiệm tốc độ cao.
-                                                </Typography>
-                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
-                                                    <li><b>Tạo phòng:</b> Chọn các câu hỏi từ kho, hệ thống sẽ cấp một <b>Mã PIN</b>.</li>
-                                                    <li><b>Thi đấu:</b> Trình chiếu màn hình giáo viên (Host) lên bảng. Học sinh nhập PIN trên điện thoại để đua top.</li>
-                                                    <li><b>Bảng xếp hạng:</b> Cập nhật điểm số và chuỗi thắng (Streak) ngay lập tức sau mỗi câu hỏi.</li>
-                                                </ul>
-                                            </CardContent>
-                                        </Card>
-                                    </Grid>
-                                </Grid>
-
-                                <Divider sx={{ my: 5 }} />
-
-                                {/* PHẦN 3: HƯỚNG DẪN SỬ DỤNG DÀNH CHO HỌC SINH */}
-                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                    <RocketLaunchIcon fontSize="large" /> Hướng dẫn dành cho Học sinh
+                                <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', color: '#555', mb: 4 }}>
+                                    Để làm chủ hoàn toàn ITMaths, giáo viên chỉ cần thực hiện theo 5 bước logic dưới đây. Nhấp vào từng mục để xem hướng dẫn chi tiết:
                                 </Typography>
-                                <Box sx={{ mt: 3 }}>
-                                    <Grid container spacing={3}>
-                                        <Grid item xs={12} md={4}>
-                                            <Box sx={{ p: 3, bgcolor: '#e3f2fd', borderRadius: 3, height: '100%', textAlign: 'center' }}>
-                                                <GroupIcon sx={{ fontSize: 50, color: '#1976d2', mb: 1 }} />
-                                                <Typography variant="h6" fontWeight="bold" mb={1}>Gia nhập Lớp học</Typography>
-                                                <Typography variant="body2" color="textSecondary">
-                                                    Vào mục Lớp Học, nhấp "Tham gia lớp" và nhập mã Invite Code do giáo viên cung cấp để nhận bài tập về nhà.
-                                                </Typography>
-                                            </Box>
-                                        </Grid>
-                                        <Grid item xs={12} md={4}>
-                                            <Box sx={{ p: 3, bgcolor: '#e8f5e9', borderRadius: 3, height: '100%', textAlign: 'center' }}>
-                                                <AssignmentTurnedInIcon sx={{ fontSize: 50, color: '#388e3c', mb: 1 }} />
-                                                <Typography variant="h6" fontWeight="bold" mb={1}>Làm bài & Xem Lịch sử</Typography>
-                                                <Typography variant="body2" color="textSecondary">
-                                                    Trải nghiệm giao diện thi mượt mà. Nộp bài xong sẽ biết điểm ngay, xem lại được đáp án đúng và lời giải chi tiết.
-                                                </Typography>
-                                            </Box>
-                                        </Grid>
-                                        <Grid item xs={12} md={4}>
-                                            <Box sx={{ p: 3, bgcolor: '#fff3e0', borderRadius: 3, height: '100%', textAlign: 'center' }}>
-                                                <AutoAwesomeIcon sx={{ fontSize: 50, color: '#f57c00', mb: 1 }} />
-                                                <Typography variant="h6" fontWeight="bold" mb={1}>Hỏi bài cùng AI</Typography>
-                                                <Typography variant="body2" color="textSecondary">
-                                                    Sử dụng nút Chatbot góc dưới màn hình. Gõ câu hỏi hoặc tải ảnh chụp bài toán lên để "Gia sư AI" hướng dẫn cách giải ngay lập tức.
-                                                </Typography>
-                                            </Box>
-                                        </Grid>
-                                    </Grid>
-                                </Box>
+
+                                {/* BƯỚC 1: TẠO LỚP */}
+                                <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <GroupAddIcon color="primary" /> Bước 1: Khởi tạo Lớp học & Mời học sinh
+                                        </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ bgcolor: '#fff', p: 3 }}>
+                                        <Typography variant="body1" paragraph>
+                                            Lớp học (Classroom) là nền móng đầu tiên. Tại thanh Menu chính, chọn <b>"Lớp học"</b> &rarr; <b>"Tạo lớp mới"</b>.
+                                        </Typography>
+                                        <ul style={{ lineHeight: '1.8', color: '#444', fontSize: '1.05rem' }}>
+                                            <li>Nhập tên lớp (VD: 12A1), chọn khối lớp và chương trình (Cơ bản/Bồi dưỡng).</li>
+                                            <li>Sau khi tạo thành công, hệ thống sẽ cấp một <b>Mã Lớp (Invite Code)</b> gồm 6 ký tự.</li>
+                                            <li>Bạn gửi mã này cho học sinh. Học sinh đăng nhập, chọn "Tham gia lớp" và nhập mã để chính thức vào lớp của bạn.</li>
+                                        </ul>
+                                    </AccordionDetails>
+                                </Accordion>
+
+                                {/* BƯỚC 2: TẠO KHO ĐỀ */}
+                                <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <PostAddIcon color="secondary" /> Bước 2: Xây dựng Kho Câu hỏi & Đề thi Cá nhân
+                                        </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ bgcolor: '#fff', p: 3 }}>
+                                        <Typography variant="body1" paragraph>
+                                            Thay vì dùng đề chung, bạn có thể tự xây dựng "tài sản" riêng của mình tại mục <b>"Quản lý Đề"</b> trên thanh Menu.
+                                        </Typography>
+                                        <ul style={{ lineHeight: '1.8', color: '#444', fontSize: '1.05rem' }}>
+                                            <li><b>Tạo Thư mục:</b> Nhấn "Thư mục mới" để phân loại (VD: Ôn thi Đại học, Đề 15 phút).</li>
+                                            <li><b>Nạp câu hỏi:</b> Tại mục Đấu trường, bạn tự do gõ các câu hỏi (hỗ trợ nhập công thức LaTeX, chèn hình ảnh). Các câu này sẽ tự lưu vào kho cá nhân của bạn.</li>
+                                            <li><b>Lắp ráp Đề thi:</b> Tạo một "Đề thi mới" trong thư mục. Bấm vào "Soạn câu hỏi", màn hình sẽ chia 2 cột. Bạn chỉ việc bấm dấu <b>(+)</b> ở cột trái (Kho câu hỏi) để đẩy câu hỏi sang cột phải (Đề thi).</li>
+                                        </ul>
+                                    </AccordionDetails>
+                                </Accordion>
+
+                                {/* BƯỚC 3: GIAO BÀI */}
+                                <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <AssignmentIcon color="success" /> Bước 3: Giao Bài tập & Tùy biến Điểm số
+                                        </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ bgcolor: '#fff', p: 3 }}>
+                                        <Typography variant="body1" paragraph>
+                                            Vào lại Chi tiết Lớp học, tại tab <b>Bảng tin</b>, bạn sẽ thấy khung "Giao bài tập mới".
+                                        </Typography>
+                                        <ul style={{ lineHeight: '1.8', color: '#444', fontSize: '1.05rem' }}>
+                                            <li><b>Chọn Nguồn đề:</b> Gạt công tắc chọn lấy đề từ <i>Hệ thống</i> hoặc từ <i>Kho cá nhân</i> của bạn.</li>
+                                            <li><b>Cài đặt nâng cao:</b> Bật công tắc này để thiết lập <b>Thời gian mở/đóng đề</b>. Học sinh sẽ không thể làm bài nếu quá hạn.</li>
+                                            <li><b>Thang điểm tự do:</b> Bạn được quyền gõ điểm cho từng câu Trắc nghiệm, Trả lời ngắn. Đặc biệt với câu hỏi Đúng/Sai, bạn có thể chỉnh mức điểm cho việc học sinh trả lời đúng 1 ý, 2 ý, 3 ý hoặc cả 4 ý.</li>
+                                        </ul>
+                                        <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', color: 'red' }}>
+                                            * Mẹo: Nếu muốn thu hồi bài tập, hãy bấm vào biểu tượng thùng rác màu đỏ ngay trên bài tập đã đăng ở bảng tin.
+                                        </Typography>
+                                    </AccordionDetails>
+                                </Accordion>
+
+                                {/* BƯỚC 4: ĐẤU TRƯỜNG */}
+                                <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <SportsEsportsIcon color="error" /> Bước 4: Tổ chức Đấu Trường (Live Arena)
+                                        </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ bgcolor: '#fff', p: 3 }}>
+                                        <Typography variant="body1" paragraph>
+                                            Đây là tính năng "ăn tiền" nhất giúp thay đổi không khí lớp học, tương tự như Kahoot hay Blooket.
+                                        </Typography>
+                                        <ul style={{ lineHeight: '1.8', color: '#444', fontSize: '1.05rem' }}>
+                                            <li>Vào mục <b>Đấu trường</b> trên menu. Bấm <b>Tạo phòng mới</b>.</li>
+                                            <li>Chọn các câu hỏi bạn muốn kiểm tra tốc độ phản xạ của học sinh.</li>
+                                            <li>Hệ thống sẽ cấp một mã <b>PIN</b>. Bạn trình chiếu màn hình lớn của mình lên bảng. Học sinh truy cập ITMaths trên điện thoại, nhập PIN để vào phòng.</li>
+                                            <li>Giáo viên điều khiển nhịp độ chuyển câu. Bảng xếp hạng và chuỗi thắng (Streak) sẽ thay đổi liên tục theo thời gian thực!</li>
+                                        </ul>
+                                    </AccordionDetails>
+                                </Accordion>
+
+                                {/* BƯỚC 5: THỐNG KÊ & AI */}
+                                <Accordion sx={{ border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                            <AssessmentIcon color="info" /> Bước 5: Thống kê Điểm số & Hỗ trợ AI
+                                        </Typography>
+                                    </AccordionSummary>
+                                    <AccordionDetails sx={{ bgcolor: '#fff', p: 3 }}>
+                                        <ul style={{ lineHeight: '1.8', color: '#444', fontSize: '1.05rem' }}>
+                                            <li><b>Bảng điểm tự động:</b> Mở tab <i>Bảng điểm</i> trong Lớp học, bạn sẽ thấy toàn bộ lịch sử làm bài của học sinh. Có thể click vào biểu tượng con mắt để xem chi tiết bài làm, hoặc bấm <b>Xuất Excel</b> để nộp minh chứng cho nhà trường.</li>
+                                            <li><b>Trợ lý AI (Góc dưới màn hình):</b> Cả bạn và học sinh đều có thể nhấn vào biểu tượng Robot để hỏi đáp. AI của ITMaths được huấn luyện chuyên sâu để giải Toán, hỗ trợ nhận diện cả đề bài dưới dạng hình ảnh chụp từ điện thoại cực kỳ thông minh.</li>
+                                        </ul>
+                                    </AccordionDetails>
+                                </Accordion>
 
                                 {/* Lời kết */}
-                                <Box sx={{ mt: 6, textAlign: 'center', p: 4, borderTop: '1px solid #eee' }}>
-                                    <Typography variant="h5" fontWeight="bold" color="secondary" gutterBottom>
-                                        Sẵn sàng chinh phục Toán học cùng ITMaths?
+                                <Box sx={{ mt: 8, textAlign: 'center', p: 4, bgcolor: '#fdfbfb', borderRadius: 4, border: '1px dashed #ddd' }}>
+                                    <AutoAwesomeIcon sx={{ fontSize: 40, color: '#f1c40f', mb: 2 }} />
+                                    <Typography variant="h5" fontWeight="bold" color="#34495e" gutterBottom>
+                                        Hành trình chuyển đổi số môn Toán bắt đầu từ đây!
                                     </Typography>
                                     <Typography variant="body1" color="textSecondary" paragraph>
-                                        Hãy đăng nhập ngay hôm nay để bắt đầu xây dựng lộ trình giảng dạy và học tập hiệu quả nhất!
+                                        Bây giờ bạn đã nắm trong tay toàn bộ sức mạnh của ITMaths. Chúc bạn có những giờ giảng dạy thăng hoa và học sinh đạt được nhiều thành tích xuất sắc!
                                     </Typography>
                                 </Box>
 
