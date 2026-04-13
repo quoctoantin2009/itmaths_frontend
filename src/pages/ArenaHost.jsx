@@ -48,10 +48,10 @@ const formatLatexText = (text) => {
     return parts.join('');
 };
 
-// 🟢 BỘ RENDER ĐÃ ĐƯỢC BỌC KHIÊN BẢO VỆ 
+// 🟢 BỘ RENDER ĐÃ ĐƯỢC BỌC KHIÊN BẢO VỆ CHỐNG LỖI MÀN TRẮNG
 const RenderSmartContent = ({ text }) => {
     if (text === null || text === undefined) return null;
-    const safeText = String(text);
+    const safeText = String(text); // Ép kiểu an toàn sang chuỗi
     const parts = safeText.split(/\[IMG:(.*?)\]/g);
     
     return (
@@ -152,8 +152,9 @@ function ArenaHost() {
 
     const handleNextQuestion = () => sendJsonMessage({ action: 'host_next_question' });
 
+    // 🟢 BỌC KHIÊN BẢO VỆ CHO VÒNG LẶP KIỂM TRA ĐỘ DÀI
     const isLongTextMCQ = currentQuestion?.type === 'MCQ' 
-        ? currentQuestion.options?.some(opt => opt.length > 45) : false;
+        ? currentQuestion.options?.some(opt => opt && String(opt).length > 45) : false;
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#2c3e50', color: 'white', p: 3, display: 'flex', flexDirection: 'column' }}>
@@ -218,7 +219,7 @@ function ArenaHost() {
                     
                     <Box flex={1} maxWidth="1000px" width="100%" mx="auto">
                         
-                        {/* Dùng toán tử ?. bảo vệ vòng lặp */}
+                        {/* 🟢 DÙNG TOÁN TỬ ?. BẢO VỆ VÒNG LẶP */}
                         {currentQuestion.type === 'MCQ' && (
                             <Box sx={{ display: 'grid', gridTemplateColumns: isLongTextMCQ ? '1fr' : 'repeat(2, 1fr)', gap: 2, mb: 4 }}>
                                 {currentQuestion.options?.map((opt, idx) => (
