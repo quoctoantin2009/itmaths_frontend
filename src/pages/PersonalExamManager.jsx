@@ -5,7 +5,8 @@ import axiosClient from '../services/axiosClient';
 import { 
     Box, Typography, Button, Paper, TextField, Dialog, DialogTitle, 
     DialogContent, DialogActions, List, ListItem, ListItemIcon, ListItemText, 
-    Divider, Grid, Card, CardContent, CardActions, IconButton, Tooltip, Snackbar, Alert 
+    Divider, Grid, Card, CardContent, CardActions, IconButton, Tooltip, Snackbar, Alert,
+    CircularProgress // 🟢 ĐÃ BỔ SUNG THƯ VIỆN NÀY ĐỂ CHỐNG SẬP MÀN HÌNH
 } from '@mui/material';
 
 import FolderIcon from '@mui/icons-material/Folder';
@@ -200,7 +201,7 @@ const PersonalExamManager = () => {
                                         <Button 
                                             size="small" 
                                             endIcon={<ArrowForwardIosIcon fontSize="small" />}
-                                            onClick={() => navigate(`/exams/${exam.id}/edit`)} // Chuyển hướng sang trang soạn câu hỏi
+                                            onClick={() => navigate(`/exams/${exam.id}/edit`)} 
                                             sx={{ fontWeight: 'bold' }}
                                         >
                                             Soạn câu hỏi
