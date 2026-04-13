@@ -13,13 +13,12 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 const PersonalExamBuilder = () => {
-    const { id } = useParams(); // ID của Đề thi
+    const { id } = useParams(); 
     const navigate = useNavigate();
 
     const [exam, setExam] = useState(null);
     const [examQuestions, setExamQuestions] = useState([]);
     
-    // Nguồn câu hỏi cá nhân
     const [folders, setFolders] = useState([]);
     const [selectedFolderId, setSelectedFolderId] = useState('');
     const [bankQuestions, setBankQuestions] = useState([]);
@@ -36,17 +35,15 @@ const PersonalExamBuilder = () => {
     const fetchInitialData = async () => {
         setLoading(true);
         try {
-            // 1. Lấy thông tin Đề thi và Câu hỏi trong đề
             const examRes = await axiosClient.get(`/exams/${id}/`);
             setExam(examRes.data);
             const eqRes = await axiosClient.get(`/exams/${id}/questions/`);
             setExamQuestions(Array.isArray(eqRes.data) ? eqRes.data : []);
 
-            // 2. Lấy danh sách Thư mục Câu hỏi cá nhân (Kho của GV)
-            const folderRes = await axiosClient.get('/manage_folders/'); // Đổi lại URL đúng của bạn nếu cần
+            // 🟢 ĐÃ FIX URL: Link đúng đến thư mục Đấu trường
+            const folderRes = await axiosClient.get('/arena/folders/'); 
             setFolders(Array.isArray(folderRes.data) ? folderRes.data : []);
 
-            // 3. Lấy toàn bộ Câu hỏi trong kho cá nhân
             fetchBankQuestions('');
             
         } catch (error) {
@@ -58,11 +55,10 @@ const PersonalExamBuilder = () => {
 
     const fetchBankQuestions = async (folderId) => {
         try {
-            // Lấy toàn bộ câu hỏi cá nhân
-            const res = await axiosClient.get('/my-custom-questions/');
+            // 🟢 ĐÃ FIX URL: Link đúng đến kho câu hỏi Đấu trường
+            const res = await axiosClient.get('/arena/my-custom-questions/');
             let allQuestions = Array.isArray(res.data) ? res.data : [];
             
-            // Lọc theo thư mục nếu có chọn
             if (folderId) {
                 allQuestions = allQuestions.filter(q => q.folder_id === parseInt(folderId));
             }
@@ -83,7 +79,6 @@ const PersonalExamBuilder = () => {
             await axiosClient.post(`/exams/${id}/import-questions/`, {
                 question_ids: [questionId]
             });
-            // Cập nhật lại danh sách câu hỏi bên phải
             const eqRes = await axiosClient.get(`/exams/${id}/questions/`);
             setExamQuestions(Array.isArray(eqRes.data) ? eqRes.data : []);
             showToast("Đã thêm câu hỏi vào đề!");
@@ -95,7 +90,6 @@ const PersonalExamBuilder = () => {
     const handleRemoveQuestionFromExam = async (questionId) => {
         if (!window.confirm("Loại bỏ câu hỏi này khỏi đề?")) return;
         try {
-            // Xóa câu hỏi (Bản clone nằm trong đề)
             await axiosClient.delete(`/questions/${questionId}/`);
             setExamQuestions(examQuestions.filter(q => q.id !== questionId));
             showToast("Đã loại bỏ câu hỏi!");
@@ -117,7 +111,6 @@ const PersonalExamBuilder = () => {
 
     return (
         <Box sx={{ p: 3, bgcolor: '#f4f6f8', minHeight: '100vh' }}>
-            {/* Header */}
             <Box display="flex" alignItems="center" mb={3}>
                 <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/quan-ly-de-thi')} sx={{ mr: 2, fontWeight: 'bold' }}>
                     Trở về
