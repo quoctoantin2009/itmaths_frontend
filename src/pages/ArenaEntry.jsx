@@ -17,6 +17,13 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import axiosClient from '../services/axiosClient';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
+// 🔥 IMPORT ADMOB & CAPACITOR ĐỂ HIỂN THỊ BANNER APP
+import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
+import { Capacitor } from '@capacitor/core';
+
+// IMPORT ADSENSE BANNER WEB
+// import AdSenseBanner from '../components/AdSenseBanner'; 
+
 const SmartTextField = ({ label, value, onChange, placeholder, isShort }) => {
     const fileInputRef = useRef();
     const [uploading, setUploading] = useState(false);
@@ -108,7 +115,6 @@ function ArenaEntry() {
     const [openFolderModal, setOpenFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
 
-    // 🟢 STATE CHO POPUP XÓA CÂU HỎI
     const [deleteConfirm, setDeleteConfirm] = useState({ open: false, questionId: null });
 
     const [openCustomQModal, setOpenCustomQModal] = useState(false);
@@ -117,6 +123,35 @@ function ArenaEntry() {
         optionsMCQ: [{ text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }, { text: '', is_correct: false }],
         optionsTF: [{ text: '', is_correct: true }, { text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }]
     });
+
+    // 🟢 KHỞI TẠO QUẢNG CÁO BOTTOM BANNER NGAY KHI MỞ TRANG NÀY
+    useEffect(() => {
+        const initArenaAdMobBanner = async () => {
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    await AdMob.initialize({ requestTrackingAuthorization: true });
+                    await AdMob.showBanner({
+                        // Nhớ thay bằng ID thực tế của bạn khi Release
+                        adId: 'ca-app-pub-2431317486483815/5036820439', 
+                        adSize: BannerAdSize.ADAPTIVE_BANNER,
+                        position: BannerAdPosition.BOTTOM_CENTER, // Ép cứng ở mép dưới
+                        margin: 0,
+                        isTesting: false 
+                    });
+                } catch (e) { console.error("Lỗi Init Arena AdMob Banner:", e); }
+            }
+        };
+
+        initArenaAdMobBanner();
+
+        // 🟢 QUAN TRỌNG: Ẩn quảng cáo khi rời khỏi màn hình này (vào chơi)
+        return () => {
+            if (Capacitor.isNativePlatform()) {
+                AdMob.hideBanner().catch(e => {});
+                AdMob.removeBanner().catch(e => {});
+            }
+        };
+    }, []);
 
     const handleScanSuccess = (result) => {
         if (result && result.length > 0 && result[0]?.rawValue) {
@@ -217,12 +252,10 @@ function ArenaEntry() {
         } catch (err) { showToast('Lỗi khi lưu câu hỏi.', 'error'); }
     };
 
-    // 🟢 HÀM BẬT POPUP XÓA CÂU HỎI
     const handleDeleteQuestion = (id) => {
         setDeleteConfirm({ open: true, questionId: id });
     };
 
-    // 🟢 HÀM XỬ LÝ XÓA CHÍNH THỨC
     const processDelete = async () => {
         const id = deleteConfirm.questionId;
         setDeleteConfirm({ open: false, questionId: null });
@@ -266,20 +299,31 @@ function ArenaEntry() {
     const labelChars = ['A', 'B', 'C', 'D'];
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#4a148c', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, position: 'relative' }}>
+        <Box sx={{ minHeight: '100vh', bgcolor: '#4a148c', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <Tooltip title="Hướng dẫn & Luật chơi"><IconButton onClick={() => setOpenGuide(true)} sx={{ position: 'absolute', top: 20, right: 20, color: '#f1c40f', bgcolor: 'rgba(255,255,255,0.1)' }}><HelpOutlineIcon fontSize="large" /></IconButton></Tooltip>
 
-            <Container maxWidth="xs">
-                <Typography variant="h3" fontWeight="900" textAlign="center" color="white" mb={4}>ITMaths ARENA</Typography>
-                <Paper elevation={10} sx={{ p: 4, borderRadius: 4, textAlign: 'center' }}>
-                    <TextField fullWidth placeholder="Mã PIN..." value={pin} onChange={(e) => setPin(e.target.value.toUpperCase())} inputProps={{ style: { textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '8px' } }} sx={{ mb: 2 }} />
-                    <Button fullWidth variant="contained" size="large" onClick={() => navigate(`/arena/play/${pin}`)} sx={{ py: 2, bgcolor: '#333', fontSize: '1.2rem', fontWeight: 'bold' }}>VÀO CHƠI</Button>
-                    <Divider sx={{ my: 3 }}><Typography color="textSecondary" fontWeight="bold">HOẶC</Typography></Divider>
-                    <Button fullWidth variant="outlined" size="large" startIcon={<QrCodeScannerIcon />} onClick={() => setOpenScanner(true)} sx={{ py: 1.5, color: '#4a148c', borderColor: '#4a148c', borderWidth: 2, fontWeight: 'bold' }}>QUÉT MÃ QR ĐỂ VÀO</Button>
-                </Paper>
-                <Box mt={6} textAlign="center"><Button variant="outlined" startIcon={<AddCircleOutlineIcon />} onClick={() => setOpenCreateModal(true)} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', borderRadius: 5 }}>Tạo phòng (Dành cho Giáo viên)</Button></Box>
-            </Container>
+            {/* Nội dung chính (Khu vực Đấu trường) */}
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, paddingBottom: '80px' /* Chừa chỗ cho quảng cáo không bị che lấp chữ */ }}>
+                <Container maxWidth="xs">
+                    <Typography variant="h3" fontWeight="900" textAlign="center" color="white" mb={4}>ITMaths ARENA</Typography>
+                    <Paper elevation={10} sx={{ p: 4, borderRadius: 4, textAlign: 'center' }}>
+                        <TextField fullWidth placeholder="Mã PIN..." value={pin} onChange={(e) => setPin(e.target.value.toUpperCase())} inputProps={{ style: { textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '8px' } }} sx={{ mb: 2 }} />
+                        <Button fullWidth variant="contained" size="large" onClick={() => navigate(`/arena/play/${pin}`)} sx={{ py: 2, bgcolor: '#333', fontSize: '1.2rem', fontWeight: 'bold' }}>VÀO CHƠI</Button>
+                        <Divider sx={{ my: 3 }}><Typography color="textSecondary" fontWeight="bold">HOẶC</Typography></Divider>
+                        <Button fullWidth variant="outlined" size="large" startIcon={<QrCodeScannerIcon />} onClick={() => setOpenScanner(true)} sx={{ py: 1.5, color: '#4a148c', borderColor: '#4a148c', borderWidth: 2, fontWeight: 'bold' }}>QUÉT MÃ QR ĐỂ VÀO</Button>
+                    </Paper>
+                    <Box mt={6} textAlign="center"><Button variant="outlined" startIcon={<AddCircleOutlineIcon />} onClick={() => setOpenCreateModal(true)} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', borderRadius: 5 }}>Tạo phòng (Dành cho Giáo viên)</Button></Box>
+                </Container>
+            </Box>
 
+            {/* 🟢 KHU VỰC CHỨA QUẢNG CÁO BANNER (DÁN SÁT MÉP DƯỚI) 🟢 */}
+            <Box sx={{ position: 'fixed', bottom: 0, left: 0, width: '100%', display: 'flex', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.3)', zIndex: 1000 }}>
+                {/* Bỏ comment dòng dưới nếu bạn muốn hiện AdSense trên WEB 
+                <AdSenseBanner dataAdSlot="9564905223" format="auto" /> 
+                */}
+            </Box>
+
+            {/* Các popup Dialog giữ nguyên */}
             <Dialog open={openGuide} onClose={() => setOpenGuide(false)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ bgcolor: '#2c3e50', color: '#f1c40f', fontWeight: 'bold', textAlign: 'center' }}>📖 CẨM NANG ĐẤU TRƯỜNG</DialogTitle>
                 <DialogContent sx={{ p: 4 }}>
@@ -437,7 +481,6 @@ function ArenaEntry() {
                 <DialogActions sx={{ p: 2 }}><Button onClick={() => setOpenCustomQModal(false)}>Hủy bỏ</Button><Button variant="contained" color="warning" startIcon={<SaveIcon />} onClick={handleSaveCustomQuestion}>Lưu Câu Hỏi</Button></DialogActions>
             </Dialog>
 
-            {/* 🟢 CỬA SỔ CONFIRM XÓA CÂU HỎI ĐẸP MẮT CỦA MATERIAL UI */}
             <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, questionId: null })} maxWidth="xs" fullWidth>
                 <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c', display: 'flex', alignItems: 'center', gap: 1 }}>
                     ⚠️ Xác nhận xóa
