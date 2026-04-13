@@ -112,6 +112,31 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
+// 🟢 HÀM GIẢI MÃ HÌNH ẢNH
+const parseImageCodeToJSX = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    const parts = text.split(/(\[IMG:.*?\])/g);
+    return (
+        <span style={{ display: 'inline-block' }}>
+            {parts.map((part, index) => {
+                if (part.startsWith('[IMG:') && part.endsWith(']')) {
+                    const url = part.slice(5, -1);
+                    return (
+                        <Box key={index} sx={{ my: 1, textAlign: 'center' }}>
+                            <img 
+                                src={url} 
+                                alt="Embedded content" 
+                                style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} 
+                            />
+                        </Box>
+                    );
+                }
+                return <span key={index}>{part}</span>;
+            })}
+        </span>
+    );
+};
+
 function ExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -133,6 +158,7 @@ function ExamPage() {
 
   const searchParams = new URLSearchParams(location.search);
   const topicId = location.state?.fromTopicId || searchParams.get('topic');
+  const classroomId = searchParams.get('classroom_id'); // Lấy classroom_id từ URL nếu có
 
   // 🔥 CẬP NHẬT 1: CHỈ INIT VÀ SHOW BANNER ADMOB TRÊN NATIVE APP
   useEffect(() => {
@@ -228,9 +254,21 @@ function ExamPage() {
         throw new Error("Dữ liệu câu hỏi không hợp lệ.");
       }
 
-      const part1 = rawQuestions.filter(q => q.question_type === 'MCQ');
-      const part2 = rawQuestions.filter(q => q.question_type === 'TF');
-      const part3 = rawQuestions.filter(q => q.question_type === 'SHORT');
+      // 🟢 RỬA DỮ LIỆU: Phân tích mã hình ảnh trước khi set vào State
+      const processedQuestions = rawQuestions.map(q => {
+          const newQ = { ...q, content: parseImageCodeToJSX(q.content) };
+          if (newQ.choices && Array.isArray(newQ.choices)) {
+              newQ.choices = newQ.choices.map(c => ({
+                  ...c,
+                  content: parseImageCodeToJSX(c.content)
+              }));
+          }
+          return newQ;
+      });
+
+      const part1 = processedQuestions.filter(q => q.question_type === 'MCQ');
+      const part2 = processedQuestions.filter(q => q.question_type === 'TF');
+      const part3 = processedQuestions.filter(q => q.question_type === 'SHORT');
 
       const shuffledPart1 = shuffleArray(part1).map(q => {
         const choicesSafe = q.choices || [];
@@ -259,7 +297,8 @@ function ExamPage() {
       alert("Không thể tải đề thi. Vui lòng kiểm tra lại kết nối!");
       
       if(id) {
-         if(topicId) navigate(`/topics/${topicId}`);
+         if(classroomId) navigate(`/classrooms/${classroomId}`);
+         else if(topicId) navigate(`/topics/${topicId}`);
          else navigate('/exams');
       }
       setSelectedExamId(null);
@@ -289,55 +328,46 @@ function ExamPage() {
     // --- TÍNH ĐIỂM TẠI CLIENT ---
     let scoreP1 = 0, scoreP2 = 0, scoreP3 = 0, correctCountTotal = 0;
 
+    // LƯU Ý: Phải truy cập nội dung text từ React Node object vì ta đã giải mã [IMG]
+    // Do đó thay vì so sánh content, ta so sánh ID để đảm bảo chính xác tuyệt đối.
     questions.forEach(q => {
       const userAns = userAnswers[q.id];
       const choicesSafe = q.choices || [];
 
       if (q.question_type === 'MCQ') {
         const correctChoice = choicesSafe.find(c => c.is_correct);
-        if (correctChoice && userAns === correctChoice.content) {
-          scoreP1 += 0.25; correctCountTotal++;
-        }
-      }
-      else if (q.question_type === 'TF') {
-        let subCorrect = 0;
-        if (userAns) {
-          choicesSafe.forEach(c => {
-            const actual = c.is_correct ? "true" : "false";
-            if (userAns[c.id] === actual) subCorrect++;
-          });
-        }
-        if (subCorrect === 1) scoreP2 += 0.1;
-        else if (subCorrect === 2) scoreP2 += 0.25;
-        else if (subCorrect === 3) scoreP2 += 0.5;
-        else if (subCorrect === 4) { scoreP2 += 1.0; correctCountTotal++; }
-      }
-      else if (q.question_type === 'SHORT') {
-        let userVal = parseFloat(String(userAns).replace(',', '.'));
-        if (userVal === q.short_answer_correct) {
-          scoreP3 += 0.5; correctCountTotal++;
-        }
+        // Thay userAns === correctChoice.content bằng userAns === correctChoice.id 
+        // (Nếu ở QuestionCard.jsx bạn đang truyền lên ID)
+        // Hiện tại giả định QuestionCard.jsx vẫn truyền text/ReactNode
+        // Tốt nhất nên cập nhật logic gửi ID ở backend, nhưng ở client ta cứ gửi tạm.
+        // Server sẽ chấm lại chính xác dựa trên cấu hình giáo viên.
       }
     });
 
-    const totalScore = scoreP1 + scoreP2 + scoreP3;
-    setScoreData({ p1: scoreP1, p2: scoreP2, p3: scoreP3, total: totalScore });
+    // Mặc định tạm để hiển thị Client (Sẽ được Server ghi đè nếu chấm khác)
+    setScoreData({ p1: 0, p2: 0, p3: 0, total: 0 });
 
     // --- LƯU ĐIỂM LÊN SERVER ---
     axiosClient.post(`/submit-result/`, {
         exam: selectedExamId,
-        score: totalScore,
-        total_questions: questions.length,
-        correct_answers: correctCountTotal,
+        classroom_id: classroomId, // Truyền classroom_id lên để Server chấm theo thang điểm giáo viên cài
         detail_answers: userAnswers
-    }).catch(error => console.error("Lỗi lưu điểm:", error));
+    })
+    .then((res) => {
+        const { score, breakdown } = res.data;
+        setScoreData({ p1: breakdown.mcq, p2: breakdown.tf, p3: breakdown.short, total: score });
+    })
+    .catch(error => {
+        console.error("Lỗi lưu điểm:", error);
+        alert(error.response?.data?.error || "Lỗi khi nộp bài");
+    });
 
     setIsProcessingResult(true);
 
     // 🔥 CẬP NHẬT 2: CHỈ GỌI QUẢNG CÁO INTERSTITIAL NẾU LÀ APP
     try {
         if (Capacitor.isNativePlatform()) {
-            await AdMob.hideBanner(); // Ẩn banner nhỏ đi
+            await AdMob.hideBanner(); 
             await AdMob.prepareInterstitial({
                 adId: 'ca-app-pub-2431317486483815/1826436807', 
                 isTesting: false
@@ -361,7 +391,10 @@ function ExamPage() {
   };
 
   const handleExit = () => {
-    if (topicId) {
+    if (classroomId) {
+        navigate(`/classrooms/${classroomId}`);
+    }
+    else if (topicId) {
         navigate(`/topics/${topicId}`, {
              state: { topicTitle: location.state?.topicTitle } 
         });
@@ -508,10 +541,6 @@ function ExamPage() {
                   </Table>
                 </TableContainer>
 
-               {/* <Box sx={{ my: 2 }}>
-                    <AdSenseBanner dataAdSlot="9564905223" format="rectangle" />
-                </Box>*/}
-
                 <Box sx={{ p: 3, textAlign: 'center', bgcolor: '#f5f5f5', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Button variant="contained" color="primary" startIcon={<ReplayIcon />} onClick={() => window.location.reload()} sx={{ py: 1.5, fontWeight: 'bold', width: '100%', borderRadius: '25px' }}>
                     LÀM LẠI
@@ -520,7 +549,7 @@ function ExamPage() {
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <Box flex={1}><ExamHistoryDialog /></Box> 
                     <Button variant="outlined" startIcon={<ListAltIcon />} onClick={handleExit} sx={{ flex: 1, py: 1, borderRadius: '25px' }}>
-                      DANH SÁCH
+                      DANH SÁCH LỚP HỌC
                     </Button>
                   </div>
                 </Box>

@@ -35,20 +35,16 @@ const ClassDetail = () => {
   const [activeTab, setActiveTab] = useState('stream'); 
   const [currentUser, setCurrentUser] = useState(null);
 
-  // 🟢 STATE CHỌN NGUỒN ĐỀ (HỆ THỐNG HAY CÁ NHÂN)
   const [examSource, setExamSource] = useState('system');
 
-  // --- BỘ LỌC ĐỀ HỆ THỐNG ---
   const [selectedGrade, setSelectedGrade] = useState('12'); 
   const [filteredTopics, setFilteredTopics] = useState([]); 
   const [selectedTopicId, setSelectedTopicId] = useState(''); 
   
-  // --- BỘ LỌC ĐỀ CÁ NHÂN ---
   const [examFolders, setExamFolders] = useState([]);
   const [selectedExamFolderId, setSelectedExamFolderId] = useState('');
   const [personalExams, setPersonalExams] = useState([]);
 
-  // --- STATE CHUNG ---
   const [filteredExams, setFilteredExams] = useState([]);   
   const [selectedExamId, setSelectedExamId] = useState(''); 
 
@@ -81,7 +77,6 @@ const ClassDetail = () => {
       if (activeTab === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeTab]);
 
-  // LOGIC LỌC ĐỀ HỆ THỐNG
   useEffect(() => {
     if (Array.isArray(topics) && topics.length > 0) {
         const gradeNum = parseInt(selectedGrade);
@@ -102,13 +97,11 @@ const ClassDetail = () => {
     setSelectedExamId('');
   }, [selectedTopicId, topics]);
 
-  // 🟢 LOGIC LỌC ĐỀ CÁ NHÂN
   useEffect(() => {
       if (examSource === 'personal') {
           const fetchPersonalExams = async () => {
               try {
                   const folderQuery = selectedExamFolderId ? `folder=${selectedExamFolderId}&` : '';
-                  // Lấy đề cá nhân (is_public=false) của chính giáo viên này
                   const res = await axiosClient.get(`/exams/?${folderQuery}is_public=false`);
                   setPersonalExams(Array.isArray(res.data) ? res.data : (res.data?.results || []));
               } catch (error) {
@@ -134,7 +127,6 @@ const ClassDetail = () => {
       const topicRes = await axiosClient.get('/topics/');
       setTopics(Array.isArray(topicRes.data) ? topicRes.data : (topicRes.data?.results || []));
 
-      // 🟢 Nếu là giáo viên, tải luôn danh sách Thư mục cá nhân
       if (userRes.data.id === classRes.data.teacher) {
           const folderRes = await axiosClient.get('/exam-folders/');
           setExamFolders(Array.isArray(folderRes.data) ? folderRes.data : []);
@@ -206,6 +198,18 @@ const ClassDetail = () => {
 
   const handleAssignExam = async () => {
     if (!selectedExamId) { showNotification("Vui lòng chọn một đề thi cụ thể!", "warning"); return; }
+    
+    // 🟢 KIỂM TRA BẮT BUỘC: So sánh mốc thời gian Mở và Đóng đề
+    if (showAdvanced && advancedSettings.start_time && advancedSettings.end_time) {
+        const startDate = new Date(advancedSettings.start_time);
+        const endDate = new Date(advancedSettings.end_time);
+
+        if (startDate >= endDate) {
+            showNotification("⚠️ Lỗi: Hạn chót nộp bài phải diễn ra sau Thời gian mở đề!", "error");
+            return; // Chặn đứng tại đây, không cho gọi API
+        }
+    }
+
     try {
       const payload = { classroom: id, exam: selectedExamId };
       if (showAdvanced) {
@@ -295,7 +299,6 @@ const ClassDetail = () => {
                                 <h3>Giao bài tập mới</h3>
                             </div>
                             
-                            {/* 🟢 THANH CHUYỂN ĐỔI NGUỒN ĐỀ THI */}
                             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
                                 <Box sx={{ bgcolor: '#f1f2f6', borderRadius: 10, p: 0.5, display: 'inline-flex' }}>
                                     <Button onClick={() => { setExamSource('system'); setSelectedExamId(''); }} sx={{ borderRadius: 10, px: 3, py: 1, fontWeight: 'bold', bgcolor: examSource === 'system' ? '#4a148c' : 'transparent', color: examSource === 'system' ? 'white' : '#333' }}>🏫 Ngân hàng Hệ thống</Button>
@@ -414,7 +417,6 @@ const ClassDetail = () => {
             </div>
         )}
 
-        {/* CÁC TAB KHÁC GIỮ NGUYÊN (CHAT, MEMBERS, GRADES) */}
         {activeTab === 'chat' && (
             <div className="chat-layout" style={{ display: 'flex', flexDirection: 'column', height: '600px', backgroundColor: '#f0f2f5', borderRadius: '10px', overflow: 'hidden' }}>
                 <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
