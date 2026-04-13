@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  AppBar, Toolbar, Typography, Button, Box, Container, 
-  Menu, MenuItem, IconButton, Avatar, Tooltip 
+    AppBar, Toolbar, Typography, Button, Box, Container, 
+    Menu, MenuItem, IconButton, Avatar, Tooltip 
 } from '@mui/material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
@@ -164,6 +164,21 @@ function Navbar() {
                 }}
              >
                 Kho đề thi
+             </Button>
+
+             {/* 🟢 [MỚI] NÚT QUẢN LÝ ĐỀ THI CÁ NHÂN */}
+             <Button
+                component={Link}
+                to="/quan-ly-de-thi"
+                sx={{ 
+                    color: 'white', 
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
+                    fontWeight: isActive('/quan-ly-de-thi') ? 'bold' : 'normal',
+                    borderBottom: isActive('/quan-ly-de-thi') ? '2px solid yellow' : 'none'
+                }}
+             >
+                Quản lý Đề
              </Button>
 
              <Button

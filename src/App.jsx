@@ -39,6 +39,9 @@ import ArenaEntry from './pages/ArenaEntry';
 import ArenaHost from './pages/ArenaHost';
 import ArenaPlayer from './pages/ArenaPlayer';
 
+// 🟢 [MỚI] IMPORT TRANG QUẢN LÝ ĐỀ THI CÁ NHÂN
+import PersonalExamManager from './pages/PersonalExamManager';
+
 // --- 1. COMPONENT BẢO VỆ (Private Route) ---
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('accessToken');
@@ -152,6 +155,9 @@ function App() {
           <Route path="/exams" element={<PrivateRoute><ExamPage /></PrivateRoute>} />
           <Route path="/video-player" element={<PrivateRoute><VideoPlayerPage /></PrivateRoute>} />
           <Route path="/pdf-viewer" element={<PrivateRoute><PDFViewerPage /></PrivateRoute>} />
+
+          {/* 🟢 ROUTE QUẢN LÝ ĐỀ THI CÁ NHÂN */}
+          <Route path="/quan-ly-de-thi" element={<PrivateRoute><PersonalExamManager /></PrivateRoute>} />
 
           {/* 🟢 NHÓM ROUTE ĐẤU TRƯỜNG (MỚI) */}
           <Route path="/arena" element={<PrivateRoute><ArenaEntry /></PrivateRoute>} />
