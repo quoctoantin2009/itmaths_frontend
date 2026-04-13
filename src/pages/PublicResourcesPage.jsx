@@ -1,313 +1,240 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-    Container, Typography, Grid, Card, CardContent, Button, 
-    Box, Chip, Tabs, Tab, Paper 
+    Box, Container, Typography, Paper, Tabs, Tab, Grid, 
+    Card, CardContent, Divider, List, ListItem, ListItemIcon, ListItemText 
 } from '@mui/material';
-import ArticleIcon from '@mui/icons-material/Article';
-import ComputerIcon from '@mui/icons-material/Computer';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
+
+// Icons
 import InfoIcon from '@mui/icons-material/Info';
-import NewspaperIcon from '@mui/icons-material/Newspaper';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import SchoolIcon from '@mui/icons-material/School';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import ArticleIcon from '@mui/icons-material/Article';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import GroupIcon from '@mui/icons-material/Group';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 
-import AdSenseBanner from '../components/AdSenseBanner';
-
-// 🔥 IMPORT THƯ VIỆN CAPACITOR VÀ ADMOB
-import { Capacitor } from '@capacitor/core';
-import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
-
-// Component hỗ trợ hiển thị nội dung theo từng Tab
-function CustomTabPanel(props) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`resource-tabpanel-${index}`}
-      aria-labelledby={`resource-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ pt: 4, pb: 2, animation: 'fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
-
-function PublicResourcesPage() {
+const PublicResourcesPage = () => {
     const [tabValue, setTabValue] = useState(0);
 
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
     };
 
-    // 🟢 KIỂM SOÁT ADMOB CHỈ CHẠY TRÊN APP ĐIỆN THOẠI
-    useEffect(() => {
-        const showAppBanner = async () => {
-            if (Capacitor.isNativePlatform()) {
-                try {
-                    await AdMob.showBanner({
-                        adId: 'ca-app-pub-2431317486483815/5036820439', // Mã AdMob của bạn
-                        adSize: BannerAdSize.ADAPTIVE_BANNER,
-                        position: BannerAdPosition.BOTTOM_CENTER, 
-                        margin: 0,
-                        isTesting: false
-                    });
-                } catch (e) { console.error("Lỗi Banner AdMob:", e); }
-            }
-        };
-        showAppBanner();
-
-        // Tự động xóa AdMob khi người dùng rời khỏi trang Tài nguyên
-        return () => {
-            if (Capacitor.isNativePlatform()) {
-                AdMob.hideBanner().catch(() => {});
-                AdMob.removeBanner().catch(() => {});
-            }
-        };
-    }, []);
-
     return (
-        <Box sx={{ 
-            background: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)', 
-            minHeight: '100vh', 
-            pb: 12, // Tăng padding bottom để không bị AdMob che mất nội dung
-            pt: { xs: 3, md: 6 } 
-        }}>
+        <Box sx={{ minHeight: '100vh', bgcolor: '#f8f9fa', pb: 8 }}>
+            {/* Header Banner */}
+            <Box sx={{ bgcolor: '#4a148c', color: 'white', py: 6, textAlign: 'center', mb: 4, boxShadow: 3 }}>
+                <Container maxWidth="md">
+                    <Typography variant="h3" fontWeight="bold" gutterBottom>
+                        Tài Nguyên & Hướng Dẫn
+                    </Typography>
+                    <Typography variant="h6" sx={{ opacity: 0.9 }}>
+                        Khám phá sức mạnh của hệ sinh thái giáo dục ITMaths
+                    </Typography>
+                </Container>
+            </Box>
+
             <Container maxWidth="lg">
-                
-                <Typography 
-                    variant="h3" 
-                    fontWeight="900" 
-                    textAlign="center" 
-                    mb={5}
-                    sx={{
-                        background: 'linear-gradient(45deg, #4a148c 30%, #ff4081 90%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0px 4px 10px rgba(74, 20, 140, 0.1)'
-                    }}
-                >
-                    TÀI NGUYÊN HỌC TẬP
-                </Typography>
+                <Paper elevation={3} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+                    <Tabs 
+                        value={tabValue} 
+                        onChange={handleTabChange} 
+                        centered 
+                        variant="fullWidth"
+                        sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}
+                        textColor="secondary"
+                        indicatorColor="secondary"
+                    >
+                        <Tab icon={<InfoIcon />} label="Giới thiệu & Hướng dẫn" sx={{ fontWeight: 'bold', py: 2 }} />
+                        <Tab icon={<SchoolIcon />} label="Phương pháp học" sx={{ fontWeight: 'bold', py: 2 }} disabled />
+                        <Tab icon={<MenuBookIcon />} label="Tài liệu & Phầm mềm" sx={{ fontWeight: 'bold', py: 2 }} disabled />
+                        <Tab icon={<ArticleIcon />} label="Tin tức giáo dục" sx={{ fontWeight: 'bold', py: 2 }} disabled />
+                    </Tabs>
 
-                <Paper 
-                    elevation={0} 
-                    sx={{ 
-                        borderRadius: 4, 
-                        bgcolor: 'rgba(255, 255, 255, 0.9)', 
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
-                        overflow: 'hidden'
-                    }}
-                >
-                    <Box sx={{ 
-                        borderBottom: '1px solid rgba(0,0,0,0.05)', 
-                        bgcolor: '#fafafa', 
-                        px: { xs: 1, md: 3 }, 
-                        py: 2 
-                    }}>
-                        <Tabs 
-                            value={tabValue} 
-                            onChange={handleTabChange} 
-                            variant="scrollable"
-                            scrollButtons="auto"
-                            TabIndicatorProps={{ style: { display: 'none' } }}
-                            sx={{
-                                '& .MuiTab-root': {
-                                    minHeight: '48px',
-                                    borderRadius: '30px',
-                                    mx: 0.5,
-                                    px: 3,
-                                    fontWeight: 'bold',
-                                    textTransform: 'none',
-                                    fontSize: '1rem',
-                                    color: '#757575',
-                                    transition: 'all 0.3s ease',
-                                    '&:hover': {
-                                        bgcolor: 'rgba(74, 20, 140, 0.05)',
-                                        color: '#4a148c',
-                                    }
-                                },
-                                '& .Mui-selected': {
-                                    background: 'linear-gradient(45deg, #4a148c, #7b1fa2)',
-                                    color: '#fff !important',
-                                    boxShadow: '0 4px 15px rgba(123, 31, 162, 0.3)',
-                                }
-                            }}
-                        >
-                            <Tab icon={<InfoIcon />} iconPosition="start" label="Giới thiệu" />
-                            <Tab icon={<ArticleIcon />} iconPosition="start" label="Phương pháp học" />
-                            <Tab icon={<MenuBookIcon />} iconPosition="start" label="Tài liệu & Phần mềm" />
-                            <Tab icon={<NewspaperIcon />} iconPosition="start" label="Tin tức giáo dục" />
-                        </Tabs>
-                    </Box>
+                    <Box sx={{ p: { xs: 3, md: 5 }, bgcolor: '#fff' }}>
+                        {tabValue === 0 && (
+                            <Box>
+                                {/* PHẦN 1: GIỚI THIỆU CHUNG */}
+                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
+                                    Chào mừng đến với hệ sinh thái ITMaths
+                                </Typography>
+                                <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#444' }}>
+                                    <strong>ITMaths.vn</strong> không chỉ là một website thi trắc nghiệm thông thường, mà là một nền tảng chuyển đổi số toàn diện dành riêng cho môn Toán. Chúng tôi kết hợp giữa <b>Hệ thống quản lý học tập (LMS)</b>, <b>Tương tác thời gian thực (Gamification)</b>, và <b>Trí tuệ nhân tạo (AI)</b> để mang lại trải nghiệm giảng dạy - học tập hiện đại, chủ động và tối ưu nhất.
+                                </Typography>
+                                <Typography variant="body1" paragraph sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#444' }}>
+                                    Hệ thống được thiết kế bám sát định dạng thi mới nhất của Bộ GD&ĐT (Trắc nghiệm nhiều lựa chọn, Đúng/Sai, và Trả lời ngắn), hỗ trợ hiển thị công thức Toán học (LaTeX) và hình ảnh đồ thị sắc nét.
+                                </Typography>
 
-                    <Box sx={{ px: { xs: 2, md: 5 }, pb: 5 }}>
-                        
-                        <CustomTabPanel value={tabValue} index={0}>
-                            {/* ... NỘI DUNG TAB 0 GIỮ NGUYÊN NHƯ CŨ ... */}
-                            <Grid container spacing={4} alignItems="center">
-                                <Grid item xs={12} md={8}>
-                                    <Typography variant="h5" fontWeight="800" color="#4a148c" mb={2}>
-                                        Chào mừng đến với ITMaths
+                                <Box sx={{ my: 4, p: 3, bgcolor: '#f3e5f5', borderRadius: 3, borderLeft: '6px solid #9c27b0' }}>
+                                    <Typography variant="h6" fontWeight="bold" color="#7b1fa2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <AutoAwesomeIcon /> Đặc quyền nổi bật
                                     </Typography>
-                                    <Typography variant="body1" paragraph lineHeight={1.8} fontSize="1.1rem" color="#424242">
-                                        <b>ITMaths.vn</b> là nền tảng ôn thi và kiểm tra Toán học trực tuyến thế hệ mới, tích hợp Trí tuệ nhân tạo (AI). 
-                                        Chúng tôi mang lại trải nghiệm học tập hiện đại, giúp học sinh nắm vững kiến thức từ cơ bản đến nâng cao, 
-                                        đồng thời hỗ trợ giáo viên quản lý lớp học tự động, chính xác.
-                                    </Typography>
-                                    
-                                    <Box sx={{ mt: 4, p: 3, bgcolor: '#f3e5f5', borderRadius: 3, borderLeft: '6px solid #ab47bc' }}>
-                                        <Typography variant="h6" fontWeight="bold" mb={2} color="#6a1b9a">🚀 4 Bước Chinh Phục Điểm Cao:</Typography>
-                                        <ul style={{ lineHeight: '2', fontSize: '1.05rem', color: '#4a4a4a', margin: 0 }}>
-                                            <li><b>Đăng ký / Đăng nhập:</b> Lưu trữ lịch sử và phân tích năng lực.</li>
-                                            <li><b>Chọn chuyên đề:</b> Làm bài tự do hoặc vào Lớp học qua Invite Code.</li>
-                                            <li><b>Làm bài thi:</b> Trải nghiệm định dạng Đúng/Sai, Trả lời ngắn chuẩn Bộ GD&ĐT.</li>
-                                            <li><b>Chấm điểm & Hỏi AI:</b> Biết điểm ngay và chat với Gia sư AI để gỡ rối những câu khó.</li>
-                                        </ul>
-                                    </Box>
-                                </Grid>
-                                <Grid item xs={12} md={4}>
-                                    <Box 
-                                        component="img" 
-                                        src="https://img.freepik.com/free-vector/mathematics-concept-illustration_114360-3972.jpg" 
-                                        alt="Math Illustration"
-                                        sx={{ width: '100%', borderRadius: 4, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                                    />
-                                </Grid>
-                            </Grid>
-                            
-                            {/* 🟢 CHỈ HIỆN ADSENSE NẾU LÀ TRÌNH DUYỆT WEB */}
-                            { !Capacitor.isNativePlatform() && (
-                                <Box sx={{ mt: 5, textAlign: 'center' }}>
-                                    <AdSenseBanner dataAdSlot="9564905223" format="auto" />
+                                    <List>
+                                        {['Tích hợp Gia sư AI (Gemini) hỗ trợ giải đáp thắc mắc 24/7 qua chat và hình ảnh.',
+                                          'Quản lý lớp học thông minh, tự động chấm điểm và xuất bảng điểm Excel.',
+                                          'Chế độ Đấu trường trực tiếp (Live Arena) giúp tiết học bùng nổ cảm xúc.'].map((text, idx) => (
+                                            <ListItem key={idx} sx={{ py: 0.5 }}>
+                                                <ListItemIcon sx={{ minWidth: 35 }}><CheckCircleIcon color="secondary" fontSize="small" /></ListItemIcon>
+                                                <ListItemText primary={text} />
+                                            </ListItem>
+                                        ))}
+                                    </List>
                                 </Box>
-                            )}
-                        </CustomTabPanel>
 
-                        <CustomTabPanel value={tabValue} index={1}>
-                            {/* ... NỘI DUNG TAB 1 GIỮ NGUYÊN NHƯ CŨ ... */}
-                            <Grid container spacing={4}>
-                                {[
-                                    { tag: "Kỹ năng", color: "primary", title: "Mẹo giải nhanh trắc nghiệm Toán 12", desc: "Kỹ năng đọc đồ thị nhanh và bấm máy tính Casio fx-580VN X để giải quyết các bài toán tích phân, số phức chỉ trong 10 giây..." },
-                                    { tag: "Tâm lý", color: "error", title: "Khắc phục sai lầm 'đọc ẩu' đề bài", desc: "Rất nhiều học sinh giỏi vẫn mất điểm oan do không đọc kỹ các cụm từ 'không', 'mệnh đề nào sau đây SAI'. Dưới đây là 3 bước rèn luyện..." },
-                                    { tag: "Lý thuyết", color: "success", title: "Cách ghi nhớ Hình học không gian", desc: "Chìa khóa để giỏi phần này không phải là tưởng tượng, mà là nắm chắc 'thuật toán' kẻ thêm hình. Nắm vững 3 nguyên tắc dựng đường cao..." }
-                                ].map((item, idx) => (
-                                    <Grid item xs={12} md={4} key={idx}>
-                                        <Card 
-                                            sx={{ 
-                                                height: '100%', borderRadius: 3, border: '1px solid #eee',
-                                                boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                '&:hover': {
-                                                    transform: 'translateY(-10px)',
-                                                    boxShadow: '0 15px 30px rgba(74, 20, 140, 0.12)',
-                                                    borderColor: '#e1bee7'
-                                                }
-                                            }}
-                                        >
-                                            <CardContent sx={{ p: 3 }}>
-                                                <Chip label={item.tag} size="small" color={item.color} sx={{ mb: 2, fontWeight: 'bold' }} />
-                                                <Typography variant="h6" fontWeight="800" mb={1.5} lineHeight={1.4}>{item.title}</Typography>
-                                                <Typography variant="body2" color="text.secondary" paragraph lineHeight={1.6}>
-                                                    {item.desc}
+                                <Divider sx={{ my: 5 }} />
+
+                                {/* PHẦN 2: HƯỚNG DẪN SỬ DỤNG DÀNH CHO GIÁO VIÊN */}
+                                <Typography variant="h4" fontWeight="bold" color="secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <SchoolIcon fontSize="large" /> Cẩm nang dành cho Giáo viên
+                                </Typography>
+                                <Typography variant="body1" color="textSecondary" paragraph mb={4}>
+                                    Biến ITMaths thành trợ thủ đắc lực của bạn chỉ với 4 công cụ cốt lõi sau đây:
+                                </Typography>
+
+                                <Grid container spacing={4}>
+                                    {/* Bước 1: Kho Đề */}
+                                    <Grid item xs={12} md={6}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #3498db' }}>
+                                            <CardContent>
+                                                <Typography variant="h6" fontWeight="bold" color="#2980b9" gutterBottom>
+                                                    1. Quản lý Kho Đề Cá Nhân
                                                 </Typography>
-                                                <Button endIcon={<PlayArrowIcon />} sx={{ fontWeight: 'bold', px: 0, '&:hover': { bgcolor: 'transparent', color: '#7b1fa2' } }}>
-                                                    Đọc tiếp
-                                                </Button>
+                                                <Typography variant="body2" paragraph color="#555">
+                                                    Nơi lưu trữ "tài sản trí tuệ" của riêng bạn. Không lo lẫn lộn với dữ liệu hệ thống.
+                                                </Typography>
+                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
+                                                    <li><b>Tạo Thư mục:</b> Phân loại đề theo khối, chương (VD: Đại số 12).</li>
+                                                    <li><b>Soạn Câu hỏi:</b> Nhập câu hỏi vào kho chung bằng trình soạn thảo hỗ trợ Toán học và Hình ảnh.</li>
+                                                    <li><b>Lắp ráp Đề thi:</b> Tạo một Đề thi mới, mở <i>Trình biên soạn 2 cột</i> và bấm dấu <b>(+)</b> để "bốc" câu hỏi từ kho thả vào đề thi cực kỳ nhanh chóng.</li>
+                                                </ul>
                                             </CardContent>
                                         </Card>
                                     </Grid>
-                                ))}
-                            </Grid>
-                        </CustomTabPanel>
 
-                        <CustomTabPanel value={tabValue} index={2}>
-                            {/* ... NỘI DUNG TAB 2 GIỮ NGUYÊN NHƯ CŨ ... */}
-                            <Grid container spacing={4}>
-                                <Grid item xs={12} md={6}>
-                                    <Typography variant="h5" fontWeight="800" color="#f57c00" mb={3} display="flex" alignItems="center" gap={1}>
-                                        <ComputerIcon fontSize="large"/> Phần Mềm Hỗ Trợ
-                                    </Typography>
-                                    <Box sx={{ bgcolor: '#fff3e0', p: 3, borderRadius: 3, transition: '0.3s', '&:hover': { bgcolor: '#ffe0b2' } }}>
-                                        <ul style={{ paddingLeft: '20px', margin: 0, lineHeight: '2.2', fontSize: '1.05rem' }}>
-                                            <li>
-                                                <b>GeoGebra:</b> Vẽ đồ thị, hình học động cực tốt.<br/>
-                                                <a href="https://www.geogebra.org/" target="_blank" rel="noreferrer" style={{ color: '#e65100', textDecoration: 'none', fontWeight: 'bold' }}>&rarr; Tải về GeoGebra</a>
-                                            </li>
-                                            <li style={{ marginTop: '10px' }}>
-                                                <b>Desmos:</b> Máy tính đồ thị trực tuyến siêu nhẹ.<br/>
-                                                <a href="https://www.desmos.com/" target="_blank" rel="noreferrer" style={{ color: '#e65100', textDecoration: 'none', fontWeight: 'bold' }}>&rarr; Truy cập Desmos</a>
-                                            </li>
-                                        </ul>
-                                    </Box>
+                                    {/* Bước 2: Lớp học */}
+                                    <Grid item xs={12} md={6}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #2ecc71' }}>
+                                            <CardContent>
+                                                <Typography variant="h6" fontWeight="bold" color="#27ae60" gutterBottom>
+                                                    2. Vận hành Lớp Học (LMS)
+                                                </Typography>
+                                                <Typography variant="body2" paragraph color="#555">
+                                                    Quản lý học sinh và tiến độ làm bài chuyên nghiệp.
+                                                </Typography>
+                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
+                                                    <li><b>Tạo Lớp:</b> Nhận ngay <i>Mã Lớp (Invite Code)</i> để gửi cho học sinh tham gia.</li>
+                                                    <li><b>Thảo luận:</b> Bảng tin chung cho phép đăng thông báo, hỏi đáp đính kèm hình ảnh.</li>
+                                                    <li><b>Bảng điểm:</b> Theo dõi kết quả từng em, xem lại chi tiết bài làm, và nhấn nút <b>Xuất Excel</b> để lưu trữ minh chứng.</li>
+                                                </ul>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+
+                                    {/* Bước 3: Giao bài */}
+                                    <Grid item xs={12} md={6}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #f39c12' }}>
+                                            <CardContent>
+                                                <Typography variant="h6" fontWeight="bold" color="#d35400" gutterBottom>
+                                                    3. Giao Bài Tập Nâng Cao
+                                                </Typography>
+                                                <Typography variant="body2" paragraph color="#555">
+                                                    Kiểm soát thời gian và điểm số gắt gao như một kỳ thi thật.
+                                                </Typography>
+                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
+                                                    <li><b>Chọn Nguồn Đề:</b> Có thể lấy từ <i>Ngân hàng Hệ thống</i> hoặc <i>Kho Đề Cá Nhân</i>.</li>
+                                                    <li><b>Cài đặt Thời gian:</b> Hẹn giờ mở đề và khóa đề tự động (Học sinh nộp trễ sẽ bị chặn).</li>
+                                                    <li><b>Tùy biến Điểm số:</b> Tự do xét điểm cho từng loại câu (Trắc nghiệm, Ngắn, Đúng/Sai với 4 mức điểm linh hoạt).</li>
+                                                    <li><b>Thu hồi:</b> Dễ dàng xóa bài tập khỏi lớp khi không cần thiết.</li>
+                                                </ul>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+
+                                    {/* Bước 4: Đấu trường */}
+                                    <Grid item xs={12} md={6}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3, borderTop: '4px solid #e74c3c' }}>
+                                            <CardContent>
+                                                <Typography variant="h6" fontWeight="bold" color="#c0392b" gutterBottom>
+                                                    4. Tổ chức Đấu Trường (Live)
+                                                </Typography>
+                                                <Typography variant="body2" paragraph color="#555">
+                                                    Thay đổi không khí lớp học bằng trò chơi trắc nghiệm tốc độ cao.
+                                                </Typography>
+                                                <ul style={{ paddingLeft: '20px', margin: 0, color: '#444', lineHeight: '1.6' }}>
+                                                    <li><b>Tạo phòng:</b> Chọn các câu hỏi từ kho, hệ thống sẽ cấp một <b>Mã PIN</b>.</li>
+                                                    <li><b>Thi đấu:</b> Trình chiếu màn hình giáo viên (Host) lên bảng. Học sinh nhập PIN trên điện thoại để đua top.</li>
+                                                    <li><b>Bảng xếp hạng:</b> Cập nhật điểm số và chuỗi thắng (Streak) ngay lập tức sau mỗi câu hỏi.</li>
+                                                </ul>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
                                 </Grid>
 
-                                <Grid item xs={12} md={6}>
-                                    <Typography variant="h5" fontWeight="800" color="#2e7d32" mb={3} display="flex" alignItems="center" gap={1}>
-                                        <MenuBookIcon fontSize="large" /> Tài Liệu PDF
-                                    </Typography>
-                                    <Box sx={{ bgcolor: '#e8f5e9', p: 3, borderRadius: 3, transition: '0.3s', '&:hover': { bgcolor: '#c8e6c9' } }}>
-                                        <ul style={{ paddingLeft: '20px', margin: 0, lineHeight: '2.2', fontSize: '1.05rem' }}>
-                                            <li>
-                                                <b>Cấu trúc đề thi THPT 2025:</b> Phân tích định dạng mới nhất.<br/>
-                                                <a href="#" style={{ color: '#1b5e20', textDecoration: 'none', fontWeight: 'bold' }}>&darr; Tải xuống PDF</a>
-                                            </li>
-                                            <li style={{ marginTop: '10px' }}>
-                                                <b>100+ công thức giải nhanh:</b> Sổ tay bỏ túi.<br/>
-                                                <a href="#" style={{ color: '#1b5e20', textDecoration: 'none', fontWeight: 'bold' }}>&darr; Tải xuống PDF</a>
-                                            </li>
-                                        </ul>
-                                    </Box>
-                                </Grid>
-                            </Grid>
-                        </CustomTabPanel>
+                                <Divider sx={{ my: 5 }} />
 
-                        <CustomTabPanel value={tabValue} index={3}>
-                            {/* ... NỘI DUNG TAB 3 GIỮ NGUYÊN NHƯ CŨ ... */}
-                            <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
-                                {[
-                                    { date: '10/04/2026', title: 'Bộ GD&ĐT công bố quy chế thi tốt nghiệp THPT 2025', snippet: 'Kỳ thi tốt nghiệp THPT năm 2025 sẽ có nhiều thay đổi đáng chú ý về định dạng câu hỏi trắc nghiệm, đặc biệt là sự xuất hiện của dạng câu hỏi Đúng/Sai...' },
-                                    { date: '05/04/2026', title: 'Lịch thi đánh giá năng lực ĐHQG TP.HCM năm 2026', snippet: 'Đại học Quốc gia TP.HCM vừa chính thức công bố lịch thi đánh giá năng lực cho đợt 1 và đợt 2. Đây là cơ hội xét tuyển vào các trường đại học top đầu...' }
-                                ].map((news, idx) => (
-                                    <Box key={idx} sx={{ 
-                                        p: 3, mb: 3, 
-                                        bgcolor: 'white', 
-                                        borderRadius: 3, 
-                                        border: '1px solid #e0e0e0',
-                                        transition: '0.2s',
-                                        '&:hover': { borderColor: '#4a148c', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }
-                                    }}>
-                                        <Typography variant="body2" color="primary" fontWeight="bold" gutterBottom>{news.date}</Typography>
-                                        <Typography variant="h6" fontWeight="800" mb={1}>{news.title}</Typography>
-                                        <Typography variant="body1" color="text.secondary">{news.snippet}</Typography>
-                                    </Box>
-                                ))}
-                            </Box>
-                            
-                            {/* 🟢 CHỈ HIỆN ADSENSE NẾU LÀ TRÌNH DUYỆT WEB */}
-                            { !Capacitor.isNativePlatform() && (
-                                <Box sx={{ mt: 5, textAlign: 'center' }}>
-                                    <AdSenseBanner dataAdSlot="9564905223" format="auto" />
+                                {/* PHẦN 3: HƯỚNG DẪN SỬ DỤNG DÀNH CHO HỌC SINH */}
+                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <RocketLaunchIcon fontSize="large" /> Hướng dẫn dành cho Học sinh
+                                </Typography>
+                                <Box sx={{ mt: 3 }}>
+                                    <Grid container spacing={3}>
+                                        <Grid item xs={12} md={4}>
+                                            <Box sx={{ p: 3, bgcolor: '#e3f2fd', borderRadius: 3, height: '100%', textAlign: 'center' }}>
+                                                <GroupIcon sx={{ fontSize: 50, color: '#1976d2', mb: 1 }} />
+                                                <Typography variant="h6" fontWeight="bold" mb={1}>Gia nhập Lớp học</Typography>
+                                                <Typography variant="body2" color="textSecondary">
+                                                    Vào mục Lớp Học, nhấp "Tham gia lớp" và nhập mã Invite Code do giáo viên cung cấp để nhận bài tập về nhà.
+                                                </Typography>
+                                            </Box>
+                                        </Grid>
+                                        <Grid item xs={12} md={4}>
+                                            <Box sx={{ p: 3, bgcolor: '#e8f5e9', borderRadius: 3, height: '100%', textAlign: 'center' }}>
+                                                <AssignmentTurnedInIcon sx={{ fontSize: 50, color: '#388e3c', mb: 1 }} />
+                                                <Typography variant="h6" fontWeight="bold" mb={1}>Làm bài & Xem Lịch sử</Typography>
+                                                <Typography variant="body2" color="textSecondary">
+                                                    Trải nghiệm giao diện thi mượt mà. Nộp bài xong sẽ biết điểm ngay, xem lại được đáp án đúng và lời giải chi tiết.
+                                                </Typography>
+                                            </Box>
+                                        </Grid>
+                                        <Grid item xs={12} md={4}>
+                                            <Box sx={{ p: 3, bgcolor: '#fff3e0', borderRadius: 3, height: '100%', textAlign: 'center' }}>
+                                                <AutoAwesomeIcon sx={{ fontSize: 50, color: '#f57c00', mb: 1 }} />
+                                                <Typography variant="h6" fontWeight="bold" mb={1}>Hỏi bài cùng AI</Typography>
+                                                <Typography variant="body2" color="textSecondary">
+                                                    Sử dụng nút Chatbot góc dưới màn hình. Gõ câu hỏi hoặc tải ảnh chụp bài toán lên để "Gia sư AI" hướng dẫn cách giải ngay lập tức.
+                                                </Typography>
+                                            </Box>
+                                        </Grid>
+                                    </Grid>
                                 </Box>
-                            )}
-                        </CustomTabPanel>
 
+                                {/* Lời kết */}
+                                <Box sx={{ mt: 6, textAlign: 'center', p: 4, borderTop: '1px solid #eee' }}>
+                                    <Typography variant="h5" fontWeight="bold" color="secondary" gutterBottom>
+                                        Sẵn sàng chinh phục Toán học cùng ITMaths?
+                                    </Typography>
+                                    <Typography variant="body1" color="textSecondary" paragraph>
+                                        Hãy đăng nhập ngay hôm nay để bắt đầu xây dựng lộ trình giảng dạy và học tập hiệu quả nhất!
+                                    </Typography>
+                                </Box>
+
+                            </Box>
+                        )}
+                        
+                        {/* Placeholder cho các tab khác */}
+                        {tabValue !== 0 && (
+                            <Box textAlign="center" py={10}>
+                                <Typography variant="h5" color="textSecondary">Nội dung đang được cập nhật...</Typography>
+                            </Box>
+                        )}
                     </Box>
                 </Paper>
             </Container>
-            
-            <style>{`
-                @keyframes fadeInUp {
-                    0% { opacity: 0; transform: translateY(15px); }
-                    100% { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
         </Box>
     );
-}
+};
 
 export default PublicResourcesPage;
