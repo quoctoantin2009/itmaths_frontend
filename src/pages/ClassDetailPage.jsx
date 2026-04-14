@@ -14,7 +14,8 @@ import ForumIcon from '@mui/icons-material/Forum';
 import SendIcon from '@mui/icons-material/Send';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ReplayIcon from '@mui/icons-material/Replay'; // 🟢 Icon Đặt lại
+import ReplayIcon from '@mui/icons-material/Replay'; 
+import EditIcon from '@mui/icons-material/Edit'; // 🟢 Icon Chỉnh sửa
 
 import { Snackbar, Alert, Slide, IconButton, Tooltip, CircularProgress, Box, Typography, Paper, TextField, Button, Switch, FormControlLabel, Grid, Divider, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 
@@ -23,6 +24,14 @@ import './ClassDetail.css';
 function TransitionDown(props) {
   return <Slide {...props} direction="down" />;
 }
+
+// Hàm hỗ trợ: Biến đổi chuỗi thời gian từ Server (ISO) thành định dạng cho thẻ <input type="datetime-local">
+const formatDateTimeForInput = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d - tzOffset).toISOString().slice(0, 16);
+};
 
 const ClassDetail = () => {
   const { id } = useParams();
@@ -68,6 +77,11 @@ const ClassDetail = () => {
   });
 
   const [deleteAssignConfirm, setDeleteAssignConfirm] = useState({ open: false, assignId: null });
+  
+  // 🟢 STATE CHO HỘP THOẠI GIA HẠN THỜI GIAN
+  const [editTimeModal, setEditTimeModal] = useState({ 
+      open: false, assignId: null, start_time: '', end_time: '' 
+  });
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -252,6 +266,28 @@ const ClassDetail = () => {
       }
   };
 
+  // 🟢 HÀM LƯU GIA HẠN THỜI GIAN
+  const handleUpdateAssignmentTime = async () => {
+      if (editTimeModal.start_time && editTimeModal.end_time) {
+          if (new Date(editTimeModal.start_time) >= new Date(editTimeModal.end_time)) {
+              return showNotification("⚠️ Lỗi: Hạn chót phải sau thời gian mở đề!", "error");
+          }
+      }
+      try {
+          const payload = {
+              start_time: editTimeModal.start_time ? new Date(editTimeModal.start_time).toISOString() : null,
+              end_time: editTimeModal.end_time ? new Date(editTimeModal.end_time).toISOString() : null,
+          };
+          // Gọi API PATCH để chỉ cập nhật 2 trường thời gian của Assignment
+          await axiosClient.patch(`/class_assignments/${editTimeModal.assignId}/`, payload);
+          showNotification("✅ Đã cập nhật thời gian làm bài thành công!", "success");
+          fetchData(); // Tải lại Bảng tin
+          setEditTimeModal({ open: false, assignId: null, start_time: '', end_time: '' });
+      } catch (error) {
+          showNotification("❌ Lỗi khi cập nhật thời gian!", "error");
+      }
+  };
+
   const handleOpenExam = (examId) => navigate(`/exams/${examId}?classroom_id=${id}`); 
   const handleViewResult = (resultId) => navigate(`/history/${resultId}`);
   const handleDownloadExcel = async () => {
@@ -374,7 +410,6 @@ const ClassDetail = () => {
                                 <FormControlLabel control={<Switch checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} color="primary" />} label={<Typography fontWeight="bold" color="primary">Cài đặt nâng cao (Thời gian & Thang điểm)</Typography>} />
                                 {showAdvanced && (
                                     <Box sx={{ mt: 2 }}>
-                                        {/* 🟢 NÚT HỦY THỜI GIAN ĐƯỢC ĐẶT Ở ĐÂY (Chỉ hiện khi đã chọn giờ) */}
                                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                             <Typography variant="subtitle2" color="textSecondary">⏰ Cài đặt Thời gian</Typography>
                                             {(advancedSettings.start_time || advancedSettings.end_time) && (
@@ -420,6 +455,11 @@ const ClassDetail = () => {
                                         <p className="sub-info">Chuyên đề: {assign.topic_title || "Cá nhân"} ({assign.exam_duration} phút)</p>
                                         <p className="card-date">
                                             Đăng ngày: {new Date(assign.created_at).toLocaleDateString('vi-VN')}
+                                            {assign.start_time && (
+                                                <span style={{color: '#27ae60', fontWeight: 'bold', marginLeft: '10px'}}>
+                                                    🟢 Mở đề: {new Date(assign.start_time).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})} {new Date(assign.start_time).toLocaleDateString('vi-VN')}
+                                                </span>
+                                            )}
                                             {assign.end_time && (
                                                 <span style={{color: '#e74c3c', fontWeight: 'bold', marginLeft: '10px'}}>
                                                     ⏳ Hạn nộp: {new Date(assign.end_time).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})} {new Date(assign.end_time).toLocaleDateString('vi-VN')}
@@ -428,18 +468,37 @@ const ClassDetail = () => {
                                         </p>
                                     </div>
                                     
+                                    {/* 🟢 NHÓM NÚT SỬA GIỜ VÀ XÓA BÀI TẬP */}
                                     {isTeacher && (
-                                        <Tooltip title="Thu hồi bài tập khỏi lớp">
-                                            <IconButton 
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); 
-                                                    setDeleteAssignConfirm({ open: true, assignId: assign.id });
-                                                }}
-                                                sx={{ color: '#e74c3c', '&:hover': { bgcolor: '#fdeaea' } }}
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Tooltip>
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            <Tooltip title="Gia hạn / Chỉnh sửa thời gian">
+                                                <IconButton 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); 
+                                                        setEditTimeModal({ 
+                                                            open: true, 
+                                                            assignId: assign.id,
+                                                            start_time: formatDateTimeForInput(assign.start_time),
+                                                            end_time: formatDateTimeForInput(assign.end_time)
+                                                        });
+                                                    }}
+                                                    sx={{ color: '#f39c12', '&:hover': { bgcolor: '#fef5e7' } }}
+                                                >
+                                                    <EditIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Thu hồi bài tập khỏi lớp">
+                                                <IconButton 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); 
+                                                        setDeleteAssignConfirm({ open: true, assignId: assign.id });
+                                                    }}
+                                                    sx={{ color: '#e74c3c', '&:hover': { bgcolor: '#fdeaea' } }}
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     )}
                                 </div>
                             ))
@@ -583,6 +642,32 @@ const ClassDetail = () => {
         )}
       </div>
 
+      {/* 🟢 HỘP THOẠI GIA HẠN THỜI GIAN BÀI TẬP */}
+      <Dialog open={editTimeModal.open} onClose={() => setEditTimeModal({ ...editTimeModal, open: false })} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 'bold', color: '#f39c12' }}>⏳ Gia hạn / Cập nhật thời gian</DialogTitle>
+          <DialogContent sx={{ mt: 2 }}>
+              <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6}>
+                      <TextField fullWidth type="datetime-local" label="Thời gian mở đề" InputLabelProps={{ shrink: true }}
+                          value={editTimeModal.start_time}
+                          onChange={(e) => setEditTimeModal({ ...editTimeModal, start_time: e.target.value })}
+                      />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                      <TextField fullWidth type="datetime-local" label="Hạn chót nộp bài" InputLabelProps={{ shrink: true }}
+                          value={editTimeModal.end_time}
+                          onChange={(e) => setEditTimeModal({ ...editTimeModal, end_time: e.target.value })}
+                      />
+                  </Grid>
+              </Grid>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setEditTimeModal({ ...editTimeModal, open: false })} color="inherit">Hủy</Button>
+              <Button onClick={handleUpdateAssignmentTime} variant="contained" color="warning">Cập nhật</Button>
+          </DialogActions>
+      </Dialog>
+
+      {/* Hộp thoại xác nhận Thu hồi */}
       <Dialog open={deleteAssignConfirm.open} onClose={() => setDeleteAssignConfirm({ open: false, assignId: null })} maxWidth="xs" fullWidth>
           <DialogTitle sx={{ fontWeight: 'bold', color: '#e74c3c' }}>⚠️ Xác nhận thu hồi</DialogTitle>
           <DialogContent>
