@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
     AppBar, Toolbar, Typography, Button, Box, Container, 
-    Menu, MenuItem, IconButton, Avatar, Tooltip 
+    Menu, MenuItem, IconButton, Avatar, Tooltip, Drawer, List, ListItem, ListItemButton, ListItemText, Divider
 } from '@mui/material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+
+// Import Icons
+import MenuIcon from '@mui/icons-material/Menu';
 
 // Import Logo
 import logoImg from '../assets/logo.jpg'; 
@@ -18,6 +21,9 @@ function Navbar() {
   const [username, setUsername] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null); 
   const [openProfile, setOpenProfile] = useState(false);
+  
+  // 🟢 STATE ĐỂ MỞ/ĐÓNG MENU ĐIỆN THOẠI
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -36,13 +42,9 @@ function Navbar() {
     window.location.reload(); 
   };
 
-  const handleOpenUserMenu = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleCloseUserMenu = () => {
-    setAnchorEl(null);
-  };
+  const handleOpenUserMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseUserMenu = () => setAnchorEl(null);
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
   const handleOpenHistoryFromProfile = () => {
       const historyBtn = document.getElementById('btn-exam-history-trigger');
@@ -50,6 +52,51 @@ function Navbar() {
   };
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  // 🟢 DANH SÁCH MENU ĐỂ DỄ QUẢN LÝ CHO CẢ PC VÀ MOBILE
+  const navItems = [
+      { label: 'Trang chủ', path: '/' },
+      { label: '🏫 Lớp học', path: '/classrooms' },
+      { label: 'Kho đề thi', path: '/exams' },
+      { label: 'Quản lý Đề', path: '/quan-ly-de-thi' },
+      { label: 'Tài nguyên', path: '/tai-nguyen' },
+      { label: '⚔️ Đấu trường', path: '/arena', isSpecial: true }
+  ];
+
+  // 🟢 GIAO DIỆN NGĂN KÉO (DRAWER) TRÊN ĐIỆN THOẠI
+  const drawerContent = (
+      <Box onClick={handleDrawerToggle} sx={{ width: 250, bgcolor: '#4a148c', height: '100%', color: 'white', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', mt: 2 }}>
+              <img src={logoImg} alt="ITMaths Logo" style={{ width: 50, height: 50, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)' }} />
+              <Typography variant="h6" fontWeight="bold" fontFamily="monospace">ITMATHS</Typography>
+          </Box>
+          <Divider sx={{ bgcolor: 'rgba(255,255,255,0.2)', mb: 2 }} />
+          <List>
+              {navItems.map((item) => (
+                  <ListItem key={item.path} disablePadding>
+                      <ListItemButton 
+                          component={Link} 
+                          to={item.path} 
+                          sx={{
+                              mb: 1,
+                              bgcolor: isActive(item.path) ? 'rgba(255, 202, 40, 0.2)' : 'transparent',
+                              borderLeft: isActive(item.path) ? '4px solid #ffca28' : '4px solid transparent',
+                              '&:hover': { bgcolor: 'rgba(255, 202, 40, 0.1)' }
+                          }}
+                      >
+                          <ListItemText 
+                              primary={item.label} 
+                              sx={{ 
+                                  color: item.isSpecial ? '#ffca28' : 'white', 
+                                  '& .MuiTypography-root': { fontWeight: isActive(item.path) || item.isSpecial ? 'bold' : 'normal' }
+                              }} 
+                          />
+                      </ListItemButton>
+                  </ListItem>
+              ))}
+          </List>
+      </Box>
+  );
 
   return (
     <>
@@ -60,11 +107,17 @@ function Navbar() {
         paddingTop: 'env(safe-area-inset-top)', 
         zIndex: 1100
     }}>
-      {/* Giảm padding hai bên trên mobile để có thêm không gian */}
       <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2 } }}>
-        <Toolbar disableGutters sx={{ minHeight: '64px', display: 'flex', flexWrap: 'nowrap' }}> 
+        <Toolbar disableGutters sx={{ minHeight: '64px', display: 'flex', justifyContent: 'space-between' }}> 
           
-          {/* 1. LOGO VÀ TÊN (Đã khóa cứng chống bóp méo) */}
+          {/* 🟢 NÚT 3 GẠCH TRÊN MOBILE (Bên Trái) */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center' }}>
+              <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle}>
+                  <MenuIcon fontSize="large" />
+              </IconButton>
+          </Box>
+
+          {/* 1. LOGO VÀ TÊN */}
           <Box 
             component={Link} 
             to="/"
@@ -73,9 +126,9 @@ function Navbar() {
                 alignItems: 'center', 
                 textDecoration: 'none', 
                 color: 'inherit',
-                flexShrink: 0, // 🟢 CHỐNG CO RÚT
-                mr: { xs: 1, md: 4 },
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flexGrow: { xs: 1, md: 0 }, // Mobile căn giữa, PC căn trái
+                justifyContent: { xs: 'center', md: 'flex-start' }
             }}
           >
               <Box 
@@ -83,11 +136,9 @@ function Navbar() {
                 src={logoImg} 
                 alt="ITMaths Logo"
                 sx={{ 
-                    height: 45,       
-                    width: 45, // 🟢 ÉP BUỘC RỘNG = CAO
-                    minWidth: 45, 
-                    objectFit: 'cover', // 🟢 GIỮ TỶ LỆ ẢNH TỐT NHẤT
-                    flexShrink: 0, // 🟢 CHỐNG BÓP MÉO LOGO
+                    height: { xs: 35, md: 45 },       
+                    width: { xs: 35, md: 45 }, 
+                    objectFit: 'cover', 
                     borderRadius: '50%', 
                     border: '2px solid rgba(255,255,255,0.3)',
                     mr: { xs: 0, sm: 1.5 },          
@@ -110,114 +161,31 @@ function Navbar() {
               </Typography>
           </Box>
 
-          {/* 2. MENU CHÍNH Ở GIỮA (Hỗ trợ vuốt ngang trên điện thoại) */}
-          <Box sx={{ 
-              flexGrow: 1, 
-              display: 'flex', 
-              gap: { xs: 0.5, md: 1 }, 
-              overflowX: 'auto', // 🟢 BẬT THANH CUỘN NGANG
-              flexWrap: 'nowrap', // 🟢 ÉP NẰM TRÊN 1 HÀNG
-              WebkitOverflowScrolling: 'touch', // 🟢 CUỘN MƯỢT TRÊN ĐIỆN THOẠI
-              msOverflowStyle: 'none',  
-              scrollbarWidth: 'none',  
-              '&::-webkit-scrollbar': { display: 'none' }, // 🟢 ẨN THANH CUỘN CHO ĐẸP
-              px: 1
-          }}>
-             <Button
-                component={Link}
-                to="/"
-                sx={{ 
-                    color: 'white', 
-                    flexShrink: 0, // 🟢 CHỐNG ÉP CHỮ
-                    whiteSpace: 'nowrap',
-                    fontWeight: isActive('/') ? 'bold' : 'normal',
-                    borderBottom: isActive('/') ? '2px solid yellow' : 'none'
-                }}
-             >
-                Trang chủ
-             </Button>
-
-             <Button
-                component={Link}
-                to="/classrooms"
-                sx={{ 
-                    color: 'white', 
-                    flexShrink: 0,
-                    whiteSpace: 'nowrap',
-                    fontWeight: isActive('/classrooms') ? 'bold' : 'normal',
-                    borderBottom: isActive('/classrooms') ? '2px solid yellow' : 'none',
-                    display: 'flex', gap: 1
-                }}
-             >
-                🏫 Lớp học
-             </Button>
-
-             <Button
-                component={Link}
-                to="/exams"
-                sx={{ 
-                    color: 'white', 
-                    flexShrink: 0,
-                    whiteSpace: 'nowrap',
-                    fontWeight: isActive('/exams') ? 'bold' : 'normal',
-                    borderBottom: isActive('/exams') ? '2px solid yellow' : 'none'
-                }}
-             >
-                Kho đề thi
-             </Button>
-
-             {/* 🟢 [MỚI] NÚT QUẢN LÝ ĐỀ THI CÁ NHÂN */}
-             <Button
-                component={Link}
-                to="/quan-ly-de-thi"
-                sx={{ 
-                    color: 'white', 
-                    flexShrink: 0,
-                    whiteSpace: 'nowrap',
-                    fontWeight: isActive('/quan-ly-de-thi') ? 'bold' : 'normal',
-                    borderBottom: isActive('/quan-ly-de-thi') ? '2px solid yellow' : 'none'
-                }}
-             >
-                Quản lý Đề
-             </Button>
-
-             <Button
-                component={Link}
-                to="/tai-nguyen"
-                sx={{ 
-                    color: 'white', 
-                    flexShrink: 0,
-                    whiteSpace: 'nowrap',
-                    fontWeight: isActive('/tai-nguyen') ? 'bold' : 'normal',
-                    borderBottom: isActive('/tai-nguyen') ? '2px solid yellow' : 'none'
-                }}
-             >
-                Tài nguyên
-             </Button>
-
-             <Button
-                component={Link}
-                to="/arena"
-                sx={{ 
-                    color: '#ffeb3b', 
-                    flexShrink: 0,
-                    whiteSpace: 'nowrap',
-                    fontWeight: 'bold',
-                    borderBottom: isActive('/arena') ? '2px solid #ffca28' : 'none',
-                    bgcolor: 'rgba(255, 202, 40, 0.15)',
-                    borderRadius: 2,
-                    px: 2,
-                    display: 'flex', gap: 1,
-                    '&:hover': { bgcolor: 'rgba(255, 202, 40, 0.25)' }
-                }}
-             >
-                ⚔️ Đấu trường
-             </Button>
+          {/* 2. MENU CHÍNH TRÊN MÁY TÍNH (Ẩn trên Mobile) */}
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, justifyContent: 'center', gap: 1 }}>
+              {navItems.map((item) => (
+                  <Button
+                      key={item.path}
+                      component={Link}
+                      to={item.path}
+                      sx={{ 
+                          color: item.isSpecial ? '#ffeb3b' : 'white', 
+                          whiteSpace: 'nowrap',
+                          fontWeight: isActive(item.path) || item.isSpecial ? 'bold' : 'normal',
+                          borderBottom: isActive(item.path) ? '2px solid yellow' : 'none',
+                          bgcolor: item.isSpecial ? 'rgba(255, 202, 40, 0.15)' : 'transparent',
+                          borderRadius: item.isSpecial ? 2 : 0,
+                          px: item.isSpecial ? 2 : 1,
+                          '&:hover': { bgcolor: item.isSpecial ? 'rgba(255, 202, 40, 0.25)' : 'rgba(255, 255, 255, 0.1)' }
+                      }}
+                  >
+                      {item.label}
+                  </Button>
+              ))}
           </Box>
 
-          {/* 3. MENU USER BÊN PHẢI (Khóa cứng chống đẩy) */}
+          {/* 3. MENU USER BÊN PHẢI */}
           <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
-            
             {username ? (
               <>
                 <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#e1bee7', display: { xs: 'none', md: 'block' } }}>
@@ -261,11 +229,24 @@ function Navbar() {
                 </Button>
               </>
             )}
-
           </Box>
         </Toolbar>
       </Container>
     </AppBar>
+
+    {/* 🟢 DRAWER: MENU TRƯỢT TỪ TRÁI SANG TRÊN ĐIỆN THOẠI */}
+    <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }} // Giúp tăng hiệu năng trên di động
+        sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250, bgcolor: '#4a148c' },
+        }}
+    >
+        {drawerContent}
+    </Drawer>
 
     <UserProfileDialog 
         open={openProfile} 
