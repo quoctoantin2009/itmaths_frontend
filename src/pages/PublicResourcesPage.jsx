@@ -50,15 +50,17 @@ const PublicResourcesPage = () => {
                         indicatorColor="secondary"
                     >
                         <Tab icon={<InfoIcon />} label="Giới thiệu & Hướng dẫn" sx={{ fontWeight: 'bold', py: 2 }} />
-                        <Tab icon={<SchoolIcon />} label="Phương pháp học" sx={{ fontWeight: 'bold', py: 2 }} disabled />
-                        <Tab icon={<MenuBookIcon />} label="Tài liệu & Phần mềm" sx={{ fontWeight: 'bold', py: 2 }} disabled />
-                        <Tab icon={<ArticleIcon />} label="Tin tức giáo dục" sx={{ fontWeight: 'bold', py: 2 }} disabled />
+                        {/* 🟢 Đã gỡ bỏ thuộc tính 'disabled' ở 3 tab dưới đây */}
+                        <Tab icon={<SchoolIcon />} label="Phương pháp học" sx={{ fontWeight: 'bold', py: 2 }} />
+                        <Tab icon={<MenuBookIcon />} label="Tài liệu & Phần mềm" sx={{ fontWeight: 'bold', py: 2 }} />
+                        <Tab icon={<ArticleIcon />} label="Tin tức giáo dục" sx={{ fontWeight: 'bold', py: 2 }} />
                     </Tabs>
 
                     <Box sx={{ p: { xs: 3, md: 5 }, bgcolor: '#fff' }}>
+                        
+                        {/* 🟢 TAB 0: GIỚI THIỆU & HƯỚNG DẪN */}
                         {tabValue === 0 && (
                             <Box>
-                                {/* PHẦN 1: GIỚI THIỆU TỔNG QUAN ITMATHS */}
                                 <Box mb={6}>
                                     <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ borderBottom: '3px solid #9c27b0', display: 'inline-block', pb: 1 }}>
                                         ITMaths - Nền tảng học Toán Số hóa Toàn diện
@@ -91,7 +93,6 @@ const PublicResourcesPage = () => {
                                     </Box>
                                 </Box>
 
-                                {/* PHẦN 2: HƯỚNG DẪN SỬ DỤNG CHI TIẾT THEO TRÌNH TỰ */}
                                 <Typography variant="h4" fontWeight="bold" color="secondary" gutterBottom sx={{ borderBottom: '3px solid #ffca28', display: 'inline-block', pb: 1, mb: 4 }}>
                                     Cẩm nang vận hành hệ thống (Dành cho Giáo viên)
                                 </Typography>
@@ -100,7 +101,6 @@ const PublicResourcesPage = () => {
                                     Để làm chủ hoàn toàn ITMaths, giáo viên chỉ cần thực hiện theo 5 bước logic dưới đây. Nhấp vào từng mục để xem hướng dẫn chi tiết:
                                 </Typography>
 
-                                {/* BƯỚC 1: TẠO LỚP */}
                                 <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
                                         <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -119,7 +119,6 @@ const PublicResourcesPage = () => {
                                     </AccordionDetails>
                                 </Accordion>
 
-                                {/* BƯỚC 2: TẠO KHO ĐỀ */}
                                 <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
                                         <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -138,7 +137,6 @@ const PublicResourcesPage = () => {
                                     </AccordionDetails>
                                 </Accordion>
 
-                                {/* BƯỚC 3: GIAO BÀI */}
                                 <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
                                         <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -160,7 +158,6 @@ const PublicResourcesPage = () => {
                                     </AccordionDetails>
                                 </Accordion>
 
-                                {/* BƯỚC 4: ĐẤU TRƯỜNG */}
                                 <Accordion sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
                                         <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -180,7 +177,6 @@ const PublicResourcesPage = () => {
                                     </AccordionDetails>
                                 </Accordion>
 
-                                {/* BƯỚC 5: THỐNG KÊ & AI */}
                                 <Accordion sx={{ border: '1px solid #e0e0e0', boxShadow: 'none', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#f8f9fa' }}>
                                         <Typography variant="h6" fontWeight="bold" color="#2c3e50" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -195,7 +191,6 @@ const PublicResourcesPage = () => {
                                     </AccordionDetails>
                                 </Accordion>
 
-                                {/* Lời kết */}
                                 <Box sx={{ mt: 8, textAlign: 'center', p: 4, bgcolor: '#fdfbfb', borderRadius: 4, border: '1px dashed #ddd' }}>
                                     <AutoAwesomeIcon sx={{ fontSize: 40, color: '#f1c40f', mb: 2 }} />
                                     <Typography variant="h5" fontWeight="bold" color="#34495e" gutterBottom>
@@ -205,16 +200,48 @@ const PublicResourcesPage = () => {
                                         Bây giờ bạn đã nắm trong tay toàn bộ sức mạnh của ITMaths. Chúc bạn có những giờ giảng dạy thăng hoa và học sinh đạt được nhiều thành tích xuất sắc!
                                     </Typography>
                                 </Box>
-
                             </Box>
                         )}
                         
-                        {/* Placeholder cho các tab khác */}
-                        {tabValue !== 0 && (
+                        {/* 🟢 TAB 1: PHƯƠNG PHÁP HỌC */}
+                        {tabValue === 1 && (
                             <Box textAlign="center" py={10}>
-                                <Typography variant="h5" color="textSecondary">Nội dung đang được cập nhật...</Typography>
+                                <SchoolIcon sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
+                                <Typography variant="h5" color="textSecondary">
+                                    Mục "Phương pháp học" đang được cập nhật...
+                                </Typography>
+                                <Typography variant="body2" color="textSecondary" mt={1}>
+                                    (Sau này bạn có thể chèn các bài viết chia sẻ kinh nghiệm ôn thi vào đây)
+                                </Typography>
                             </Box>
                         )}
+
+                        {/* 🟢 TAB 2: TÀI LIỆU & PHẦN MỀM */}
+                        {tabValue === 2 && (
+                            <Box textAlign="center" py={10}>
+                                <MenuBookIcon sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
+                                <Typography variant="h5" color="textSecondary">
+                                    Mục "Tài liệu & Phần mềm" đang được cập nhật...
+                                </Typography>
+                                <Typography variant="body2" color="textSecondary" mt={1}>
+                                    (Sau này bạn có thể thêm các link tải file PDF, link phần mềm vào đây)
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* 🟢 TAB 3: TIN TỨC GIÁO DỤC */}
+                        {tabValue === 3 && (
+                            <Box textAlign="center" py={10}>
+                                <ArticleIcon sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
+                                <Typography variant="h5" color="textSecondary">
+                                    Mục "Tin tức giáo dục" đang được cập nhật...
+                                </Typography>
+                                <Typography variant="body2" color="textSecondary" mt={1}>
+                                    (Sau này bạn có thể đăng các tin tức tuyển sinh, quy chế thi vào đây)
+                                </Typography>
+                            </Box>
+                        )}
+
                     </Box>
                 </Paper>
             </Container>
