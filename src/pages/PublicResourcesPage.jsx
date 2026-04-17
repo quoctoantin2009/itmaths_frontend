@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
     Box, Container, Typography, Paper, Tabs, Tab, 
-    Divider, List, ListItem, ListItemIcon, ListItemText, Accordion, AccordionSummary, AccordionDetails
+    Divider, List, ListItem, ListItemIcon, ListItemText, Accordion, AccordionSummary, AccordionDetails,
+    Grid, Card, CardContent, CardActions, Button, Chip
 } from '@mui/material';
 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -16,6 +17,12 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import SpeedIcon from '@mui/icons-material/Speed';
+import DownloadIcon from '@mui/icons-material/Download';
+import LanguageIcon from '@mui/icons-material/Language';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 const PublicResourcesPage = () => {
     const [tabValue, setTabValue] = useState(0);
@@ -50,7 +57,6 @@ const PublicResourcesPage = () => {
                         indicatorColor="secondary"
                     >
                         <Tab icon={<InfoIcon />} label="Giới thiệu & Hướng dẫn" sx={{ fontWeight: 'bold', py: 2 }} />
-                        {/* 🟢 Đã gỡ bỏ thuộc tính 'disabled' ở 3 tab dưới đây */}
                         <Tab icon={<SchoolIcon />} label="Phương pháp học" sx={{ fontWeight: 'bold', py: 2 }} />
                         <Tab icon={<MenuBookIcon />} label="Tài liệu & Phần mềm" sx={{ fontWeight: 'bold', py: 2 }} />
                         <Tab icon={<ArticleIcon />} label="Tin tức giáo dục" sx={{ fontWeight: 'bold', py: 2 }} />
@@ -152,9 +158,6 @@ const PublicResourcesPage = () => {
                                             <li><b>Cài đặt nâng cao:</b> Bật công tắc này để thiết lập <b>Thời gian mở/đóng đề</b>. Học sinh sẽ không thể làm bài nếu quá hạn.</li>
                                             <li><b>Thang điểm tự do:</b> Bạn được quyền gõ điểm cho từng câu Trắc nghiệm, Trả lời ngắn. Đặc biệt với câu hỏi Đúng/Sai, bạn có thể chỉnh mức điểm cho việc học sinh trả lời đúng 1 ý, 2 ý, 3 ý hoặc cả 4 ý.</li>
                                         </ul>
-                                        <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', color: 'red' }}>
-                                            * Mẹo: Nếu muốn thu hồi bài tập, hãy bấm vào biểu tượng thùng rác màu đỏ ngay trên bài tập đã đăng ở bảng tin.
-                                        </Typography>
                                     </AccordionDetails>
                                 </Accordion>
 
@@ -205,40 +208,121 @@ const PublicResourcesPage = () => {
                         
                         {/* 🟢 TAB 1: PHƯƠNG PHÁP HỌC */}
                         {tabValue === 1 && (
-                            <Box textAlign="center" py={10}>
-                                <SchoolIcon sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
-                                <Typography variant="h5" color="textSecondary">
-                                    Mục "Phương pháp học" đang được cập nhật...
+                            <Box>
+                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ borderBottom: '3px solid #3498db', display: 'inline-block', pb: 1, mb: 4 }}>
+                                    Bí kíp "Hack" điểm Toán
                                 </Typography>
-                                <Typography variant="body2" color="textSecondary" mt={1}>
-                                    (Sau này bạn có thể chèn các bài viết chia sẻ kinh nghiệm ôn thi vào đây)
-                                </Typography>
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={4}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3 }}>
+                                            <CardContent>
+                                                <LightbulbIcon sx={{ fontSize: 40, color: '#f1c40f', mb: 2 }} />
+                                                <Typography variant="h6" fontWeight="bold" gutterBottom>Kỹ thuật Feynman</Typography>
+                                                <Typography variant="body2" color="textSecondary" sx={{ lineHeight: 1.8 }}>
+                                                    Học sâu, nhớ lâu bằng cách: "Hãy cố gắng giải thích lại bài toán vừa làm cho một đứa trẻ 12 tuổi hiểu". Nếu bạn bị vấp ở đâu, đó chính là lỗ hổng kiến thức bạn cần ôn lại ngay lập tức.
+                                                </Typography>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3 }}>
+                                            <CardContent>
+                                                <AccessTimeIcon sx={{ fontSize: 40, color: '#e74c3c', mb: 2 }} />
+                                                <Typography variant="h6" fontWeight="bold" gutterBottom>Đồng hồ Pomodoro</Typography>
+                                                <Typography variant="body2" color="textSecondary" sx={{ lineHeight: 1.8 }}>
+                                                    Khi giải đề thi thử trên ITMaths, hãy áp dụng quy tắc: Tập trung cao độ 25 phút giải bài, sau đó nghỉ ngắn 5 phút. Điều này giúp bộ não không bị quá tải và duy trì phong độ làm bài đến những câu cuối cùng.
+                                                </Typography>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                        <Card elevation={2} sx={{ height: '100%', borderRadius: 3 }}>
+                                            <CardContent>
+                                                <SpeedIcon sx={{ fontSize: 40, color: '#2ecc71', mb: 2 }} />
+                                                <Typography variant="h6" fontWeight="bold" gutterBottom>Tư duy Trắc nghiệm mới</Typography>
+                                                <Typography variant="body2" color="textSecondary" sx={{ lineHeight: 1.8 }}>
+                                                    Với định dạng Đúng/Sai và Trả lời ngắn, bấm máy tính (Casio) không còn là phép màu vạn năng. Hãy tập trung nắm chắc bản chất định lý và vẽ hình phác thảo thật nhanh để ăn điểm trọn vẹn 4 ý.
+                                                </Typography>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+                                </Grid>
                             </Box>
                         )}
 
                         {/* 🟢 TAB 2: TÀI LIỆU & PHẦN MỀM */}
                         {tabValue === 2 && (
-                            <Box textAlign="center" py={10}>
-                                <MenuBookIcon sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
-                                <Typography variant="h5" color="textSecondary">
-                                    Mục "Tài liệu & Phần mềm" đang được cập nhật...
+                            <Box>
+                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ borderBottom: '3px solid #e67e22', display: 'inline-block', pb: 1, mb: 4 }}>
+                                    Hành trang Toán học
                                 </Typography>
-                                <Typography variant="body2" color="textSecondary" mt={1}>
-                                    (Sau này bạn có thể thêm các link tải file PDF, link phần mềm vào đây)
+                                <Typography variant="body1" paragraph color="textSecondary" mb={4}>
+                                    Tổng hợp các phần mềm và tài liệu gối đầu giường không thể thiếu dành cho Giáo viên và Học sinh.
                                 </Typography>
+
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={6}>
+                                        <Paper elevation={1} sx={{ p: 3, borderLeft: '5px solid #3498db', borderRadius: 2 }}>
+                                            <Typography variant="h6" fontWeight="bold" mb={1}>GeoGebra Classic 5/6</Typography>
+                                            <Typography variant="body2" color="textSecondary" mb={2}>Phần mềm vẽ đồ thị hàm số và hình học không gian 3D trực quan nhất thế giới. Rất hữu ích cho các bài toán thiết diện và cực trị hình học.</Typography>
+                                            <Button variant="outlined" size="small" startIcon={<LanguageIcon />} href="https://www.geogebra.org/download" target="_blank">Truy cập Trang chủ</Button>
+                                        </Paper>
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <Paper elevation={1} sx={{ p: 3, borderLeft: '5px solid #2c3e50', borderRadius: 2 }}>
+                                            <Typography variant="h6" fontWeight="bold" mb={1}>Giả lập Casio FX-880BTG</Typography>
+                                            <Typography variant="body2" color="textSecondary" mb={2}>Phần mềm giả lập máy tính cầm tay thế hệ mới nhất trực tiếp trên màn hình máy tính, hỗ trợ giáo viên trình chiếu cách bấm máy cho học sinh xem.</Typography>
+                                            <Button variant="outlined" size="small" startIcon={<LanguageIcon />} href="https://bitexedu.com/" target="_blank">Tải từ Bitex</Button>
+                                        </Paper>
+                                    </Grid>
+                                    <Grid item xs={12}>
+                                        <Paper elevation={1} sx={{ p: 3, borderLeft: '5px solid #e74c3c', borderRadius: 2 }}>
+                                            <Typography variant="h6" fontWeight="bold" mb={1}>Sổ tay Công thức Toán THPT</Typography>
+                                            <Typography variant="body2" color="textSecondary" mb={2}>Bản tóm tắt toàn bộ công thức Đại số và Hình học từ lớp 10 đến 12, được thiết kế dưới dạng Mindmap (Bản đồ tư duy) dễ nhớ, dễ tra cứu.</Typography>
+                                            <Button variant="contained" color="error" size="small" startIcon={<DownloadIcon />}>Tải File PDF (Đang cập nhật)</Button>
+                                        </Paper>
+                                    </Grid>
+                                </Grid>
                             </Box>
                         )}
 
                         {/* 🟢 TAB 3: TIN TỨC GIÁO DỤC */}
                         {tabValue === 3 && (
-                            <Box textAlign="center" py={10}>
-                                <ArticleIcon sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
-                                <Typography variant="h5" color="textSecondary">
-                                    Mục "Tin tức giáo dục" đang được cập nhật...
+                            <Box>
+                                <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom sx={{ borderBottom: '3px solid #27ae60', display: 'inline-block', pb: 1, mb: 4 }}>
+                                    Tin tức & Quy chế Tuyển sinh
                                 </Typography>
-                                <Typography variant="body2" color="textSecondary" mt={1}>
-                                    (Sau này bạn có thể đăng các tin tức tuyển sinh, quy chế thi vào đây)
-                                </Typography>
+                                
+                                <List sx={{ bgcolor: 'background.paper' }}>
+                                    {/* Bản tin 1 */}
+                                    <ListItem alignItems="flex-start" sx={{ flexDirection: 'column', borderBottom: '1px solid #eee', py: 3 }}>
+                                        <Box display="flex" justifyContent="space-between" width="100%" alignItems="center" mb={1}>
+                                            <Typography variant="h6" fontWeight="bold" color="#2c3e50">
+                                                Phân tích cấu trúc Đề thi Tốt nghiệp THPT môn Toán (Áp dụng từ 2025)
+                                            </Typography>
+                                            <Chip label="Mới nhất" color="error" size="small" />
+                                        </Box>
+                                        <Typography variant="body2" color="textSecondary" paragraph>
+                                            Bộ GD&ĐT chính thức công bố định dạng đề thi mới. Bài thi môn Toán sẽ giảm số lượng câu hỏi trắc nghiệm truyền thống, bổ sung định dạng Đúng/Sai (yêu cầu học sinh nắm vững lý thuyết) và định dạng Trả lời ngắn (chống khoanh lụi). Mọi bài kiểm tra trên hệ thống ITMaths đều đã được cập nhật bám sát cấu trúc mới này.
+                                        </Typography>
+                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <TimelineIcon fontSize="small" /> Cập nhật: Tuần trước
+                                        </Typography>
+                                    </ListItem>
+
+                                    {/* Bản tin 2 */}
+                                    <ListItem alignItems="flex-start" sx={{ flexDirection: 'column', borderBottom: '1px solid #eee', py: 3 }}>
+                                        <Typography variant="h6" fontWeight="bold" color="#2c3e50" mb={1}>
+                                            Sự bùng nổ của AI trong Giáo dục: Giáo viên Toán cần làm gì?
+                                        </Typography>
+                                        <Typography variant="body2" color="textSecondary" paragraph>
+                                            Với sự ra đời của các mô hình ngôn ngữ lớn (như Gemini), việc học sinh dùng AI để giải toán là xu hướng tất yếu. Thay vì cấm đoán, giáo viên có thể tích hợp AI vào quá trình giảng dạy để cá nhân hóa việc học. Tính năng Gia sư AI tích hợp sẵn trên ITMaths chính là công cụ để học sinh tự kiểm tra lỗi sai và hiểu bản chất bài toán ngay tại nhà.
+                                        </Typography>
+                                        <Typography variant="caption" color="text.disabled" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <TimelineIcon fontSize="small" /> Cập nhật: 2 tuần trước
+                                        </Typography>
+                                    </ListItem>
+                                </List>
                             </Box>
                         )}
 
