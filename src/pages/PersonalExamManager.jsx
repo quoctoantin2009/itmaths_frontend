@@ -6,7 +6,7 @@ import {
     Box, Typography, Button, Paper, TextField, Dialog, DialogTitle, 
     DialogContent, DialogActions, List, ListItem, ListItemIcon, ListItemText, 
     Divider, Grid, Card, CardContent, CardActions, IconButton, Tooltip, Snackbar, Alert,
-    CircularProgress // 🟢 ĐÃ BỔ SUNG THƯ VIỆN NÀY ĐỂ CHỐNG SẬP MÀN HÌNH
+    CircularProgress 
 } from '@mui/material';
 
 import FolderIcon from '@mui/icons-material/Folder';
@@ -43,7 +43,7 @@ const PersonalExamManager = () => {
         if (selectedFolder) {
             fetchExams(selectedFolder.id);
         } else {
-            fetchExams(''); // Lấy đề không có thư mục (Nằm ngoài cùng)
+            fetchExams(''); 
         }
     }, [selectedFolder]);
 
@@ -59,7 +59,6 @@ const PersonalExamManager = () => {
     const fetchExams = async (folderId) => {
         setLoading(true);
         try {
-            // Gọi API lấy đề thi do chính user này tạo và lọc theo folder
             const res = await axiosClient.get(`/exams/?folder=${folderId}&is_public=false`);
             setExams(Array.isArray(res.data) ? res.data : (res.data?.results || []));
         } catch (err) {
@@ -89,7 +88,7 @@ const PersonalExamManager = () => {
                 title: examData.title,
                 duration: examData.duration,
                 description: examData.description,
-                is_public: false, // Đề cá nhân
+                is_public: false, 
                 folder: selectedFolder ? selectedFolder.id : null
             };
             const res = await axiosClient.post('/exams/', payload);
@@ -103,11 +102,25 @@ const PersonalExamManager = () => {
     };
 
     return (
-        <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f4f6f8' }}>
+        <Box sx={{ 
+            display: 'flex', 
+            minHeight: '100vh', 
+            bgcolor: '#f4f6f8',
+            flexDirection: { xs: 'column', md: 'row' } // 🟢 QUAN TRỌNG: Cột dọc trên Mobile, ngang trên PC
+        }}>
             
-            {/* SIDEBAR BÊN TRÁI: QUẢN LÝ THƯ MỤC */}
-            <Box sx={{ width: '280px', bgcolor: 'white', borderRight: '1px solid #e0e0e0', p: 2, display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="h6" fontWeight="bold" color="primary" mb={3} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* 🟢 KHU VỰC 1: QUẢN LÝ THƯ MỤC (Nằm trên trên Mobile, nằm trái trên PC) */}
+            <Box sx={{ 
+                width: { xs: '100%', md: '280px' }, // Rộng 100% trên Mobile
+                bgcolor: 'white', 
+                borderRight: { xs: 'none', md: '1px solid #e0e0e0' },
+                borderBottom: { xs: '1px solid #e0e0e0', md: 'none' }, // Thêm viền dưới trên mobile
+                p: 2, 
+                display: 'flex', 
+                flexDirection: 'column',
+                flexShrink: 0
+            }}>
+                <Typography variant="h6" fontWeight="bold" color="primary" mb={2} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FolderOpenIcon /> Kho Đề Cá Nhân
                 </Typography>
                 
@@ -121,12 +134,13 @@ const PersonalExamManager = () => {
                     Thư mục mới
                 </Button>
 
-                <List sx={{ flex: 1, overflowY: 'auto' }}>
+                {/* 🟢 Cuộn list thư mục trên Mobile nếu quá nhiều, giữ cố định trên PC */}
+                <List sx={{ flex: 1, overflowY: 'auto', maxHeight: { xs: '150px', md: 'auto' } }}>
                     <ListItem 
                         button 
                         selected={selectedFolder === null} 
                         onClick={() => setSelectedFolder(null)}
-                        sx={{ borderRadius: 2, mb: 0.5, bgcolor: selectedFolder === null ? 'rgba(25, 118, 210, 0.08)' : 'transparent' }}
+                        sx={{ borderRadius: 2, mb: 0.5, bgcolor: selectedFolder === null ? 'rgba(25, 118, 210, 0.08)' : 'transparent', py: { xs: 0.5, md: 1 } }}
                     >
                         <ListItemIcon sx={{ minWidth: 40 }}><FolderIcon color={selectedFolder === null ? "primary" : "action"} /></ListItemIcon>
                         <ListItemText primary={<Typography fontWeight={selectedFolder === null ? "bold" : "normal"}>Ngoài cùng</Typography>} />
@@ -138,7 +152,7 @@ const PersonalExamManager = () => {
                             key={folder.id} 
                             selected={selectedFolder?.id === folder.id} 
                             onClick={() => setSelectedFolder(folder)}
-                            sx={{ borderRadius: 2, mb: 0.5, bgcolor: selectedFolder?.id === folder.id ? 'rgba(25, 118, 210, 0.08)' : 'transparent' }}
+                            sx={{ borderRadius: 2, mb: 0.5, bgcolor: selectedFolder?.id === folder.id ? 'rgba(25, 118, 210, 0.08)' : 'transparent', py: { xs: 0.5, md: 1 } }}
                         >
                             <ListItemIcon sx={{ minWidth: 40 }}><FolderIcon color={selectedFolder?.id === folder.id ? "primary" : "action"} /></ListItemIcon>
                             <ListItemText primary={<Typography fontWeight={selectedFolder?.id === folder.id ? "bold" : "normal"} noWrap>{folder.name}</Typography>} />
@@ -147,18 +161,28 @@ const PersonalExamManager = () => {
                 </List>
             </Box>
 
-            {/* MAIN CONTENT BÊN PHẢI: QUẢN LÝ ĐỀ THI */}
-            <Box sx={{ flex: 1, p: 4, overflowY: 'auto' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                    <Typography variant="h4" fontWeight="bold" color="#2c3e50">
+            {/* 🟢 KHU VỰC 2: MAIN CONTENT (Nằm dưới trên Mobile, nằm phải trên PC) */}
+            <Box sx={{ flex: 1, p: { xs: 2, md: 4 }, overflowY: 'auto' }}>
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    mb: 3,
+                    flexDirection: { xs: 'column', sm: 'row' }, // Tách tiêu đề và nút trên mobile siêu nhỏ
+                    gap: 2,
+                    textAlign: { xs: 'center', sm: 'left' }
+                }}>
+                    <Typography variant="h5" fontWeight="bold" color="#2c3e50">
                         {selectedFolder ? `📁 ${selectedFolder.name}` : '📁 Các đề nằm ngoài thư mục'}
                     </Typography>
+                    
+                    {/* 🟢 Nút Tạo Đề mới được thu gọn trên màn hình cực nhỏ */}
                     <Button 
                         variant="contained" 
                         color="secondary" 
                         startIcon={<PostAddIcon />} 
                         onClick={() => setOpenExamModal(true)}
-                        sx={{ px: 3, py: 1, borderRadius: 5, fontWeight: 'bold' }}
+                        sx={{ px: 3, py: 1, borderRadius: 5, fontWeight: 'bold', width: { xs: '100%', sm: 'auto' } }}
                     >
                         TẠO ĐỀ THI MỚI
                     </Button>
@@ -167,17 +191,17 @@ const PersonalExamManager = () => {
                 {loading ? (
                     <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>
                 ) : exams.length === 0 ? (
-                    <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 4, bgcolor: 'transparent', border: '2px dashed #ccc' }}>
-                        <AssignmentIcon sx={{ fontSize: 80, color: '#bdc3c7', mb: 2 }} />
-                        <Typography variant="h6" color="textSecondary">Chưa có đề thi nào trong mục này.</Typography>
-                        <Typography variant="body2" color="textSecondary">Hãy bấm "TẠO ĐỀ THI MỚI" để bắt đầu xây dựng kho dữ liệu của bạn.</Typography>
+                    <Paper sx={{ p: { xs: 3, md: 5 }, textAlign: 'center', borderRadius: 4, bgcolor: 'transparent', border: '2px dashed #ccc' }}>
+                        <AssignmentIcon sx={{ fontSize: 60, color: '#bdc3c7', mb: 2 }} />
+                        <Typography variant="h6" color="textSecondary">Chưa có đề thi nào.</Typography>
+                        <Typography variant="body2" color="textSecondary">Hãy bấm "TẠO ĐỀ THI MỚI" để bắt đầu xây dựng kho dữ liệu.</Typography>
                     </Paper>
                 ) : (
-                    <Grid container spacing={3}>
+                    <Grid container spacing={2}>
                         {exams.map(exam => (
-                            <Grid item xs={12} sm={6} md={4} key={exam.id}>
+                            <Grid item xs={12} sm={6} md={4} lg={3} key={exam.id}> {/* 🟢 1 cột trên ĐT, 2-3 cột trên Tablet, 4 cột trên màn hình rộng */}
                                 <Card sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-5px)', boxShadow: '0 8px 20px rgba(0,0,0,0.1)' } }}>
-                                    <CardContent>
+                                    <CardContent sx={{ pb: 1 }}>
                                         <Typography variant="h6" fontWeight="bold" noWrap gutterBottom title={exam.title}>
                                             {exam.title}
                                         </Typography>
@@ -189,7 +213,7 @@ const PersonalExamManager = () => {
                                         </Typography>
                                     </CardContent>
                                     <Divider />
-                                    <CardActions sx={{ justifyContent: 'space-between', px: 2, py: 1.5 }}>
+                                    <CardActions sx={{ justifyContent: 'space-between', px: 2, py: 1 }}>
                                         <Box>
                                             <Tooltip title="Sửa thông tin đề">
                                                 <IconButton size="small" color="primary"><EditIcon fontSize="small" /></IconButton>
@@ -214,7 +238,7 @@ const PersonalExamManager = () => {
                 )}
             </Box>
 
-            {/* MODAL TẠO THƯ MỤC MỚI */}
+            {/* MODALS GIỮ NGUYÊN (Không thay đổi gì vì Material UI đã tự lo responsive cho Dialog) */}
             <Dialog open={openFolderModal} onClose={() => setOpenFolderModal(false)} maxWidth="xs" fullWidth>
                 <DialogTitle fontWeight="bold">Tạo Thư mục mới</DialogTitle>
                 <DialogContent>
@@ -232,7 +256,6 @@ const PersonalExamManager = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* MODAL TẠO ĐỀ THI MỚI */}
             <Dialog open={openExamModal} onClose={() => setOpenExamModal(false)} maxWidth="sm" fullWidth>
                 <DialogTitle fontWeight="bold" sx={{ bgcolor: '#9b59b6', color: 'white' }}>Tạo Đề thi Cá nhân</DialogTitle>
                 <DialogContent sx={{ mt: 2 }}>
@@ -261,11 +284,9 @@ const PersonalExamManager = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* THÔNG BÁO TOAST */}
             <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({...toast, open: false})} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
                 <Alert severity={toast.type} variant="filled" sx={{ width: '100%', boxShadow: 3 }}>{toast.message}</Alert>
             </Snackbar>
-
         </Box>
     );
 };
