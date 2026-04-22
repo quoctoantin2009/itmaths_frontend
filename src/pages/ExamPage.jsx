@@ -91,6 +91,7 @@ function ExamPage() {
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(id ? parseInt(id) : null);
   const [currentExamInfo, setCurrentExamInfo] = useState(null);
+  const [assignmentInfo, setAssignmentInfo] = useState(null); // 🟢 LƯU GIỜ CỦA GIÁO VIÊN
   const [questions, setQuestions] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -99,12 +100,11 @@ function ExamPage() {
   const [loading, setLoading] = useState(false);
   const [openConfirm, setOpenConfirm] = useState(false);
 
-  // 🟢 STATE MỚI ĐỂ XÁC ĐỊNH HẾT GIỜ VÀ KHÓA ĐỀ
+  // 🟢 CỜ KHÓA ĐỀ KHI HẾT GIỜ
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [isProcessingResult, setIsProcessingResult] = useState(false);
   
   const timerRef = useRef(null);
-  // Tránh việc submit bị gọi nhiều lần khi hết giờ
   const hasAutoSubmitted = useRef(false);
 
   const searchParams = new URLSearchParams(location.search);
@@ -153,7 +153,7 @@ function ExamPage() {
     if (id) handleSelectExam(parseInt(id));
   }, [id]);
 
-  // 🟢 LOGIC ĐỒNG HỒ ĐƯỢC LÀM MỚI LẠI
+  // 🟢 ĐỘNG CƠ TÍNH GIỜ HOÀN TOÀN MỚI
   useEffect(() => {
     if (!selectedExamId || submitted || loading || !currentExamInfo) return;
 
@@ -164,14 +164,14 @@ function ExamPage() {
       if (storedStart) {
         const startTime = parseInt(storedStart);
         
-        // 1. Tính toán thời gian kết thúc dựa vào THỜI LƯỢNG mặc định của đề
-        const durationMinutes = currentExamInfo.duration || 90; // Mặc định 90 phút nếu không có
+        // 1. Tính hạn chót theo số phút mặc định của Server (VD: 90 phút)
+        const durationMinutes = currentExamInfo.duration || 90;
         let calculatedEndTime = startTime + (durationMinutes * 60 * 1000);
 
-        // 2. Nếu Giáo viên có cài đặt HẠN CHÓT (end_time) giao bài
-        if (currentExamInfo.end_time) {
-            const assignmentEndTime = new Date(currentExamInfo.end_time).getTime();
-            // Nếu Hạn chót đến sớm hơn thời lượng làm bài -> Ép thời gian kết thúc theo Hạn chót
+        // 2. ÉP BUỘC ĐỔI HẠN CHÓT THEO GIÁO VIÊN
+        if (assignmentInfo && assignmentInfo.end_time) {
+            const assignmentEndTime = new Date(assignmentInfo.end_time).getTime();
+            // Nếu giờ nộp của Giáo viên sớm hơn giờ dự kiến -> Ép đồng hồ chạy theo giờ của Giáo viên
             if (assignmentEndTime < calculatedEndTime) {
                 calculatedEndTime = assignmentEndTime;
             }
@@ -182,11 +182,10 @@ function ExamPage() {
 
         if (secondsLeft <= 0) {
           setTimeLeft(0);
-          setIsTimeUp(true); // 🟢 BẬT CỜ KHÓA ĐỀ
+          setIsTimeUp(true); // KHÓA ĐỀ NGAY LẬP TỨC
           clearInterval(timerRef.current);
           setOpenConfirm(false);
           
-          // Tự động nộp bài (Chỉ gọi 1 lần)
           if (!hasAutoSubmitted.current && !isProcessingResult) {
               hasAutoSubmitted.current = true;
               submitExam(); 
@@ -200,7 +199,7 @@ function ExamPage() {
     updateTimer();
     timerRef.current = setInterval(updateTimer, 1000);
     return () => clearInterval(timerRef.current);
-  }, [selectedExamId, submitted, loading, currentExamInfo]);
+  }, [selectedExamId, submitted, loading, currentExamInfo, assignmentInfo]);
 
   const handleSelectExam = async (examId) => {
     setLoading(true);
@@ -210,6 +209,7 @@ function ExamPage() {
     hasAutoSubmitted.current = false;
     setScoreData(null);
     setUserAnswers({});
+    setAssignmentInfo(null);
 
     try {
       const resQuestions = await axiosClient.get(`/exams/${examId}/questions/`);
@@ -236,11 +236,22 @@ function ExamPage() {
 
       setQuestions([...shuffledPart1, ...shuffleArray(part2), ...shuffleArray(part3)]);
 
-      // 🟢 GỬI KÈM classroom_id ĐỂ BACKEND TRẢ VỀ end_time CỦA GIÁO VIÊN
-      let infoUrl = `/exams/${examId}/`;
-      if (classroomId) infoUrl += `?classroom_id=${classroomId}`;
-      const resInfo = await axiosClient.get(infoUrl);
+      const resInfo = await axiosClient.get(`/exams/${examId}/`);
       setCurrentExamInfo(resInfo.data);
+
+      // 🟢 LẤY NGẦM THÔNG TIN GIAO BÀI TRONG LỚP (Bỏ qua nếu lỗi)
+      if (classroomId) {
+          try {
+              const classRes = await axiosClient.get(`/classrooms/${classroomId}/`);
+              const assignments = classRes.data.assignments || [];
+              const currentAssign = assignments.find(a => a.exam === parseInt(examId));
+              if (currentAssign) {
+                  setAssignmentInfo(currentAssign);
+              }
+          } catch(e) {
+              console.log("Truy cập tự do, không lấy giờ của lớp học");
+          }
+      }
 
       const storageKey = `exam_start_${examId}`;
       const storedStart = localStorage.getItem(storageKey);
@@ -264,7 +275,7 @@ function ExamPage() {
   };
 
   const handleAnswerChange = (questionId, choiceId, value, type) => {
-    if (isTimeUp) return; // Khóa không cho đổi đáp án khi hết giờ
+    if (isTimeUp) return; // 🟢 Nếu hết giờ thì chặn không cho sửa đáp án nữa
     if (type === "TF") {
       setUserAnswers(prev => ({
         ...prev, [questionId]: { ...(prev[questionId] || {}), [choiceId]: value }
@@ -445,7 +456,7 @@ function ExamPage() {
                     </Box>
                 )}
 
-                {/* Làm mờ và vô hiệu hóa click khi hết giờ */}
+                {/* Làm mờ và vô hiệu hóa toàn bộ click khi hết giờ */}
                 <Box sx={{ 
                     pointerEvents: isTimeUp ? 'none' : 'auto', 
                     userSelect: isTimeUp ? 'none' : 'auto',
