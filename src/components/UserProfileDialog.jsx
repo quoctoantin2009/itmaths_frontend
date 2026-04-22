@@ -49,6 +49,14 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
         province: '' 
     });
 
+    // 🟢 KIỂM TRA DỮ LIỆU ĐÃ ĐẦY ĐỦ CHƯA (Trừ lớp actual_class)
+    const isProfileIncomplete = 
+        !profile.first_name?.trim() || 
+        !profile.last_name?.trim() || 
+        !profile.phone?.trim() || 
+        !profile.province?.trim() || 
+        !profile.school_name?.trim();
+
     const getAuthHeader = () => {
         const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
         return token ? { Authorization: `Bearer ${token}` } : {};
@@ -88,6 +96,12 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
     };
 
     const handleSave = async () => {
+        // 🟢 BẮT LỖI NẾU BẤM LƯU MÀ CHƯA ĐIỀN ĐỦ
+        if (isProfileIncomplete) {
+            setMessage({ type: 'error', text: 'Vui lòng điền đầy đủ các thông tin có dấu (*) trước khi lưu!' });
+            return;
+        }
+
         setSaving(true);
         setMessage({ type: '', text: '' });
 
@@ -108,11 +122,9 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
             });
             setMessage({ type: 'success', text: 'Đã lưu hồ sơ thành công!' });
             
-            // 🟢 [QUAN TRỌNG] Cập nhật bộ nhớ cục bộ để Đấu trường lấy được Họ Tên
             localStorage.setItem('first_name', profile.first_name || '');
             localStorage.setItem('last_name', profile.last_name || '');
 
-            // Vẫn giữ lại dòng cập nhật username cũ cho an toàn với các trang khác
             const fullName = (profile.last_name + ' ' + profile.first_name).trim();
             if (fullName) localStorage.setItem('username', fullName);
             
@@ -153,7 +165,17 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
 
     return (
         <>
-            <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+            {/* 🟢 KHÓA BẤM RA NGOÀI (backdropClick) HOẶC BẤM ESCAPE NẾU CHƯA ĐỦ THÔNG TIN */}
+            <Dialog 
+                open={open} 
+                onClose={(event, reason) => {
+                    if (isProfileIncomplete && (reason === 'backdropClick' || reason === 'escapeKeyDown')) return;
+                    onClose();
+                }} 
+                disableEscapeKeyDown={isProfileIncomplete}
+                fullWidth 
+                maxWidth="sm"
+            >
                 <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#673ab7', color: 'white' }}>
                     <PersonIcon /> Hồ Sơ Cá Nhân
                 </DialogTitle>
@@ -164,6 +186,13 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                     ) : (
                         <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
                             
+                            {/* 🟢 CẢNH BÁO LUÔN HIỆN NẾU THIẾU THÔNG TIN */}
+                            {isProfileIncomplete && !message.text && (
+                                <Alert severity="warning" sx={{ fontWeight: 'bold' }}>
+                                    Bạn phải cập nhật đầy đủ thông tin có dấu (*) để sử dụng ứng dụng.
+                                </Alert>
+                            )}
+
                             {message.text && (
                                 <Alert severity={message.type} sx={{ wordBreak: 'break-word' }}>
                                     {message.text}
@@ -180,10 +209,10 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
 
                             <Grid container spacing={2}>
                                 <Grid item xs={6}>
-                                    <TextField label="Họ (Last Name)" name="last_name" value={profile.last_name} onChange={handleChange} fullWidth size="small" />
+                                    <TextField required label="Họ (Last Name)" name="last_name" value={profile.last_name} onChange={handleChange} fullWidth size="small" />
                                 </Grid>
                                 <Grid item xs={6}>
-                                    <TextField label="Tên (First Name)" name="first_name" value={profile.first_name} onChange={handleChange} fullWidth size="small" />
+                                    <TextField required label="Tên (First Name)" name="first_name" value={profile.first_name} onChange={handleChange} fullWidth size="small" />
                                 </Grid>
                             </Grid>
 
@@ -192,6 +221,7 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                             <Grid container spacing={2}>
                                 <Grid item xs={6}>
                                     <TextField 
+                                        required
                                         label="Số điện thoại" 
                                         name="phone" 
                                         value={profile.phone} 
@@ -202,6 +232,7 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                                 </Grid>
                                 <Grid item xs={6}>
                                     <TextField
+                                        required
                                         select
                                         label="Tỉnh / Thành phố"
                                         name="province"
@@ -222,6 +253,7 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                             <Divider sx={{ my: 1, color: '#673ab7', fontSize: '0.9rem' }}>THÔNG TIN TRƯỜNG LỚP</Divider>
 
                             <TextField
+                                required
                                 select
                                 label="Nghề nghiệp / Vai trò"
                                 name="occupation"
@@ -237,10 +269,11 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
 
                             <Grid container spacing={2}>
                                 <Grid item xs={8}>
-                                    <TextField label="Trường học" name="school_name" placeholder="VD: THPT Chuyên..." value={profile.school_name} onChange={handleChange} fullWidth size="small" />
+                                    <TextField required label="Trường học" name="school_name" placeholder="VD: THPT Chuyên..." value={profile.school_name} onChange={handleChange} fullWidth size="small" />
                                 </Grid>
                                 <Grid item xs={4}>
-                                    <TextField label="Lớp" name="actual_class" placeholder="12A1" value={profile.actual_class} onChange={handleChange} fullWidth size="small" />
+                                    {/* 🟢 KHÔNG có chữ required ở trường Lớp */}
+                                    <TextField label="Lớp (Không bắt buộc)" name="actual_class" placeholder="12A1" value={profile.actual_class} onChange={handleChange} fullWidth size="small" />
                                 </Grid>
                             </Grid>
                             
@@ -263,7 +296,10 @@ export default function UserProfileDialog({ open, onClose, onLogout, onOpenHisto
                 </DialogContent>
 
                 <DialogActions sx={{ p: 2, bgcolor: '#f5f5f5' }}>
-                    <Button onClick={onClose} color="inherit">Đóng</Button>
+                    {/* 🟢 CHỈ HIỆN NÚT ĐÓNG KHI ĐÃ ĐIỀN ĐỦ THÔNG TIN */}
+                    {!isProfileIncomplete && (
+                        <Button onClick={onClose} color="inherit">Đóng</Button>
+                    )}
                     <Button onClick={handleSave} variant="contained" color="primary" startIcon={saving ? <CircularProgress size={20} color="inherit"/> : <SaveIcon />} disabled={saving || loading}>
                         {saving ? 'Lưu...' : 'Lưu Thay Đổi'}
                     </Button>

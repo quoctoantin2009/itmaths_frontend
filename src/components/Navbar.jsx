@@ -10,7 +10,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 
 // Import Logo
 import logoImg from '../assets/logo.jpg'; 
-
+import axiosClient from '../services/axiosClient';
 // Import 2 Dialog quan trọng
 import UserProfileDialog from './UserProfileDialog';
 import ExamHistoryDialog from './ExamHistoryDialog';
@@ -28,10 +28,21 @@ function Navbar() {
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     const storedName = localStorage.getItem('username');
-    if (token && storedName) {
-      setUsername(storedName);
+    if (token) {
+        if (storedName) setUsername(storedName);
+        
+        // 🟢 GỌI API KIỂM TRA HỒ SƠ NGAY KHI MỞ APP
+        axiosClient.get('/user/me/')
+            .then(res => {
+                const data = res.data;
+                // Nếu thiếu bất kỳ trường bắt buộc nào thì BẬT POPUP ngay lập tức
+                if (!data.first_name || !data.last_name || !(data.profile_phone || data.phone) || !(data.profile_province || data.province) || !(data.profile_school_name || data.school_name)) {
+                    setOpenProfile(true); 
+                }
+            })
+            .catch(err => console.log("Lỗi kiểm tra profile:", err));
     }
-  }, []);
+}, []);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
