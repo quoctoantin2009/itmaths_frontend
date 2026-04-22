@@ -99,8 +99,13 @@ function ExamPage() {
   const [loading, setLoading] = useState(false);
   const [openConfirm, setOpenConfirm] = useState(false);
 
+  // 🟢 STATE MỚI ĐỂ XÁC ĐỊNH HẾT GIỜ VÀ KHÓA ĐỀ
+  const [isTimeUp, setIsTimeUp] = useState(false);
   const [isProcessingResult, setIsProcessingResult] = useState(false);
+  
   const timerRef = useRef(null);
+  // Tránh việc submit bị gọi nhiều lần khi hết giờ
+  const hasAutoSubmitted = useRef(false);
 
   const searchParams = new URLSearchParams(location.search);
   const topicId = location.state?.fromTopicId || searchParams.get('topic');
@@ -148,6 +153,7 @@ function ExamPage() {
     if (id) handleSelectExam(parseInt(id));
   }, [id]);
 
+  // 🟢 LOGIC ĐỒNG HỒ ĐƯỢC LÀM MỚI LẠI
   useEffect(() => {
     if (!selectedExamId || submitted || loading || !currentExamInfo) return;
 
@@ -157,17 +163,34 @@ function ExamPage() {
 
       if (storedStart) {
         const startTime = parseInt(storedStart);
-        const durationMinutes = currentExamInfo.duration || 45;
-        const endTime = startTime + (durationMinutes * 60 * 1000);
+        
+        // 1. Tính toán thời gian kết thúc dựa vào THỜI LƯỢNG mặc định của đề
+        const durationMinutes = currentExamInfo.duration || 90; // Mặc định 90 phút nếu không có
+        let calculatedEndTime = startTime + (durationMinutes * 60 * 1000);
+
+        // 2. Nếu Giáo viên có cài đặt HẠN CHÓT (end_time) giao bài
+        if (currentExamInfo.end_time) {
+            const assignmentEndTime = new Date(currentExamInfo.end_time).getTime();
+            // Nếu Hạn chót đến sớm hơn thời lượng làm bài -> Ép thời gian kết thúc theo Hạn chót
+            if (assignmentEndTime < calculatedEndTime) {
+                calculatedEndTime = assignmentEndTime;
+            }
+        }
+
         const now = Date.now();
-        const secondsLeft = Math.floor((endTime - now) / 1000);
+        const secondsLeft = Math.floor((calculatedEndTime - now) / 1000);
 
         if (secondsLeft <= 0) {
           setTimeLeft(0);
+          setIsTimeUp(true); // 🟢 BẬT CỜ KHÓA ĐỀ
           clearInterval(timerRef.current);
           setOpenConfirm(false);
-          submitExam(); 
-          alert("⏰ Đã hết thời gian làm bài!");
+          
+          // Tự động nộp bài (Chỉ gọi 1 lần)
+          if (!hasAutoSubmitted.current && !isProcessingResult) {
+              hasAutoSubmitted.current = true;
+              submitExam(); 
+          }
         } else {
           setTimeLeft(secondsLeft);
         }
@@ -183,6 +206,8 @@ function ExamPage() {
     setLoading(true);
     setSelectedExamId(examId);
     setSubmitted(false);
+    setIsTimeUp(false);
+    hasAutoSubmitted.current = false;
     setScoreData(null);
     setUserAnswers({});
 
@@ -194,7 +219,6 @@ function ExamPage() {
         throw new Error("Dữ liệu câu hỏi không hợp lệ.");
       }
 
-      // 🟢 Giữ nguyên Data dạng CHỮ (String) để QuestionCard không bị crash
       const part1 = rawQuestions.filter(q => q.question_type === 'MCQ');
       const part2 = rawQuestions.filter(q => q.question_type === 'TF');
       const part3 = rawQuestions.filter(q => q.question_type === 'SHORT');
@@ -212,7 +236,10 @@ function ExamPage() {
 
       setQuestions([...shuffledPart1, ...shuffleArray(part2), ...shuffleArray(part3)]);
 
-      const resInfo = await axiosClient.get(`/exams/${examId}/`);
+      // 🟢 GỬI KÈM classroom_id ĐỂ BACKEND TRẢ VỀ end_time CỦA GIÁO VIÊN
+      let infoUrl = `/exams/${examId}/`;
+      if (classroomId) infoUrl += `?classroom_id=${classroomId}`;
+      const resInfo = await axiosClient.get(infoUrl);
       setCurrentExamInfo(resInfo.data);
 
       const storageKey = `exam_start_${examId}`;
@@ -237,6 +264,7 @@ function ExamPage() {
   };
 
   const handleAnswerChange = (questionId, choiceId, value, type) => {
+    if (isTimeUp) return; // Khóa không cho đổi đáp án khi hết giờ
     if (type === "TF") {
       setUserAnswers(prev => ({
         ...prev, [questionId]: { ...(prev[questionId] || {}), [choiceId]: value }
@@ -252,6 +280,7 @@ function ExamPage() {
     }
 
     setOpenConfirm(false);
+    setIsProcessingResult(true);
     window.dispatchEvent(new Event('ITMATHS_EXAM_SUBMITTED'));
 
     axiosClient.post(`/submit-result/`, {
@@ -266,32 +295,31 @@ function ExamPage() {
     .catch(error => {
         console.error("Lỗi lưu điểm:", error);
         alert(error.response?.data?.error || "Lỗi khi nộp bài");
-    });
-
-    setIsProcessingResult(true);
-
-    try {
-        if (Capacitor.isNativePlatform()) {
-            await AdMob.hideBanner(); 
-            await AdMob.prepareInterstitial({
-                adId: 'ca-app-pub-2431317486483815/1826436807', 
-                isTesting: false
-            });
-            await AdMob.showInterstitial();
+    })
+    .finally(async () => {
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await AdMob.hideBanner(); 
+                await AdMob.prepareInterstitial({
+                    adId: 'ca-app-pub-2431317486483815/1826436807', 
+                    isTesting: false
+                });
+                await AdMob.showInterstitial();
+            }
+        } catch (e) {
+            console.error("Lỗi QC khi nộp bài:", e);
+        } finally {
+            setIsProcessingResult(false);
+            setSubmitted(true);
+            setTimeout(() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }, 100);
         }
-    } catch (e) {
-        console.error("Lỗi QC khi nộp bài:", e);
-    } finally {
-        setIsProcessingResult(false);
-        setSubmitted(true);
-        setTimeout(() => {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        }, 100);
-    }
+    });
   };
 
   const handleOpenBackModal = () => {
-    if (submitted) { handleExit(); return; }
+    if (submitted || isTimeUp) { handleExit(); return; }
     setOpenConfirm(true);
   };
 
@@ -319,6 +347,7 @@ function ExamPage() {
     <div style={styles.pageWrapper}>
       <div style={styles.container}>
 
+        {/* Lớp Overlay lúc đang chấm bài */}
         <Backdrop sx={{ color: '#fff', zIndex: 99999 }} open={isProcessingResult}>
             <Box textAlign="center">
                 <CircularProgress color="inherit" />
@@ -380,9 +409,9 @@ function ExamPage() {
         ) : (
           <div>
             {!submitted && (
-              <FloatingTimer isWarning={timeLeft < 300}>
+              <FloatingTimer isWarning={timeLeft < 300 || isTimeUp}>
                 <AccessTimeFilledIcon fontSize="small" />
-                {formatTime(timeLeft)}
+                {isTimeUp ? "00:00" : formatTime(timeLeft)}
               </FloatingTimer>
             )}
 
@@ -395,11 +424,41 @@ function ExamPage() {
               </Button>
             </Paper>
 
-            {questions.map((q, index) => (
-              <QuestionCard key={q.id} question={q} index={index} userAnswer={userAnswers[q.id]} onAnswerChange={handleAnswerChange} isSubmitted={submitted} />
-            ))}
+            {/* 🟢 KHU VỰC CÂU HỎI & LỚP PHỦ LÀM MỜ KHI HẾT GIỜ */}
+            <Box sx={{ position: 'relative' }}>
+                {isTimeUp && !submitted && !isProcessingResult && (
+                    <Box sx={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        backdropFilter: 'blur(6px)', backgroundColor: 'rgba(255, 255, 255, 0.4)',
+                        zIndex: 10, display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', paddingTop: '100px'
+                    }}>
+                        <Paper elevation={10} sx={{ p: 4, borderRadius: 4, textAlign: 'center', border: '2px solid #ff1744' }}>
+                            <Typography variant="h5" color="error" fontWeight="bold" mb={2}>
+                                ⏳ ĐÃ HẾT THỜI GIAN LÀM BÀI!
+                            </Typography>
+                            <Typography variant="body1">
+                                Hệ thống đã khóa màn hình và đang tự động thu bài. <br/>
+                                Vui lòng chờ trong giây lát...
+                            </Typography>
+                        </Paper>
+                    </Box>
+                )}
 
-            {!submitted && (
+                {/* Làm mờ và vô hiệu hóa click khi hết giờ */}
+                <Box sx={{ 
+                    pointerEvents: isTimeUp ? 'none' : 'auto', 
+                    userSelect: isTimeUp ? 'none' : 'auto',
+                    opacity: isTimeUp ? 0.3 : 1,
+                    transition: 'opacity 0.5s ease'
+                }}>
+                    {questions.map((q, index) => (
+                      <QuestionCard key={q.id} question={q} index={index} userAnswer={userAnswers[q.id]} onAnswerChange={handleAnswerChange} isSubmitted={submitted} />
+                    ))}
+                </Box>
+            </Box>
+
+            {!submitted && !isTimeUp && (
               <Box textAlign="center" mt={4} mb={10}>
                 <Button variant="contained" size="large" onClick={() => setOpenConfirm(true)} startIcon={<SendIcon />} sx={{ width: '90%', py: 1.5, fontSize: '1.1rem', borderRadius: '30px', bgcolor: '#6c5ce7', '&:hover': { bgcolor: '#5a4ad1' } }}>
                   NỘP BÀI THI
@@ -407,6 +466,7 @@ function ExamPage() {
               </Box>
             )}
 
+            {/* PHẦN KẾT QUẢ BÀI THI */}
             {submitted && scoreData && (
               <Paper elevation={4} sx={{ mt: 5, overflow: 'hidden', borderRadius: 2, border: '1px solid #ddd' }}>
                 <Box sx={{ bgcolor: '#e8f5e9', p: 2, borderBottom: '2px solid #4caf50', textAlign: 'center' }}>
